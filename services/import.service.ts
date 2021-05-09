@@ -1,24 +1,20 @@
 "use strict";
 import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
-
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import {
 	walkFolder,
-	extractArchive,
 	getCovers,
 } from "../utils/uncompression.utils";
 import {
 	IExtractionOptions,
 	IFolderData,
-	IFolderResponse,
 } from "../interfaces/folder.interface";
 
 export default class ProductsService extends Service {
 	// @ts-ignore
 	public constructor(public broker: ServiceBroker, schema: ServiceSchema<{}> = {}) {
 		super(broker);
-		console.log(DbMixin);
 		this.parseServiceSchema(
 			Service.mergeSchemas(
 				{
@@ -36,17 +32,14 @@ export default class ProductsService extends Service {
 					},
 					hooks: {},
 					actions: {
-						hello: {
-							rest: "POST /hello",
+						walkFolders: {
+							rest: "POST /walkFolders",
 							params: {
-								id: "string",
+								basePathToWalk: "string",
 							},
-							/** @param {Context} ctx  */
-							async handler(
-								ctx: Context<{ id: string; value: number }>
-							) {
-								return { koo: "loo" };
-							},
+							async handler(ctx: Context<{ basePathToWalk: string}>) {
+								return await walkFolder(ctx.params.basePathToWalk);
+							}
 						},
 						getComicCovers: {
 							rest: "POST /getComicCovers",
@@ -55,19 +48,17 @@ export default class ProductsService extends Service {
 								walkedFolders: "array",
 
 							},
-
 							async handler(
 								ctx: Context<{
 									extractionOptions: IExtractionOptions;
 									walkedFolders: IFolderData[];
 								}>
 							) {
-								console.log(ctx.params);
-								const foo = await getCovers(
+								return await getCovers(
 									ctx.params.extractionOptions,
 									ctx.params.walkedFolders
 								);
-								return foo;
+								
 							},
 						},
 					},
