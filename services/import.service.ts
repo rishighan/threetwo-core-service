@@ -63,7 +63,7 @@ export default class ProductsService extends Service {
 									ctx.params.extractionOptions,
 									ctx.params.walkedFolders
 								);
-								return H(comicBookCoversData)
+								const foo = H(comicBookCoversData)
 								.through(stringify);
 							},
 						},
