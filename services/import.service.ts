@@ -10,7 +10,12 @@ import {
 	IExtractionOptions,
 	IFolderData,
 } from "../interfaces/folder.interface";
-
+import axios from "axios";
+import { Readable } from "stream";
+import through2 from "through2";
+import oboe from "oboe";
+import H from "highland";
+import { stringify } from "highland-json"; 
 export default class ProductsService extends Service {
 	// @ts-ignore
 	public constructor(public broker: ServiceBroker, schema: ServiceSchema<{}> = {}) {
@@ -54,11 +59,12 @@ export default class ProductsService extends Service {
 									walkedFolders: IFolderData[];
 								}>
 							) {
-								return await getCovers(
+								const comicBookCoversData = await getCovers(
 									ctx.params.extractionOptions,
 									ctx.params.walkedFolders
 								);
-								
+								return H(comicBookCoversData)
+								.through(stringify);
 							},
 						},
 					},
