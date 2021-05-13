@@ -15,7 +15,8 @@ import { Readable } from "stream";
 import through2 from "through2";
 import oboe from "oboe";
 import H from "highland";
-import { stringify } from "highland-json"; 
+import { stringify } from "highland-json";
+
 export default class ProductsService extends Service {
 	// @ts-ignore
 	public constructor(public broker: ServiceBroker, schema: ServiceSchema<{}> = {}) {
@@ -64,7 +65,7 @@ export default class ProductsService extends Service {
 									ctx.params.walkedFolders
 								);
 								const foo = H(comicBookCoversData)
-								.through(stringify);
+								return foo;
 							},
 						},
 					},
