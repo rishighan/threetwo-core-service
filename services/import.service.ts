@@ -52,30 +52,33 @@ export default class ProductsService extends Service {
 								);
 							},
 						},
-						getComicCovers: {
-							rest: "POST /getComicCovers",
-							params: {
-								extractionOptions: "object",
-								walkedFolders: "array",
-							},
-							async handler(
-								ctx: Context<{
-									extractionOptions: IExtractionOptions;
-									walkedFolders: IFolderData[];
-								}>
-							) {
-								const readStream = fs.createReadStream(
-									"./userdata/comicBooksForImport.js"
-								);
-								const comicBooksForImport = await getCovers(
-									ctx.params.extractionOptions,
-									ctx.params.walkedFolders
-								);
-								readStream.pipe(comicBooksForImport);
-							},
+						// getComicCovers: {
+						// 	rest: "POST /getComicCovers",
+						// 	params: {
+						// 		extractionOptions: "object",
+						// 		walkedFolders: "array",
+						// 	},
+						// 	async handler(
+						// 		ctx: Context<{
+						// 			extractionOptions: IExtractionOptions;
+						// 			walkedFolders: IFolderData[];
+						// 		}>
+						// 	) {
+						//
+						// 	},
+						// },
+					},
+					methods: {
+						getComicCovers(extractionConfiguration) {
+							return (req, res) => (err) => {
+								if (err) {
+									this.logger.warn("Halkat mard", err);
+									this.sendError(req, res, err);
+									return;
+								}
+							};
 						},
 					},
-					methods: {},
 				},
 				schema
 			)
