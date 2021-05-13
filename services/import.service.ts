@@ -1,11 +1,9 @@
 "use strict";
 import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
+import fs from "fs";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import {
-	walkFolder,
-	getCovers,
-} from "../utils/uncompression.utils";
+import { walkFolder, getCovers } from "../utils/uncompression.utils";
 import {
 	IExtractionOptions,
 	IFolderData,
@@ -19,7 +17,10 @@ import { stringify } from "highland-json";
 
 export default class ProductsService extends Service {
 	// @ts-ignore
-	public constructor(public broker: ServiceBroker, schema: ServiceSchema<{}> = {}) {
+	public constructor(
+		public broker: ServiceBroker,
+		schema: ServiceSchema<{}> = { name: "import" }
+	) {
 		super(broker);
 		this.parseServiceSchema(
 			Service.mergeSchemas(
@@ -43,16 +44,19 @@ export default class ProductsService extends Service {
 							params: {
 								basePathToWalk: "string",
 							},
-							async handler(ctx: Context<{ basePathToWalk: string}>) {
-								return await walkFolder(ctx.params.basePathToWalk);
-							}
+							async handler(
+								ctx: Context<{ basePathToWalk: string }>
+							) {
+								return await walkFolder(
+									ctx.params.basePathToWalk
+								);
+							},
 						},
 						getComicCovers: {
 							rest: "POST /getComicCovers",
 							params: {
 								extractionOptions: "object",
 								walkedFolders: "array",
-
 							},
 							async handler(
 								ctx: Context<{
@@ -60,12 +64,14 @@ export default class ProductsService extends Service {
 									walkedFolders: IFolderData[];
 								}>
 							) {
-								const comicBookCoversData = await getCovers(
+								const readStream = fs.createReadStream(
+									"./userdata/comicBooksForImport.js"
+								);
+								const comicBooksForImport = await getCovers(
 									ctx.params.extractionOptions,
 									ctx.params.walkedFolders
 								);
-								const foo = H(comicBookCoversData)
-								return foo;
+								readStream.pipe(comicBooksForImport);
 							},
 						},
 					},
