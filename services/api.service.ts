@@ -1,6 +1,12 @@
-import {IncomingMessage} from "http";
-import {Service, ServiceBroker, Context} from "moleculer";
+import { IncomingMessage } from "http";
+import fs from "fs";
+import path from "path";
+import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
+import { getCovers, extractArchive } from "../utils/uncompression.utils";
+import { map } from "lodash";
+import JSONStream from "JSONStream";
+const IO = require("socket.io")();
 
 export default class ApiService extends Service {
 
@@ -20,22 +26,11 @@ export default class ApiService extends Service {
 						// Access to any actions in all services under "/api" URL
 						"**",
 					],
-					// Route-level Express middlewares. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Middlewares
 					use: [],
-					// Enable/disable parameter merging method. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Disable-merging
 					mergeParams: true,
-
-					// Enable authentication. Implement the logic into `authenticate` method. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Authentication
-					authentication: false,
-
-					// Enable authorization. Implement the logic into `authorize` method. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Authorization
-					authorization: false,
-
-					// The auto-alias feature allows you to declare your route alias directly in your services.
-					// The gateway will dynamically build the full routes from service schema.
 					autoAliases: true,
 
-					aliases:{},
+					aliases: {},
 					/**
 					 * Before call hook. You can check the request.
 					 * @param {Context} ctx
@@ -100,74 +95,20 @@ export default class ApiService extends Service {
 
 			methods: {
 
-				/**
-				 * Authenticate the request. It checks the `Authorization` token value in the request header.
-				 * Check the token value & resolve the user by the token.
-				 * The resolved user will be available in `ctx.meta.user`
-				 *
-				 * PLEASE NOTE, IT'S JUST AN EXAMPLE IMPLEMENTATION. DO NOT USE IN PRODUCTION!
-				 *
-				 * @param {Context} ctx
-				 * @param {any} route
-				 * @param {IncomingMessage} req
-				 * @returns {Promise}
 
-				async authenticate (ctx: Context, route: any, req: IncomingMessage): Promise < any >  => {
-					// Read the token from header
-					const auth = req.headers.authorization;
-
-					if (auth && auth.startsWith("Bearer")) {
-						const token = auth.slice(7);
-
-						// Check the token. Tip: call a service which verify the token. E.g. `accounts.resolveToken`
-						if (token === "123456") {
-							// Returns the resolved user. It will be set to the `ctx.meta.user`
-							return {
-								id: 1,
-								name: "John Doe",
-							};
-
-						} else {
-							// Invalid token
-							throw new ApiGateway.Errors.UnAuthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN, {
-								error: "Invalid Token",
-							});
-						}
-
-					} else {
-						// No token. Throw an error or do nothing if anonymous access is allowed.
-						// Throw new E.UnAuthorizedError(E.ERR_NO_TOKEN);
-						return null;
-					}
-				},
-				 */
-
-				/**
-				 * Authorize the request. Check that the authenticated user has right to access the resource.
-				 *
-				 * PLEASE NOTE, IT'S JUST AN EXAMPLE IMPLEMENTATION. DO NOT USE IN PRODUCTION!
-				 *
-				 * @param {Context} ctx
-				 * @param {Object} route
-				 * @param {IncomingMessage} req
-				 * @returns {Promise}
-
-				async authorize (ctx: Context < any, {
-					user: string;
-				} > , route: Record<string, undefined>, req: IncomingMessage): Promise < any > => {
-					// Get the authenticated user.
-					const user = ctx.meta.user;
-
-					// It check the `auth` property in action schema.
-					// @ts-ignore
-					if (req.$action.auth === "required" && !user) {
-						throw new ApiGateway.Errors.UnAuthorizedError("NO_RIGHTS", {
-							error: "Unauthorized",
-						});
-					}
-				},
-				 */
 			},
+			events: {
+			"**"(payload, sender, event) {
+				if (this.io)
+					this.io.emit("event", {
+						sender,
+						event,
+						payload
+					});
+			}
+			},
+
+
 
 		});
 	}

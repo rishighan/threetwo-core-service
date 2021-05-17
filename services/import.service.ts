@@ -52,30 +52,34 @@ export default class ProductsService extends Service {
 								);
 							},
 						},
-						getComicCovers: {
-							rest: "POST /getComicCovers",
-							params: {
-								extractionOptions: "object",
-								walkedFolders: "array",
-							},
-							async handler(
-								ctx: Context<{
-									extractionOptions: IExtractionOptions;
-									walkedFolders: IFolderData[];
-								}>
-							) {
-								const readStream = fs.createReadStream(
-									"./userdata/comicBooksForImport.js"
-								);
-								const comicBooksForImport = await getCovers(
-									ctx.params.extractionOptions,
-									ctx.params.walkedFolders
-								);
-								readStream.pipe(comicBooksForImport);
-							},
-						},
 					},
 					methods: {},
+					started(): any {
+						// Create a Socket.IO instance, passing it our server
+						this.io = IO.listen(this.server);
+
+						// Add a connect listener
+						this.io.on("connection", client => {
+							this.logger.info("Client connected via websocket!");
+
+							client.on("call", ({ action, params, opts }, done) => {
+								this.logger.info("Received request from client! Action:", action, ", Params:", params);
+
+								this.broker.call(action, params, opts)
+									.then(res => {
+										if (done)
+											done(res);
+									})
+									.catch(err => this.logger.error(err));
+							});
+
+							client.on("disconnect", () => {
+								this.logger.info("Client disconnected");
+							});
+
+						});
+					}
+
 				},
 				schema
 			)
