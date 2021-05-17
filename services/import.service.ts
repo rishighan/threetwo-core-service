@@ -14,6 +14,7 @@ import through2 from "through2";
 import oboe from "oboe";
 import H from "highland";
 import { stringify } from "highland-json";
+const IO = require("socket.io")();
 
 export default class ProductsService extends Service {
 	// @ts-ignore
@@ -54,32 +55,6 @@ export default class ProductsService extends Service {
 						},
 					},
 					methods: {},
-					started(): any {
-						// Create a Socket.IO instance, passing it our server
-						this.io = IO.listen(this.server);
-
-						// Add a connect listener
-						this.io.on("connection", client => {
-							this.logger.info("Client connected via websocket!");
-
-							client.on("call", ({ action, params, opts }, done) => {
-								this.logger.info("Received request from client! Action:", action, ", Params:", params);
-
-								this.broker.call(action, params, opts)
-									.then(res => {
-										if (done)
-											done(res);
-									})
-									.catch(err => this.logger.error(err));
-							});
-
-							client.on("disconnect", () => {
-								this.logger.info("Client disconnected");
-							});
-
-						});
-					}
-
 				},
 				schema
 			)
