@@ -97,13 +97,7 @@ export default class ApiService extends Service {
 						this.broker
 							.call("import." + action, params, opts)
 							.then((res) => {
-								client.emit("hello", "world");
-								console.log(client);
-
-								console.log("DONE");
-
 								client.emit("comicBookCoverMetadata", res);
-								done(res);
 							})
 							.catch((err) => this.logger.error(err));
 					});

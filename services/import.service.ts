@@ -3,7 +3,7 @@ import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import fs from "fs";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { map, flatten } from "lodash";
+import { map, flatten, isUndefined } from "lodash";
 import {
 	extractArchive,
 	getCovers,
@@ -20,6 +20,11 @@ import oboe from "oboe";
 import H from "highland";
 import { stringify } from "highland-json";
 const IO = require("socket.io")();
+
+const { parser } = require("stream-json");
+const { pick } = require("stream-json/filters/Pick");
+const { ignore } = require("stream-json/filters/Ignore");
+const { streamValues } = require("stream-json/streamers/StreamValues");
 
 export default class ProductsService extends Service {
 	// @ts-ignore
@@ -74,18 +79,24 @@ export default class ProductsService extends Service {
 									ctx.params.extractionOptions.extractionMode
 								) {
 									case "bulk":
+										let rs = new Readable();
 										const extractedDataPromises = map(
 											ctx.params.walkedFolders,
-											async (folder) =>
-												await extractArchive(
-													ctx.params
-														.extractionOptions,
-													folder
-												)
+											async (folder) => {
+												while (!isUndefined(folder)) {
+													let foo =
+														await extractArchive(
+															ctx.params
+																.extractionOptions,
+															folder
+														);
+													console.log("levar", foo);
+													rs.push(foo);
+												}
+												rs.push(null);
+											}
 										);
-										return Promise.all(
-											extractedDataPromises
-										).then((data) => flatten(data));
+
 									case "single":
 										return await extractArchive(
 											ctx.params.extractionOptions,
