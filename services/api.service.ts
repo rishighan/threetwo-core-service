@@ -30,45 +30,7 @@ export default class ApiService extends Service {
 						mergeParams: true,
 						autoAliases: true,
 
-						aliases: {
-							async "POST getComicCovers"(req, res) {
-								console.log(req.body);
-								try {
-									const { extractionOptions, walkedFolders } =
-										req.body;
-									switch (extractionOptions.extractionMode) {
-										case "bulk":
-											const extractedDataPromises = map(
-												walkedFolders,
-												async (folder) =>
-													await extractArchive(
-														extractionOptions,
-														folder
-													)
-											);
-											return Promise.all(
-												extractedDataPromises
-											).then((data) => flatten(data));
-										case "single":
-											return await extractArchive(
-												extractionOptions,
-												walkedFolders[0]
-											);
-										default:
-											console.log(
-												"Unknown extraction mode selected."
-											);
-											return {
-												message:
-													"Unknown extraction mode selected.",
-												errorCode: "90",
-												data: `${extractionOptions}`,
-											};
-									}
-									res.end();
-								} catch (error) {}
-							},
-						},
+						aliases: {},
 
 						// Calling options. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Calling-options
 						callingOptions: {},
@@ -133,9 +95,15 @@ export default class ApiService extends Service {
 						);
 
 						this.broker
-							.call(action, params, opts)
+							.call("import." + action, params, opts)
 							.then((res) => {
-								if (done) done(res);
+								client.emit("hello", "world");
+								console.log(client);
+
+								console.log("DONE");
+
+								client.emit("comicBookCoverMetadata", res);
+								done(res);
 							})
 							.catch((err) => this.logger.error(err));
 					});

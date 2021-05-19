@@ -3,7 +3,12 @@ import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import fs from "fs";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { walkFolder, getCovers } from "../utils/uncompression.utils";
+import { map, flatten } from "lodash";
+import {
+	extractArchive,
+	getCovers,
+	walkFolder,
+} from "../utils/uncompression.utils";
 import {
 	IExtractionOptions,
 	IFolderData,
@@ -51,6 +56,52 @@ export default class ProductsService extends Service {
 								return await walkFolder(
 									ctx.params.basePathToWalk
 								);
+							},
+						},
+						getComicCovers: {
+							rest: "POST /getComicCovers",
+							params: {
+								extractionOptions: "object",
+								walkedFolders: "array",
+							},
+							async handler(
+								ctx: Context<{
+									extractionOptions: IExtractionOptions;
+									walkedFolders: IFolderData[];
+								}>
+							) {
+								switch (
+									ctx.params.extractionOptions.extractionMode
+								) {
+									case "bulk":
+										const extractedDataPromises = map(
+											ctx.params.walkedFolders,
+											async (folder) =>
+												await extractArchive(
+													ctx.params
+														.extractionOptions,
+													folder
+												)
+										);
+										return Promise.all(
+											extractedDataPromises
+										).then((data) => flatten(data));
+									case "single":
+										return await extractArchive(
+											ctx.params.extractionOptions,
+											ctx.params.walkedFolders[0]
+										);
+									default:
+										console.log(
+											"Unknown extraction mode selected."
+										);
+										return {
+											message:
+												"Unknown extraction mode selected.",
+											errorCode: "90",
+											data: `${ctx.params.extractionOptions}`,
+										};
+								}
 							},
 						},
 					},
