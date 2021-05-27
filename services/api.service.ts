@@ -1,16 +1,8 @@
-import { IncomingMessage } from "http";
-import fs from "fs";
-import path from "path";
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
-import { getCovers, extractArchive } from "../utils/uncompression.utils";
-import { map, flatten } from "lodash";
-import JSONStream from "JSONStream";
+import { extractArchive } from "../utils/uncompression.utils";
+import { map } from "lodash";
 const IO = require("socket.io")();
-const ss = require("socket.io-stream");
-const JsonStreamStringify = require("json-stream-stringify");
-import axios from "axios";
-const { Writable, Readable } = require("stream");
 
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -34,12 +26,7 @@ export default class ApiService extends Service {
 						mergeParams: true,
 						autoAliases: true,
 
-						aliases: {
-							async "POST getComicCovers"(req, res) {
-								const { extractionOptions, walkedFolders } =
-									req.body;
-							},
-						},
+						aliases: {},
 
 						// Calling options. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Calling-options
 						callingOptions: {},
@@ -105,25 +92,20 @@ export default class ApiService extends Service {
 								params
 							);
 							const { extractionOptions, walkedFolders } = params;
-							const stream = ss.createStream();
 							switch (extractionOptions.extractionMode) {
 								case "bulk":
 									map(walkedFolders, async (folder, idx) => {
-										let foo = await extractArchive(
-											extractionOptions,
-											folder
-										);
-
-										let fo = new JsonStreamStringify({
-											foo,
-										});
+										let comicBookCoverMetadata =
+											await extractArchive(
+												extractionOptions,
+												folder
+											);
 
 										client.emit("comicBookCoverMetadata", {
-											data: foo,
+											data: comicBookCoverMetadata,
 											status: "Done!",
 										});
 									});
-								// res.end();
 
 								case "single":
 									return await extractArchive(
@@ -141,13 +123,6 @@ export default class ApiService extends Service {
 										data: `${extractionOptions}`,
 									};
 							}
-
-							// this.broker
-							// 	.call("import." + action, params, opts)
-							// 	.then((resp) => {
-							// 		// client.emit("comicBookCoverMetadata", resp);
-							// 	})
-							// 	.catch((err) => this.logger.error(err));
 						}
 					);
 
