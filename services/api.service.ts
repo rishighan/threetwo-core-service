@@ -7,6 +7,10 @@ import { getCovers, extractArchive } from "../utils/uncompression.utils";
 import { map, flatten } from "lodash";
 import JSONStream from "JSONStream";
 const IO = require("socket.io")();
+const ss = require("socket.io-stream");
+const JsonStreamStringify = require("json-stream-stringify");
+import axios from "axios";
+const { Writable, Readable } = require("stream");
 
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -30,7 +34,12 @@ export default class ApiService extends Service {
 						mergeParams: true,
 						autoAliases: true,
 
-						aliases: {},
+						aliases: {
+							async "POST getComicCovers"(req, res) {
+								const { extractionOptions, walkedFolders } =
+									req.body;
+							},
+						},
 
 						// Calling options. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Calling-options
 						callingOptions: {},
@@ -86,21 +95,61 @@ export default class ApiService extends Service {
 				this.io.on("connection", (client) => {
 					this.logger.info("Client connected via websocket!");
 
-					client.on("call", ({ action, params, opts }, done) => {
-						this.logger.info(
-							"Received request from client! Action:",
-							action,
-							", Params:",
-							params
-						);
+					client.on(
+						"call",
+						async ({ action, params, opts }, done) => {
+							this.logger.info(
+								"Received request from client! Action:",
+								action,
+								", Params:",
+								params
+							);
+							const { extractionOptions, walkedFolders } = params;
+							const stream = ss.createStream();
+							switch (extractionOptions.extractionMode) {
+								case "bulk":
+									map(walkedFolders, async (folder, idx) => {
+										let foo = await extractArchive(
+											extractionOptions,
+											folder
+										);
 
-						this.broker
-							.call("import." + action, params, opts)
-							.then((res) => {
-								client.emit("comicBookCoverMetadata", res);
-							})
-							.catch((err) => this.logger.error(err));
-					});
+										let fo = new JsonStreamStringify({
+											foo,
+										});
+
+										client.emit("comicBookCoverMetadata", {
+											data: foo,
+											status: "Done!",
+										});
+									});
+								// res.end();
+
+								case "single":
+									return await extractArchive(
+										extractionOptions,
+										walkedFolders[0]
+									);
+								default:
+									console.log(
+										"Unknown extraction mode selected."
+									);
+									return {
+										message:
+											"Unknown extraction mode selected.",
+										errorCode: "90",
+										data: `${extractionOptions}`,
+									};
+							}
+
+							// this.broker
+							// 	.call("import." + action, params, opts)
+							// 	.then((resp) => {
+							// 		// client.emit("comicBookCoverMetadata", resp);
+							// 	})
+							// 	.catch((err) => this.logger.error(err));
+						}
+					);
 
 					client.on("disconnect", () => {
 						this.logger.info("Client disconnected");
