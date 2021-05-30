@@ -213,7 +213,7 @@ export const unzip = async (
 
 	return new Promise(async (resolve, reject) => {
 		logger.info("");
-		resolve(_.flatten(extractedFiles));
+		resolve(extractedFiles[0]);
 	});
 };
 
