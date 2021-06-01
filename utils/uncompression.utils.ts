@@ -183,9 +183,6 @@ export const unzip = async (
 	};
 	const paths = constructPaths(extractionOptions, walkedFolder);
 	const extractedFiles: IExtractedComicBookCoverFile[] = [];
-	const isCover =
-		extractedFiles.length === 1 &&
-		extractionOptions.extractTarget === "cover";
 
 	try {
 		await fse.ensureDir(paths.targetPath, directoryOptions);
@@ -200,7 +197,10 @@ export const unzip = async (
 	for await (const entry of zip) {
 		const fileName = explodePath(entry.path).fileName;
 		const size = entry.vars.uncompressedSize;
-		if (isCover) {
+		if (
+			extractedFiles.length === 1 &&
+			extractionOptions.extractTarget === "cover"
+		) {
 			break;
 		}
 		if (fileName !== "" && entry.type !== "Directory") {
@@ -217,7 +217,10 @@ export const unzip = async (
 
 	return new Promise(async (resolve, reject) => {
 		logger.info("");
-		if (isCover) {
+		if (
+			extractedFiles.length === 1 &&
+			extractionOptions.extractTarget === "cover"
+		) {
 			resolve(extractedFiles[0]);
 		} else {
 			resolve(extractedFiles);
