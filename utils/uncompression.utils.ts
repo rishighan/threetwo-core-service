@@ -44,6 +44,7 @@ import {
 	IFolderData,
 } from "../interfaces/folder.interface";
 import { logger } from "./logger.utils";
+import { validateComicBookMetadata } from "../utils/validation.utils";
 const { writeFile, readFile } = require("fs").promises;
 const sharp = require("sharp");
 const unrarer = require("node-unrar-js");
@@ -103,11 +104,14 @@ export const unrar = async (
 								paths.targetPath + "/" + fileName,
 								fileArrayBuffer
 							);
-							resolve({
+							let comicBookMetadata = {
 								name: `${fileName}`,
 								path: paths.targetPath,
 								fileSize: fileHeader.packSize,
-							});
+							};
+							if (validateComicBookMetadata(comicBookMetadata)) {
+								resolve(comicBookMetadata);
+							}
 						}
 					});
 				} catch (error) {
@@ -178,6 +182,10 @@ export const unzip = async (
 		mode: 0o2775,
 	};
 	const paths = constructPaths(extractionOptions, walkedFolder);
+	const extractedFiles: IExtractedComicBookCoverFile[] = [];
+	const isCover =
+		extractedFiles.length === 1 &&
+		extractionOptions.extractTarget === "cover";
 
 	try {
 		await fse.ensureDir(paths.targetPath, directoryOptions);
@@ -186,17 +194,13 @@ export const unzip = async (
 		logger.error(`${error} Couldn't create directory.`);
 	}
 
-	const extractedFiles: IExtractedComicBookCoverFile[] = [];
 	const zip = createReadStream(paths.inputFilePath).pipe(
 		unzipper.Parse({ forceStream: true })
 	);
 	for await (const entry of zip) {
 		const fileName = explodePath(entry.path).fileName;
 		const size = entry.vars.uncompressedSize;
-		if (
-			extractedFiles.length === 1 &&
-			extractionOptions.extractTarget === "cover"
-		) {
+		if (isCover) {
 			break;
 		}
 		if (fileName !== "" && entry.type !== "Directory") {
@@ -213,7 +217,11 @@ export const unzip = async (
 
 	return new Promise(async (resolve, reject) => {
 		logger.info("");
-		resolve(extractedFiles[0]);
+		if (isCover) {
+			resolve(extractedFiles[0]);
+		} else {
+			resolve(extractedFiles);
+		}
 	});
 };
 
