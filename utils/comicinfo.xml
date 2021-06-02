@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		   xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+ <Title>Title of the Book</Title>
+ <Summary>A description of the book</Summary>
+ <Number>1</Number>
+ <Count>3</Count>
+ <Year>2010</Year>
+ <Month>4</Month>
+ <Writer>Author name</Writer>
+ <Publisher>self</Publisher>
+ <Genre>educational</Genre>
+ <BlackAndWhite>No</BlackAndWhite>
+ <Manga>No</Manga>
+ <Characters>Superman</Characters>
+ <PageCount>5</PageCount>
+ <Pages>
+   <Page Image="0" Type="FrontCover" ImageSize="139382" ImageWidth="774" ImageHeight="1024" />
+   <Page Image="2" ImageSize="125736" ImageWidth="797" ImageHeight="1024" />
+   <Page Image="1" ImageSize="127937" ImageWidth="797" ImageHeight="1024" />
+   <Page Image="4" ImageSize="160902" ImageWidth="804" ImageHeight="1024" />
+   <Page Image="3" ImageSize="211181" ImageWidth="804" ImageHeight="1024" />
+ </Pages>
+</ComicInfo>

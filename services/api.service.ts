@@ -22,6 +22,20 @@ export default class ApiService extends Service {
 							// Access to any actions in all services under "/api" URL
 							"**",
 						],
+						cors: {
+							origin: "*",
+							methods: [
+								"GET",
+								"OPTIONS",
+								"POST",
+								"PUT",
+								"DELETE",
+							],
+							allowedHeaders: ["*"],
+							exposedHeaders: [],
+							credentials: false,
+							maxAge: 3600,
+						},
 						use: [],
 						mergeParams: true,
 						autoAliases: true,
@@ -59,7 +73,6 @@ export default class ApiService extends Service {
 				logRequestParams: null,
 				// Logging the response data. Set to any log level to enable it. E.g. "info"
 				logResponseData: null,
-				// Serve assets from "public" folder
 				assets: {
 					folder: "public",
 					// Options to `server-static` module
@@ -105,10 +118,10 @@ export default class ApiService extends Service {
 												folder
 											);
 
-										client.emit("comicBookCoverMetadata", {
-											data: comicBookCoverMetadata,
-											status: "Done!",
-										});
+										client.emit(
+											"comicBookCoverMetadata",
+											comicBookCoverMetadata
+										);
 									});
 
 								case "single":

@@ -205,12 +205,15 @@ export const unzip = async (
 		}
 		if (fileName !== "" && entry.type !== "Directory") {
 			logger.info(`Attempting to write ${fileName}`);
-			entry.pipe(createWriteStream(paths.targetPath + "/" + fileName));
-			extractedFiles.push({
-				name: fileName,
-				fileSize: size,
-				path: paths.targetPath,
-			});
+			entry
+				.pipe(createWriteStream(paths.targetPath + "/" + fileName))
+				.on("finish", () => {
+					extractedFiles.push({
+						name: fileName,
+						fileSize: size,
+						path: paths.targetPath,
+					});
+				});
 		}
 		entry.autodrain();
 	}

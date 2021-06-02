@@ -2,10 +2,9 @@ const mongoose = require("mongoose");
 const paginate = require("mongoose-paginate");
 
 const ComicSchema = mongoose.Schema({
-	name: String,
-	type: String,
-	import: {
+	importStatus: {
 		isImported: Boolean,
+		tagged: Boolean,
 		matchedResult: {
 			score: String,
 		},
@@ -14,28 +13,21 @@ const ComicSchema = mongoose.Schema({
 		tags: [],
 	},
 
-	comicStructure: {
-		cover: {
-			thumb: String,
-			medium: String,
-			large: String,
-		},
-		collection: {
-			publishDate: String,
-			type: String, // issue, series, trade paperback
-			metadata: {
-				publisher: String,
-				issueNumber: String,
-				description: String,
-				synopsis: String,
-				team: {
-					writer: String,
-					inker: String,
-					penciler: String,
-					colorist: String,
-				},
-			},
-		},
+	comicInfo: {
+		blackAndWhite: String,
+		characters: [String],
+		count: String,
+		genre: String,
+		manga: String,
+		month: String,
+		number: String,
+		pageCount: String,
+		pages: [],
+		publisher: String,
+		summary: String,
+		title: String,
+		writer: String,
+		year: String,
 	},
 	sourcedMetadata: {
 		comicvine: {},
@@ -43,13 +35,14 @@ const ComicSchema = mongoose.Schema({
 		gcd: {},
 	},
 	rawFileDetails: {
-		fileName: String,
+		name: String,
 		path: String,
-		extension: String,
+		fileSize: Number,
 	},
 	acquisition: {
 		wanted: Boolean,
 		release: {},
+		directconnect: {},
 		torrent: {
 			sourceApplication: String,
 			magnet: String,

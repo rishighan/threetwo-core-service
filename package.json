@@ -54,7 +54,8 @@
     "socket.io": "^4.1.1",
     "socket.io-stream": "^0.9.1",
     "typescript": "^3.8.3",
-    "unzipper": "^0.10.11"
+    "unzipper": "^0.10.11",
+    "xml2js": "^0.4.23"
   },
   "engines": {
     "node": ">= 10.x.x"

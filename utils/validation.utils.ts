@@ -6,11 +6,11 @@ import {
 	IFolderData,
 } from "../interfaces/folder.interface";
 const Validator = require("fastest-validator");
+import { logger } from "./logger.utils";
 
 export const validateComicBookMetadata = (
 	comicBookMetadataObject: IExtractedComicBookCoverFile
 ): boolean => {
-	console.log(comicBookMetadataObject);
 	const validator = new Validator();
 	const sch = {
 		name: { type: "string" },
@@ -18,5 +18,13 @@ export const validateComicBookMetadata = (
 		path: { type: "string" },
 	};
 	const check = validator.compile(sch);
+	if (check(comicBookMetadataObject)) {
+		logger.info(`Valid comic book metadata: ${comicBookMetadataObject}`);
+	} else {
+		logger.error(
+			`Comic book metadata was invalid:
+			${comicBookMetadataObject}`
+		);
+	}
 	return check(comicBookMetadataObject);
 };

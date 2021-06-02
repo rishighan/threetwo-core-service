@@ -3,6 +3,7 @@ import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { walkFolder } from "../utils/uncompression.utils";
+import { convertXMLToJSON } from "../utils/xml.utils";
 
 export default class ProductsService extends Service {
 	// @ts-ignore
@@ -39,6 +40,31 @@ export default class ProductsService extends Service {
 								return await walkFolder(
 									ctx.params.basePathToWalk
 								);
+							},
+						},
+						convertXMLToJSON: {
+							rest: "POST /convertXmlToJson",
+							params: {},
+							async handler(ctx: Context<{}>) {
+								return convertXMLToJSON("lagos");
+							},
+						},
+						rawImportToDB: {
+							rest: "POST /rawImportToDB",
+							params: { payload: "object" },
+							async handler(ctx: Context<{ payload: object }>) {
+								return new Promise((resolve, reject) => {
+									Comic.create(
+										ctx.params.payload,
+										(error, data) => {
+											if (data) {
+												resolve(data);
+											} else if (error) {
+												reject(new Error(error));
+											}
+										}
+									);
+								});
 							},
 						},
 					},
