@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const paginate = require("mongoose-paginate");
+const paginate = require("mongoose-paginate-v2");
 
 const ComicSchema = mongoose.Schema({
 	importStatus: {

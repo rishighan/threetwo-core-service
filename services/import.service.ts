@@ -1,8 +1,14 @@
 "use strict";
-import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
+import {
+	Context,
+	Service,
+	ServiceBroker,
+	ServiceSchema,
+	Errors,
+} from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { walkFolder } from "../utils/uncompression.utils";
+import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 
 export default class ProductsService extends Service {
@@ -51,20 +57,41 @@ export default class ProductsService extends Service {
 						},
 						rawImportToDB: {
 							rest: "POST /rawImportToDB",
-							params: { payload: "object" },
+							params: {},
 							async handler(ctx: Context<{ payload: object }>) {
 								return new Promise((resolve, reject) => {
-									Comic.create(
-										ctx.params.payload,
-										(error, data) => {
-											if (data) {
-												resolve(data);
-											} else if (error) {
-												reject(new Error(error));
-											}
+									Comic.create(ctx.params, (error, data) => {
+										if (data) {
+											resolve(data);
+										} else if (error) {
+											throw new Errors.MoleculerError(
+												"Failed to import comic book",
+												400,
+												"IMS_FAILED_COMIC_BOOK_IMPORT",
+												data
+											);
 										}
-									);
+									});
 								});
+							},
+						},
+						getRecentlyImportedComicBooks: {
+							rest: "POST /getRecentlyImportedComicBooks",
+							params: {},
+							async handler(
+								ctx: Context<{ paginationOptions: object }>
+							) {
+								return await Comic.paginate(
+									{},
+									ctx.params.paginationOptions
+								);
+							},
+						},
+						getComicBookById: {
+							rest: "POST /getComicBookById",
+							params: { id: "string" },
+							async handler(ctx: Context<{ id: string }>) {
+								return await Comic.findById(ctx.params.id);
 							},
 						},
 					},

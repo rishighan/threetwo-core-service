@@ -32,6 +32,7 @@ SOFTWARE.
  */
 
 import { createReadStream, createWriteStream } from "fs";
+const fse = require("fs-extra");
 import path from "path";
 import { default as unzipper } from "unzipper";
 import _ from "lodash";
@@ -45,11 +46,9 @@ import {
 } from "../interfaces/folder.interface";
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
+import { constructPaths, explodePath } from "../utils/file.utils";
 const { writeFile, readFile } = require("fs").promises;
-const sharp = require("sharp");
 const unrarer = require("node-unrar-js");
-const Walk = require("@root/walk");
-const fse = require("fs-extra");
 
 export const unrar = async (
 	extractionOptions: IExtractionOptions,
@@ -220,10 +219,7 @@ export const unzip = async (
 
 	return new Promise(async (resolve, reject) => {
 		logger.info("");
-		if (
-			extractedFiles.length === 1 &&
-			extractionOptions.extractTarget === "cover"
-		) {
+		if (extractionOptions.extractTarget === "cover") {
 			resolve(extractedFiles[0]);
 		} else {
 			resolve(extractedFiles);
@@ -287,76 +283,3 @@ export const getCovers = async (
 			};
 	}
 };
-
-export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
-	const result: IFolderData[] = [];
-	let walkResult: IFolderData = {
-		name: "",
-		extension: "",
-		containedIn: "",
-		isFile: false,
-		isLink: true,
-	};
-
-	const walk = Walk.create({ sort: filterOutDotFiles });
-	await walk(folder, async (err, pathname, dirent) => {
-		if (err) {
-			logger.error("Failed to lstat directory", { error: err });
-			return false;
-		}
-		if ([".cbz", ".cbr"].includes(path.extname(dirent.name))) {
-			walkResult = {
-				name: path.basename(dirent.name, path.extname(dirent.name)),
-				extension: path.extname(dirent.name),
-				containedIn: path.dirname(pathname),
-				isFile: dirent.isFile(),
-				isLink: dirent.isSymbolicLink(),
-			};
-			logger.info(
-				`Scanned ${dirent.name} contained in ${path.dirname(pathname)}`
-			);
-			result.push(walkResult);
-		}
-	});
-	return result;
-};
-
-export const explodePath = (filePath: string): IExplodedPathResponse => {
-	const exploded = filePath.split("/");
-	const fileName = remove(
-		exploded,
-		(item) => indexOf(exploded, item) === exploded.length - 1
-	).join("");
-
-	return {
-		exploded,
-		fileName,
-	};
-};
-
-const constructPaths = (
-	extractionOptions: IExtractionOptions,
-	walkedFolder: IFolderData
-) => ({
-	targetPath:
-		extractionOptions.targetExtractionFolder + "/" + walkedFolder.name,
-	inputFilePath:
-		walkedFolder.containedIn +
-		"/" +
-		walkedFolder.name +
-		walkedFolder.extension,
-});
-
-export const extractMetadataFromImage = async (
-	imageFilePath: string
-): Promise<unknown> => {
-	const image = await sharp(imageFilePath)
-		.metadata()
-		.then(function (metadata) {
-			return metadata;
-		});
-	return image;
-};
-
-const filterOutDotFiles = (entities) =>
-	entities.filter((ent) => !ent.name.startsWith("."));

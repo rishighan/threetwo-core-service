@@ -100,7 +100,7 @@ export default class ApiService extends Service {
 					this.logger.info("Client connected via websocket!");
 
 					client.on(
-						"call",
+						"importComicsInDB",
 						async ({ action, params, opts }, done) => {
 							this.logger.info(
 								"Received request from client! Action:",
@@ -117,11 +117,27 @@ export default class ApiService extends Service {
 												extractionOptions,
 												folder
 											);
+										const dbImportResult =
+											await this.broker.call(
+												"import.rawImportToDB",
+												{
+													importStatus: {
+														isImported: true,
+														tagged: false,
+														matchedResult: {
+															score: "0",
+														},
+													},
+													rawFileDetails:
+														comicBookCoverMetadata,
+												},
+												{}
+											);
 
-										client.emit(
-											"comicBookCoverMetadata",
-											comicBookCoverMetadata
-										);
+										client.emit("comicBookCoverMetadata", {
+											comicBookCoverMetadata,
+											dbImportResult,
+										});
 									});
 
 								case "single":
