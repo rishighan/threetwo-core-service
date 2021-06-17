@@ -1,7 +1,5 @@
 const sharp = require("sharp");
 import { logger } from "./logger.utils";
-import { explodePath } from "./file.utils";
-import { isUndefined } from "lodash";
 
 export const extractMetadataFromImage = async (
 	imageFilePath: string
@@ -15,12 +13,12 @@ export const extractMetadataFromImage = async (
 };
 
 export const resizeImage = async (
-	imageFilePath: string,
+	imageFile: string | Buffer,
 	outputPath: string,
 	newWidth: number,
 	newHeight?: number
 ): Promise<unknown> => {
-	return await sharp(imageFilePath)
+	return await sharp(imageFile)
 		.resize(newWidth)
 		.toFile(`${outputPath}`, (err, info) => {
 			if (err) {

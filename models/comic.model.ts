@@ -12,7 +12,6 @@ const ComicSchema = mongoose.Schema({
 	userAddedMetadata: {
 		tags: [],
 	},
-
 	comicInfo: {
 		blackAndWhite: String,
 		characters: [String],

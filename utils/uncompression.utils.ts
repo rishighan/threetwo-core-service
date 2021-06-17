@@ -33,10 +33,10 @@ SOFTWARE.
 
 import { createReadStream, createWriteStream } from "fs";
 const fse = require("fs-extra");
-import path from "path";
+
 import { default as unzipper } from "unzipper";
 import _ from "lodash";
-import { each, isEmpty, map, remove, indexOf } from "lodash";
+import { each, isEmpty, map } from "lodash";
 import {
 	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
@@ -47,6 +47,7 @@ import {
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
 import { constructPaths, explodePath } from "../utils/file.utils";
+import { resizeImage } from "./imagetransformation.utils";
 const { writeFile, readFile } = require("fs").promises;
 const unrarer = require("node-unrar-js");
 
@@ -99,9 +100,13 @@ export const unrar = async (
 							});
 							const extractedFile = [...file.files][0];
 							const fileArrayBuffer = extractedFile.extraction;
-							await writeFile(
-								paths.targetPath + "/" + fileName,
-								fileArrayBuffer
+							// Resize it to the specified width
+							const outputFilePath =
+								paths.targetPath + "/" + fileName;
+							await resizeImage(
+								fileArrayBuffer,
+								outputFilePath,
+								200
 							);
 							let comicBookMetadata = {
 								name: `${fileName}`,

@@ -37,14 +37,14 @@ export default class ProductsService extends Service {
 							params: {},
 							async handler(
 								ctx: Context<{
-									path: string;
+									imageFile: string | Buffer;
 									newWidth: number;
 									newHeight: number;
 									outputPath: string;
 								}>
 							) {
 								const resizeResult = await resizeImage(
-									ctx.params.path,
+									ctx.params.imageFile,
 									ctx.params.outputPath,
 									ctx.params.newWidth,
 									ctx.params.newHeight
