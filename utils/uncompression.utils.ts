@@ -43,7 +43,7 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 	IFolderData,
-} from "../interfaces/folder.interface";
+} from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
 import { constructPaths, explodePath } from "../utils/file.utils";
@@ -79,6 +79,7 @@ export const unrar = async (
 
 	switch (extractionOptions.extractTarget) {
 		case "cover":
+			console.log(walkedFolder);
 			return new Promise(async (resolve, reject) => {
 				try {
 					let fileNameToExtract = "";
@@ -100,6 +101,7 @@ export const unrar = async (
 							});
 							const extractedFile = [...file.files][0];
 							const fileArrayBuffer = extractedFile.extraction;
+
 							// Resize it to the specified width
 							const outputFilePath =
 								paths.targetPath + "/" + fileName;
@@ -112,6 +114,7 @@ export const unrar = async (
 								name: `${fileName}`,
 								path: paths.targetPath,
 								fileSize: fileHeader.packSize,
+								containedIn: walkedFolder.containedIn,
 							};
 							if (validateComicBookMetadata(comicBookMetadata)) {
 								resolve(comicBookMetadata);
@@ -153,6 +156,7 @@ export const unrar = async (
 							name: `${file.fileHeader.name}`,
 							path: paths.targetPath,
 							fileSize: file.fileHeader.packSize,
+							containedIn: walkedFolder.containedIn,
 						});
 					}
 					resolve(_.flatten(comicBookCoverFiles));
@@ -216,6 +220,7 @@ export const unzip = async (
 						name: fileName,
 						fileSize: size,
 						path: paths.targetPath,
+						containedIn: walkedFolder.containedIn,
 					});
 				});
 		}

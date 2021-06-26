@@ -37,6 +37,7 @@ const ComicSchema = mongoose.Schema({
 		name: String,
 		path: String,
 		fileSize: Number,
+		containedIn: String,
 	},
 	acquisition: {
 		wanted: Boolean,

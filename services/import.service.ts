@@ -12,7 +12,6 @@ import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 
 export default class ProductsService extends Service {
-	// @ts-ignore
 	public constructor(
 		public broker: ServiceBroker,
 		schema: ServiceSchema<{}> = { name: "import" }
