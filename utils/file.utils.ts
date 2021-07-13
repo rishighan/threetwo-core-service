@@ -9,7 +9,9 @@ import {
 	IFolderData,
 } from "../interfaces/folder.interface";
 import { logger } from "./logger.utils";
-import { each, isEmpty, map, remove, indexOf } from "lodash";
+import { includes, remove, indexOf } from "lodash";
+
+const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 
 export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
 	const result: IFolderData[] = [];
@@ -55,6 +57,10 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 		exploded,
 		fileName,
 	};
+};
+
+export const isValidImageFileExtension = (fileName: string): boolean => {
+	return includes(ALLOWED_IMAGE_FILE_FORMATS, path.extname(fileName));
 };
 
 export const constructPaths = (

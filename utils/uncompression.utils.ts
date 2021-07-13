@@ -46,7 +46,11 @@ import {
 } from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
-import { constructPaths, explodePath } from "../utils/file.utils";
+import {
+	constructPaths,
+	explodePath,
+	isValidImageFileExtension,
+} from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
 const { writeFile, readFile } = require("fs").promises;
 const unrarer = require("node-unrar-js");
@@ -90,6 +94,7 @@ export const unrar = async (
 						if (
 							fileName !== "" &&
 							fileHeader.flags.directory === false &&
+							isValidImageFileExtension(fileName) &&
 							isEmpty(fileNameToExtract)
 						) {
 							logger.info(
@@ -211,7 +216,11 @@ export const unzip = async (
 		) {
 			break;
 		}
-		if (fileName !== "" && entry.type !== "Directory") {
+		if (
+			fileName !== "" &&
+			entry.type !== "Directory" &&
+			isValidImageFileExtension(fileName)
+		) {
 			logger.info(`Attempting to write ${fileName}`);
 			entry
 				.pipe(createWriteStream(paths.targetPath + "/" + fileName))
