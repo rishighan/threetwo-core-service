@@ -66,6 +66,10 @@ export default class ApiService extends Service {
 						path: "/userdata",
 						use: [ApiGateway.serveStatic("userdata")],
 					},
+					{
+						path: "/comics",
+						use: [ApiGateway.serveStatic("comics")],
+					},
 				],
 				// Do not log client side errors (does not log an error response when the error.code is 400<=X<500)
 				log4XXResponses: false,
