@@ -33,11 +33,8 @@ SOFTWARE.
 
 import { createReadStream, createWriteStream, readFileSync } from "fs";
 const fse = require("fs-extra");
-
-import { default as unzipper } from "unzipper";
-import _ from "lodash";
-import { each, isEmpty, map, flatten } from "lodash";
 import path from "path";
+import { each, isEmpty, map, flatten } from "lodash";
 
 import {
 	IExplodedPathResponse,
@@ -62,29 +59,53 @@ const pathTo7zip = sevenBin.path7za;
 const unrarer = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 
-export const getCoversFromFile = async () => {
-	try {
-		const calibre = new Calibre({
-			library: path.resolve("userdata/calibre-lib"),
-		});
-
-		let result: string;
-		result = await calibre.run(
-			"ebook-meta",
-			[
-				path.resolve(
-					"comics/A Hypothetical Lizard (2004)/Hypothetical_Lizard_T01.cbr"
-				),
-			],
-			{
-				getCover: path.resolve("userdata/covers/shoo/o.jpg"),
+export const extractCoverFromFile = async (
+	extractionOptions: IExtractionOptions,
+	walkedFolder: IFolderData
+): Promise<
+	| IExtractedComicBookCoverFile
+	| IExtractedComicBookCoverFile[]
+	| IExtractComicBookCoverErrorResponse
+> => {
+	return new Promise(async (resolve, reject) => {
+		try {
+			const constructedPaths = constructPaths(extractionOptions, walkedFolder);
+			console.log(constructedPaths);
+			const calibre = new Calibre({
+				library: path.resolve("./userdata/calibre-lib"),
+			});
+			// create directory
+			const directoryOptions = {
+				mode: 0o2775,
+			};
+		
+			try {
+				await fse.ensureDir(constructedPaths.targetPath, directoryOptions);
+				logger.info(`${constructedPaths.targetPath} was created.`);
+			} catch (error) {
+				logger.error(`${error}: Couldn't create directory.`);
 			}
-		);
-		console.log("AJSDASDLASDASDASLK!@#!@#!@#!#@#!@#!@", result);
-	} catch (error) {
-		console.log(error);
-	}
+			let result: string;
+			result = await calibre.run(
+				"ebook-meta",
+				[path.resolve(constructedPaths.inputFilePath)],
+				{
+					getCover: path.resolve(constructedPaths.targetPath + "/cover.jpg"),
+				}
+			);
+			console.log("AJSDASDLASDASDASLK!@#!@#!@#!#@#!@#!@", result);
+			resolve({
+				name: "cover.jpg",
+				path: constructedPaths.targetPath,
+				fileSize: 0,
+				containedIn: walkedFolder.containedIn,
+			});
+		} catch (error) {
+			console.log(error);
+		}
+	});
 };
+
 export const unzip = async (
 	extractionOptions: IExtractionOptions,
 	walkedFolder: IFolderData
@@ -118,7 +139,6 @@ export const unzip = async (
 					});
 
 					listStream.on("data", (data) => {
-						// set firstImg to the first result
 						if (!firstImg) firstImg = data;
 					});
 					listStream.on("end", () => {
@@ -225,63 +245,5 @@ export const unrar = async (
 			break;
 		default:
 			break;
-	}
-};
-
-export const extractArchive = async (
-	extractionOptions: IExtractionOptions,
-	walkedFolder: IFolderData
-): Promise<
-	| IExtractedComicBookCoverFile
-	| IExtractedComicBookCoverFile[]
-	| IExtractComicBookCoverErrorResponse
-> => {
-	switch (walkedFolder.extension) {
-		case ".cbz":
-			return await unzip(extractionOptions, walkedFolder);
-		case ".cbr":
-			return await unrar(extractionOptions, walkedFolder);
-		default:
-			return {
-				message: "File format not supported, yet.",
-				errorCode: "90",
-				data: `${extractionOptions}`,
-			};
-	}
-};
-
-export const getCovers = async (
-	options: IExtractionOptions,
-	walkedFolders: IFolderData[]
-): Promise<
-	| IExtractedComicBookCoverFile
-	| IExtractComicBookCoverErrorResponse
-	| IExtractedComicBookCoverFile[]
-	| (
-			| IExtractedComicBookCoverFile
-			| IExtractComicBookCoverErrorResponse
-			| IExtractedComicBookCoverFile[]
-	  )[]
-	| IExtractComicBookCoverErrorResponse
-> => {
-	switch (options.extractionMode) {
-		case "bulk":
-			console.log("asdas BULK");
-			const extractedDataPromises = map(
-				walkedFolders,
-				async (folder) => await extractArchive(options, folder)
-			);
-			return Promise.all(extractedDataPromises).then((data) =>
-				_.flatten(data)
-			);
-		case "single":
-			return await extractArchive(options, walkedFolders[0]);
-		default:
-			logger.error("Unknown extraction mode selected.");
-			return {
-				message: "Unknown extraction mode selected.",
-				errorCode: "90",
-				data: `${options}`,
-			};
 	}
 };

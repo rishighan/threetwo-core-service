@@ -66,7 +66,7 @@ export const isValidImageFileExtension = (fileName: string): boolean => {
 export const constructPaths = (
 	extractionOptions: IExtractionOptions,
 	walkedFolder: IFolderData
-) => ({
+) =>  ({
 	targetPath:
 		extractionOptions.targetExtractionFolder + "/" + walkedFolder.name,
 	inputFilePath:
