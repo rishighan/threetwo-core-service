@@ -1,6 +1,9 @@
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
-import { extractArchive } from "../utils/uncompression.utils";
+import {
+	extractArchive,
+	getCoversFromFile,
+} from "../utils/uncompression.utils";
 import { map } from "lodash";
 const IO = require("socket.io")();
 
@@ -112,54 +115,57 @@ export default class ApiService extends Service {
 								", Params:",
 								params
 							);
+							getCoversFromFile();
 							const { extractionOptions, walkedFolders } = params;
-							switch (extractionOptions.extractionMode) {
-								case "bulk":
-									map(walkedFolders, async (folder, idx) => {
-										let comicBookCoverMetadata =
-											await extractArchive(
-												extractionOptions,
-												folder
-											);
-										const dbImportResult =
-											await this.broker.call(
-												"import.rawImportToDB",
-												{
-													importStatus: {
-														isImported: true,
-														tagged: false,
-														matchedResult: {
-															score: "0",
-														},
-													},
-													rawFileDetails:
-														comicBookCoverMetadata,
-												},
-												{}
-											);
-
-										client.emit("comicBookCoverMetadata", {
-											comicBookCoverMetadata,
-											dbImportResult,
-										});
-									});
-
-								case "single":
-									return await extractArchive(
-										extractionOptions,
-										walkedFolders[0]
-									);
-								default:
-									console.log(
-										"Unknown extraction mode selected."
-									);
-									return {
-										message:
-											"Unknown extraction mode selected.",
-										errorCode: "90",
-										data: `${extractionOptions}`,
-									};
-							}
+							// 							switch (extractionOptions.extractionMode) {
+							// 								case "bulk":
+							// 									map(walkedFolders, async (folder, idx) => {
+							// 										// let comicBookCoverMetadata =
+							// 										// 	await extractArchive(
+							// 										// 		extractionOptions,
+							// 										// 		folder
+							// 										// 	);
+							// 										// const dbImportResult =
+							// 										// 	await this.broker.call(
+							// 										// 		"import.rawImportToDB",
+							// 										// 		{
+							// 										// 			importStatus: {
+							// 										// 				isImported: true,
+							// 										// 				tagged: false,
+							// 										// 				matchedResult: {
+							// 										// 					score: "0",
+							// 										// 				},
+							// 										// 			},
+							// 										// 			rawFileDetails:
+							// 										// 				comicBookCoverMetadata,
+							// 										// 		},
+							// 										// 		{}
+							// 										// 	);
+							// 										//
+							// 										// 										client.emit("comicBookCoverMetadata", {
+							// 										// 											comicBookCoverMetadata,
+							// 										// 											dbImportResult,
+							// 										// 										});
+							// 									});
+							//
+							// 								case "single":
+							//
+							// 								// return await extractArchive(
+							// 								// 	extractionOptions,
+							// 								// 	walkedFolders[0]
+							// 								// );
+							// 								default:
+							// 									console.log(
+							// 										"Unknown extraction mode selected."
+							// 									);
+							//
+							// 									return {
+							// 										message:
+							// 											"Unknown extraction mode selected.",
+							// 										errorCode: "90",
+							// 										data: `${extractionOptions}`,
+							// 									};
+							// 							}
 						}
 					);
 

@@ -31,12 +31,14 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createReadStream, createWriteStream } from "fs";
+import { createReadStream, createWriteStream, readFileSync } from "fs";
 const fse = require("fs-extra");
 
 import { default as unzipper } from "unzipper";
 import _ from "lodash";
-import { each, isEmpty, map } from "lodash";
+import { each, isEmpty, map, flatten } from "lodash";
+import path from "path";
+
 import {
 	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
@@ -53,9 +55,37 @@ import {
 } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
 const { writeFile, readFile } = require("fs").promises;
-const unrarer = require("node-unrar-js");
 
-export const unrar = async (
+import sevenBin from "7zip-bin";
+import { list, extract } from "node-7z";
+const pathTo7zip = sevenBin.path7za;
+const unrarer = require("node-unrar-js");
+const { Calibre } = require("node-calibre");
+
+export const getCoversFromFile = async () => {
+	try {
+		const calibre = new Calibre({
+			library: path.resolve("userdata/calibre-lib"),
+		});
+
+		let result: string;
+		result = await calibre.run(
+			"ebook-meta",
+			[
+				path.resolve(
+					"comics/A Hypothetical Lizard (2004)/Hypothetical_Lizard_T01.cbr"
+				),
+			],
+			{
+				getCover: path.resolve("userdata/covers/shoo/o.jpg"),
+			}
+		);
+		console.log("AJSDASDLASDASDASLK!@#!@#!@#!#@#!@#!@", result);
+	} catch (error) {
+		console.log(error);
+	}
+};
+export const unzip = async (
 	extractionOptions: IExtractionOptions,
 	walkedFolder: IFolderData
 ): Promise<
@@ -67,78 +97,100 @@ export const unrar = async (
 	const directoryOptions = {
 		mode: 0o2775,
 	};
-	const fileBuffer = await readFile(paths.inputFilePath).catch((err) =>
-		console.error("Failed to read file", err)
-	);
+
 	try {
 		await fse.ensureDir(paths.targetPath, directoryOptions);
 		logger.info(`${paths.targetPath} was created.`);
 	} catch (error) {
 		logger.error(`${error}: Couldn't create directory.`);
 	}
-
-	const extractor = await unrarer.createExtractorFromData({
-		data: fileBuffer,
-	});
-
 	switch (extractionOptions.extractTarget) {
 		case "cover":
-			console.log(walkedFolder);
-			return new Promise(async (resolve, reject) => {
+			return new Promise((resolve, reject) => {
 				try {
-					let fileNameToExtract = "";
-					const list = extractor.getFileList();
-					const fileHeaders = [...list.fileHeaders];
-					each(fileHeaders, async (fileHeader) => {
-						const fileName = explodePath(fileHeader.name).fileName;
-						if (
-							fileName !== "" &&
-							fileHeader.flags.directory === false &&
-							isValidImageFileExtension(fileName) &&
-							isEmpty(fileNameToExtract)
-						) {
-							logger.info(
-								`Attempting to write ${fileHeader.name}`
-							);
-							fileNameToExtract = fileHeader.name;
-							const file = extractor.extract({
-								files: [fileHeader.name],
-							});
-							const extractedFile = [...file.files][0];
-							const fileArrayBuffer = extractedFile.extraction;
+					let firstImg;
 
-							// Resize it to the specified width
-							const outputFilePath =
-								paths.targetPath + "/" + fileName;
-							await resizeImage(
-								fileArrayBuffer,
-								outputFilePath,
-								200
+					const listStream = list(path.resolve(paths.inputFilePath), {
+						$cherryPick: ["*.png", "*.jpg", , "*.jpeg", "*.webp"],
+						$bin: pathTo7zip,
+						$progress: true,
+						recursive: true,
+					});
+
+					listStream.on("data", (data) => {
+						// set firstImg to the first result
+						if (!firstImg) firstImg = data;
+					});
+					listStream.on("end", () => {
+						if (firstImg) {
+							const extractStream = extract(
+								paths.inputFilePath,
+								paths.targetPath,
+								{
+									$cherryPick: firstImg.file,
+									$bin: pathTo7zip,
+									$progress: true,
+									recursive: true,
+								}
 							);
-							let comicBookMetadata = {
-								name: `${fileName}`,
-								path: paths.targetPath,
-								fileSize: fileHeader.packSize,
-								containedIn: walkedFolder.containedIn,
-							};
-							if (validateComicBookMetadata(comicBookMetadata)) {
-								resolve(comicBookMetadata);
-							}
+							extractStream.on("data", (data) => {
+								//do something with the image
+								console.log(data);
+							});
 						}
 					});
 				} catch (error) {
-					logger.error(`${error}: Couldn't write file.`);
-					reject(error);
+					console.log(error);
 				}
+				// resolve({
+				// 	name: `${extractedFiles[0].fileHeader.name}`,
+				// 	path: paths.targetPath,
+				// 	fileSize: extractedFiles[0].fileHeader.packSize,
+				// 	containedIn: walkedFolder.containedIn,
+				//
+				// })
 			});
 
 		case "all":
+			break;
+
+		default:
+			return {
+				message: "File format not supported, yet.",
+				errorCode: "90",
+				data: "asda",
+			};
+	}
+};
+
+export const unrar = async (
+	extractionOptions: IExtractionOptions,
+	walkedFolder: IFolderData
+): Promise<IExtractedComicBookCoverFile> => {
+	switch (extractionOptions.extractTarget) {
+		case "cover":
 			return new Promise(async (resolve, reject) => {
+				const paths = constructPaths(extractionOptions, walkedFolder);
+				const directoryOptions = {
+					mode: 0o2775,
+				};
 				try {
+					const fileBuffer = await readFile(
+						paths.inputFilePath
+					).catch((err) => console.error("Failed to read file", err));
+					try {
+						await fse.ensureDir(paths.targetPath, directoryOptions);
+						logger.info(`${paths.targetPath} was created.`);
+					} catch (error) {
+						logger.error(`${error}: Couldn't create directory.`);
+					}
+
+					const extractor = await unrarer.createExtractorFromData({
+						data: fileBuffer,
+					});
 					const files = extractor.extract({});
 					const extractedFiles = [...files.files];
-					const comicBookCoverFiles: IExtractedComicBookCoverFile[] =
-						[];
+
 					for (const file of extractedFiles) {
 						logger.info(
 							`Attempting to write ${file.fileHeader.name}`
@@ -157,93 +209,23 @@ export const unrar = async (
 								fileBuffer
 							);
 						}
-						comicBookCoverFiles.push({
-							name: `${file.fileHeader.name}`,
-							path: paths.targetPath,
-							fileSize: file.fileHeader.packSize,
-							containedIn: walkedFolder.containedIn,
-						});
 					}
-					resolve(_.flatten(comicBookCoverFiles));
-				} catch (error) {
 					resolve({
-						message: `${error}`,
-						errorCode: "500",
-						data: walkedFolder.name,
-					});
-				}
-			});
-
-		default:
-			return {
-				message: "File format not supported, yet.",
-				errorCode: "90",
-				data: "asda",
-			};
-	}
-};
-
-export const unzip = async (
-	extractionOptions: IExtractionOptions,
-	walkedFolder: IFolderData
-): Promise<
-	| IExtractedComicBookCoverFile[]
-	| IExtractedComicBookCoverFile
-	| IExtractComicBookCoverErrorResponse
-> => {
-	const directoryOptions = {
-		mode: 0o2775,
-	};
-	const paths = constructPaths(extractionOptions, walkedFolder);
-	const extractedFiles: IExtractedComicBookCoverFile[] = [];
-
-	try {
-		await fse.ensureDir(paths.targetPath, directoryOptions);
-		logger.info(`${paths.targetPath} was created or already exists.`);
-	} catch (error) {
-		logger.error(`${error} Couldn't create directory.`);
-	}
-
-	const zip = createReadStream(paths.inputFilePath).pipe(
-		unzipper.Parse({ forceStream: true })
-	);
-	for await (const entry of zip) {
-		const fileName = explodePath(entry.path).fileName;
-		const size = entry.vars.uncompressedSize;
-		if (
-			extractedFiles.length === 1 &&
-			extractionOptions.extractTarget === "cover"
-		) {
-			break;
-		}
-		if (
-			fileName !== "" &&
-			entry.type !== "Directory" &&
-			isValidImageFileExtension(fileName)
-		) {
-			logger.info(`Attempting to write ${fileName}`);
-			entry
-				.pipe(createWriteStream(paths.targetPath + "/" + fileName))
-				.on("finish", () => {
-					extractedFiles.push({
-						name: fileName,
-						fileSize: size,
+						name: `${extractedFiles[0].fileHeader.name}`,
 						path: paths.targetPath,
+						fileSize: extractedFiles[0].fileHeader.packSize,
 						containedIn: walkedFolder.containedIn,
 					});
-				});
-		}
-		entry.autodrain();
+				} catch (error) {
+					logger.error(`${error}: Couldn't write file.`);
+					reject(error);
+				}
+			});
+		case "all":
+			break;
+		default:
+			break;
 	}
-
-	return new Promise(async (resolve, reject) => {
-		logger.info("");
-		if (extractionOptions.extractTarget === "cover") {
-			resolve(extractedFiles[0]);
-		} else {
-			resolve(extractedFiles);
-		}
-	});
 };
 
 export const extractArchive = async (
@@ -284,6 +266,7 @@ export const getCovers = async (
 > => {
 	switch (options.extractionMode) {
 		case "bulk":
+			console.log("asdas BULK");
 			const extractedDataPromises = map(
 				walkedFolders,
 				async (folder) => await extractArchive(options, folder)
