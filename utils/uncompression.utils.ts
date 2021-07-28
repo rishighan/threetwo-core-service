@@ -70,7 +70,6 @@ export const extractCoverFromFile = async (
 	return new Promise(async (resolve, reject) => {
 		try {
 			const constructedPaths = constructPaths(extractionOptions, walkedFolder);
-			console.log(constructedPaths);
 			const calibre = new Calibre({
 				library: path.resolve("./userdata/calibre-lib"),
 			});
@@ -86,19 +85,25 @@ export const extractCoverFromFile = async (
 				logger.error(`${error}: Couldn't create directory.`);
 			}
 			let result: string;
+			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
 			result = await calibre.run(
 				"ebook-meta",
 				[path.resolve(constructedPaths.inputFilePath)],
 				{
-					getCover: path.resolve(constructedPaths.targetPath + "/cover.jpg"),
+					getCover: targetCoverImageFilePath,
 				}
 			);
-			console.log("AJSDASDLASDASDASLK!@#!@#!@#!#@#!@#!@", result);
+			// create renditions
+			const renditionPath = constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg";
+			await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
+				
 			resolve({
-				name: "cover.jpg",
-				path: constructedPaths.targetPath,
+				name: walkedFolder.name,
+				path: constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg", //renditionPath 
 				fileSize: 0,
 				containedIn: walkedFolder.containedIn,
+				//originalPath:
+				//extension:
 			});
 		} catch (error) {
 			console.log(error);
