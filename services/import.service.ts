@@ -74,8 +74,8 @@ export default class ProductsService extends Service {
 								});
 							},
 						},
-						getRecentlyImportedComicBooks: {
-							rest: "POST /getRecentlyImportedComicBooks",
+						getComicBooks: {
+							rest: "POST /getComicBooks",
 							params: {},
 							async handler(
 								ctx: Context<{ paginationOptions: object }>

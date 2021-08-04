@@ -104,7 +104,7 @@ export default class ApiService extends Service {
 					this.logger.info("Client connected via websocket!");
 
 					client.on(
-						"importComicsInDB",
+						"importComicsToDB",
 						async ({ action, params, opts }, done) => {
 							this.logger.info(
 								"Received request from client! Action:",
