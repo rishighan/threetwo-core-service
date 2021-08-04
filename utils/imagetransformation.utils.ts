@@ -1,8 +1,4 @@
 const sharp = require("sharp");
-const imghash = require("imghash");
-const leven = require("leven");
-import path from "path";
-import { isNull, reject } from "lodash";
 import { logger } from "./logger.utils";
 import { ISharpResizedImageStats } from "threetwo-ui-typings";
 

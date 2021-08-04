@@ -97,14 +97,16 @@ export const extractCoverFromFile = async (
 			// create renditions
 			const renditionPath = constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg";
 			const stats:ISharpResizedImageStats = await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
-			
+
 			resolve({
 				name: walkedFolder.name,
-				path: constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg", //renditionPath 
+				path: renditionPath, 
 				fileSize: stats.size,
+				extension: path.extname(constructedPaths.inputFilePath),
 				containedIn: walkedFolder.containedIn,
-				//originalPath:
-				//extension:
+				calibreMetadata: {
+					coverWriteResult: result,
+				}
 			});
 		} catch (error) {
 			console.log(error);
@@ -239,8 +241,12 @@ export const unrar = async (
 					resolve({
 						name: `${extractedFiles[0].fileHeader.name}`,
 						path: paths.targetPath,
+						extension: path.extname(extractedFiles[0].fileHeader.name),
 						fileSize: extractedFiles[0].fileHeader.packSize,
 						containedIn: walkedFolder.containedIn,
+						calibreMetadata: {
+							coverWriteResult: "",
+						}
 					});
 				} catch (error) {
 					logger.error(`${error}: Couldn't write file.`);
