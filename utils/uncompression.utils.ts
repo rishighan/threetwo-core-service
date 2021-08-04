@@ -31,7 +31,7 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createReadStream, createWriteStream, readFileSync } from "fs";
+import { createReadStream, createWriteStream, readFileSync, stat } from "fs";
 const fse = require("fs-extra");
 import path from "path";
 import { each, isEmpty, map, flatten } from "lodash";
@@ -42,6 +42,7 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 	IFolderData,
+	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
@@ -95,12 +96,12 @@ export const extractCoverFromFile = async (
 			);
 			// create renditions
 			const renditionPath = constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg";
-			await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
-				
+			const stats:ISharpResizedImageStats = await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
+			
 			resolve({
 				name: walkedFolder.name,
 				path: constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg", //renditionPath 
-				fileSize: 0,
+				fileSize: stats.size,
 				containedIn: walkedFolder.containedIn,
 				//originalPath:
 				//extension:
