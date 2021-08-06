@@ -14,7 +14,6 @@ export default class ApiService extends Service {
 			// More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
 			settings: {
 				port: process.env.PORT || 3000,
-
 				routes: [
 					{
 						path: "/api",
@@ -39,7 +38,6 @@ export default class ApiService extends Service {
 						use: [],
 						mergeParams: true,
 						autoAliases: true,
-
 						aliases: {},
 
 						// Calling options. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Calling-options
@@ -55,11 +53,7 @@ export default class ApiService extends Service {
 								limit: "1MB",
 							},
 						},
-
-						// Mapping policy setting. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Mapping-policy
 						mappingPolicy: "all", // Available values: "all", "restrict"
-
-						// Enable/disable logging
 						logging: true,
 					},
 					{
@@ -71,15 +65,11 @@ export default class ApiService extends Service {
 						use: [ApiGateway.serveStatic("comics")],
 					},
 				],
-				// Do not log client side errors (does not log an error response when the error.code is 400<=X<500)
 				log4XXResponses: false,
-				// Logging the request parameters. Set to any log level to enable it. E.g. "info"
 				logRequestParams: null,
-				// Logging the response data. Set to any log level to enable it. E.g. "info"
 				logResponseData: null,
 				assets: {
 					folder: "public",
-					// Options to `server-static` module
 					options: {},
 				},
 			},

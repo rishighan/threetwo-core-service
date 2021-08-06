@@ -10,6 +10,7 @@ import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
+const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class ProductsService extends Service {
 	public constructor(
@@ -73,6 +74,26 @@ export default class ProductsService extends Service {
 									});
 								});
 							},
+						},
+						applyComicVineMetadata: {
+							rest: "POST /applyComicVineMetadata",
+							params: {},
+							async handler(ctx: Context<{ match: object, comicObjectId: string }>) {
+								// 1. find mongo object by id
+								// 2. import payload into sourcedMetadata.comicvine
+								const comicObjectId = new ObjectId(ctx.params.comicObjectId);
+								return new Promise((resolve, reject) => {
+									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: ctx.params.match } }, { new: true}, (err, result) => {
+										if (err) {
+											console.log(err);
+											reject(err);
+										} else {
+											console.log("RES", result);
+											resolve(result);
+										}
+									})
+								});
+							}
 						},
 						getComicBooks: {
 							rest: "POST /getComicBooks",

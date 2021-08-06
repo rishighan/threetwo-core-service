@@ -85,6 +85,7 @@ export const extractCoverFromFile = async (
 			} catch (error) {
 				logger.error(`${error}: Couldn't create directory.`);
 			}
+			// extract the cover 
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
 			result = await calibre.run(
@@ -203,6 +204,7 @@ export const unrar = async (
 					mode: 0o2775,
 				};
 				try {
+					// read the file into a buffer
 					const fileBuffer = await readFile(
 						paths.inputFilePath
 					).catch((err) => console.error("Failed to read file", err));
