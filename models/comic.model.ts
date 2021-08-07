@@ -57,7 +57,7 @@ const ComicSchema = mongoose.Schema({
 			sourceApplication: String,
 		},
 	},
-});
+}, { timestamps: true});
 
 ComicSchema.plugin(paginate);
 const Comic = mongoose.model("Comic", ComicSchema);
