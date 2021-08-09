@@ -81,41 +81,50 @@ export default class ProductsService extends Service {
 						applyComicVineMetadata: {
 							rest: "POST /applyComicVineMetadata",
 							params: {},
-							async handler(ctx: Context<{ match: object, comicObjectId: string }>) {
+							async handler(ctx: Context<{ match: { volume: { api_detail_url: string}, volumeInformation: object}, comicObjectId: string }>) {
 								// 1. find mongo object by id
 								// 2. import payload into sourcedMetadata.comicvine
 								const comicObjectId = new ObjectId(ctx.params.comicObjectId);
-								return new Promise((resolve, reject) => {
-									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: ctx.params.match } }, { new: true }, (err, result) => {
+								const matchedResult = ctx.params.match;
+								console.log(matchedResult.volume.api_detail_url);
+								let volumeDetailsPromise;
+								if (!isNil(matchedResult.volume)) {
+									volumeDetailsPromise = new Promise((resolve, reject) => {
+										return https.get(`${matchedResult.volume.api_detail_url}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,deck,image,first_issue,last_issue,publisher,count_of_issues`, (resp) => {
+
+											let data = '';
+											resp.on('data', (chunk) => {
+												data += chunk;
+											});
+
+											resp.on('end', () => {
+												const volumeInformation = JSON.parse(data);
+												resolve(volumeInformation);
+											});
+
+										}).on("error", (err) => {
+											console.log("Error: " + err.message);
+											reject(err);
+										});
+									});
+								}
+								return new Promise(async (resolve, reject) => {
+									const volumeDetails = await volumeDetailsPromise;
+									matchedResult.volumeInformation = volumeDetails.results; 
+									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: matchedResult } }, { new: true }, (err, result) => {
 										if (err) {
 											console.log(err);
 											reject(err);
 										} else {
 											// 3. Fetch and append volume information
-											if (!isNil(result.sourcedMetadata.comicvine)) {
-												https.get('https://comicvine.gamespot.com/api/volume/4050-50171/?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,deck,image,first_issue,last_issue,publisher,count_of_issues', (resp) => {
-
-													let data = '';
-													resp.on('data', (chunk) => {
-														data += chunk;
-													});
-													
-													resp.on('end', () => {
-														const volumeInformation = JSON.parse(data);
-														result.sourcedMetadata.comicvine.volumeInformation = volumeInformation.results;
-														resolve(result);
-													});
-
-												}).on("error", (err) => {
-													console.log("Error: " + err.message);
-												});
-											}
-											
+											resolve(result);
 										}
-									})
+									});
 								});
-							}
+							},
+
 						},
+
 						getComicBooks: {
 							rest: "POST /getComicBooks",
 							params: {},
