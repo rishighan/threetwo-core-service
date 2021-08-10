@@ -5906,10 +5906,10 @@
   "resolved" "https://registry.npmjs.org/text-table/-/text-table-0.2.0.tgz"
   "version" "0.2.0"
 
-"threetwo-ui-typings@^1.0.1-0":
-  "integrity" "sha512-g5FWa069AT1WfUHHEVFOQ1q6cfK+9UOzewfKblheuDBSsGN/e89MJMEVfuInBaHgxHM32/P+mNUFBqnBoeRSLQ=="
-  "resolved" "https://registry.npmjs.org/threetwo-ui-typings/-/threetwo-ui-typings-1.0.1.tgz"
-  "version" "1.0.1"
+"threetwo-ui-typings@^1.0.2-0":
+  "integrity" "sha512-sK5cb/fApFKseQNgcnGmAnPNxDDXT+dQ/Blei1N4q0mduO3kZfJTnlMYaXjO4FDXLP+jkiwsv0bf7PXm0DgF7g=="
+  "resolved" "https://registry.npmjs.org/threetwo-ui-typings/-/threetwo-ui-typings-1.0.2.tgz"
+  "version" "1.0.2"
   dependencies:
     "typescript" "^4.3.2"
 

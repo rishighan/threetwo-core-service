@@ -12,23 +12,23 @@ const ComicSchema = mongoose.Schema({
 	userAddedMetadata: {
 		tags: [],
 	},
-	comicInfo: {
-		blackAndWhite: String,
-		characters: [String],
-		count: String,
-		genre: String,
-		manga: String,
-		month: String,
-		number: String,
-		pageCount: String,
-		pages: [],
-		publisher: String,
-		summary: String,
-		title: String,
-		writer: String,
-		year: String,
-	},
 	sourcedMetadata: {
+		comicInfo: {
+			blackAndWhite: String,
+			characters: [String],
+			count: String,
+			genre: String,
+			manga: String,
+			month: String,
+			number: String,
+			pageCount: String,
+			pages: [],
+			publisher: String,
+			summary: String,
+			title: String,
+			writer: String,
+			year: String,
+		},
 		comicvine: {},
 		shortboxed: {},
 		gcd: {},
@@ -37,7 +37,11 @@ const ComicSchema = mongoose.Schema({
 		name: String,
 		path: String,
 		fileSize: Number,
+		extension: String,
 		containedIn: String,
+		calibreMetadata :{
+			coverWriteResult: String,
+		}
 	},
 	acquisition: {
 		wanted: Boolean,
@@ -53,7 +57,7 @@ const ComicSchema = mongoose.Schema({
 			sourceApplication: String,
 		},
 	},
-});
+}, { timestamps: true});
 
 ComicSchema.plugin(paginate);
 const Comic = mongoose.model("Comic", ComicSchema);

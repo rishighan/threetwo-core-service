@@ -31,7 +31,7 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createReadStream, createWriteStream, readFileSync } from "fs";
+import { createReadStream, createWriteStream, readFileSync, stat } from "fs";
 const fse = require("fs-extra");
 import path from "path";
 import { each, isEmpty, map, flatten } from "lodash";
@@ -42,6 +42,7 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 	IFolderData,
+	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
 import { validateComicBookMetadata } from "../utils/validation.utils";
@@ -84,6 +85,7 @@ export const extractCoverFromFile = async (
 			} catch (error) {
 				logger.error(`${error}: Couldn't create directory.`);
 			}
+			// extract the cover 
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
 			result = await calibre.run(
@@ -95,15 +97,17 @@ export const extractCoverFromFile = async (
 			);
 			// create renditions
 			const renditionPath = constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg";
-			await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
-				
+			const stats:ISharpResizedImageStats = await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
+
 			resolve({
 				name: walkedFolder.name,
-				path: constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg", //renditionPath 
-				fileSize: 0,
+				path: renditionPath, 
+				fileSize: stats.size,
+				extension: path.extname(constructedPaths.inputFilePath),
 				containedIn: walkedFolder.containedIn,
-				//originalPath:
-				//extension:
+				calibreMetadata: {
+					coverWriteResult: result,
+				}
 			});
 		} catch (error) {
 			console.log(error);
@@ -200,6 +204,7 @@ export const unrar = async (
 					mode: 0o2775,
 				};
 				try {
+					// read the file into a buffer
 					const fileBuffer = await readFile(
 						paths.inputFilePath
 					).catch((err) => console.error("Failed to read file", err));
@@ -238,8 +243,12 @@ export const unrar = async (
 					resolve({
 						name: `${extractedFiles[0].fileHeader.name}`,
 						path: paths.targetPath,
+						extension: path.extname(extractedFiles[0].fileHeader.name),
 						fileSize: extractedFiles[0].fileHeader.packSize,
 						containedIn: walkedFolder.containedIn,
+						calibreMetadata: {
+							coverWriteResult: "",
+						}
 					});
 				} catch (error) {
 					logger.error(`${error}: Couldn't write file.`);
