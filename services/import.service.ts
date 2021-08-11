@@ -81,16 +81,15 @@ export default class ProductsService extends Service {
 						applyComicVineMetadata: {
 							rest: "POST /applyComicVineMetadata",
 							params: {},
-							async handler(ctx: Context<{ match: { volume: { api_detail_url: string}, volumeInformation: object}, comicObjectId: string }>) {
+							async handler(ctx: Context<{ match: { volume: { api_detail_url: string }, volumeInformation: object }, comicObjectId: string }>) {
 								// 1. find mongo object by id
 								// 2. import payload into sourcedMetadata.comicvine
 								const comicObjectId = new ObjectId(ctx.params.comicObjectId);
 								const matchedResult = ctx.params.match;
-								console.log(matchedResult.volume.api_detail_url);
 								let volumeDetailsPromise;
 								if (!isNil(matchedResult.volume)) {
 									volumeDetailsPromise = new Promise((resolve, reject) => {
-										return https.get(`${matchedResult.volume.api_detail_url}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,deck,image,first_issue,last_issue,publisher,count_of_issues`, (resp) => {
+										return https.get(`${matchedResult.volume.api_detail_url}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, (resp) => {
 
 											let data = '';
 											resp.on('data', (chunk) => {
@@ -110,7 +109,7 @@ export default class ProductsService extends Service {
 								}
 								return new Promise(async (resolve, reject) => {
 									const volumeDetails = await volumeDetailsPromise;
-									matchedResult.volumeInformation = volumeDetails.results; 
+									matchedResult.volumeInformation = volumeDetails.results;
 									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: matchedResult } }, { new: true }, (err, result) => {
 										if (err) {
 											console.log(err);
