@@ -60,8 +60,16 @@ export default class ProductsService extends Service {
 						},
 						rawImportToDB: {
 							rest: "POST /rawImportToDB",
-							params: {},
-							async handler(ctx: Context<{ payload: object }>) {
+							params: {
+							},
+							async handler(ctx: Context<{  sourcedMetadata: { comicvine: { volume: { api_detail_url: string}, volumeInformation: {}}}}>) {
+								console.log("ASDASD", ctx.params);
+								let volumeDetails;
+								const comicMetadata = ctx.params;
+								if (!isNil(comicMetadata.sourcedMetadata.comicvine.volume)) {
+									volumeDetails = await this.getComicVineVolumeMetadata(comicMetadata.sourcedMetadata.comicvine.volume.api_detail_url);
+									comicMetadata.sourcedMetadata.comicvine.volumeInformation = volumeDetails;
+								}
 								return new Promise((resolve, reject) => {
 									Comic.create(ctx.params, (error, data) => {
 										if (data) {
@@ -88,28 +96,11 @@ export default class ProductsService extends Service {
 								const matchedResult = ctx.params.match;
 								let volumeDetailsPromise;
 								if (!isNil(matchedResult.volume)) {
-									volumeDetailsPromise = new Promise((resolve, reject) => {
-										return https.get(`${matchedResult.volume.api_detail_url}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, (resp) => {
-
-											let data = '';
-											resp.on('data', (chunk) => {
-												data += chunk;
-											});
-
-											resp.on('end', () => {
-												const volumeInformation = JSON.parse(data);
-												resolve(volumeInformation);
-											});
-
-										}).on("error", (err) => {
-											console.log("Error: " + err.message);
-											reject(err);
-										});
-									});
+									volumeDetailsPromise = this.getComicVineVolumeMetadata(matchedResult.volume.api_detail_url)
 								}
 								return new Promise(async (resolve, reject) => {
 									const volumeDetails = await volumeDetailsPromise;
-									matchedResult.volumeInformation = volumeDetails.results;
+									matchedResult.volumeInformation = volumeDetails;
 									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: matchedResult } }, { new: true }, (err, result) => {
 										if (err) {
 											console.log(err);
@@ -144,7 +135,28 @@ export default class ProductsService extends Service {
 							},
 						},
 					},
-					methods: {},
+					methods: {
+						getComicVineVolumeMetadata: apiDetailURL => {
+							return new Promise((resolve, reject) => {
+								return https.get(`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, (resp) => {
+
+									let data = '';
+									resp.on('data', (chunk) => {
+										data += chunk;
+									});
+
+									resp.on('end', () => {
+										const volumeInformation = JSON.parse(data);
+										resolve(volumeInformation.results);
+									});
+
+								}).on("error", (err) => {
+									console.log("Error: " + err.message);
+									reject(err);
+								});
+							});
+						}
+					},
 				},
 				schema
 			)
