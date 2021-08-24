@@ -14,7 +14,6 @@ import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 const ObjectId = require("mongoose").Types.ObjectId;
 
-
 export default class ProductsService extends Service {
 	public constructor(
 		public broker: ServiceBroker,
@@ -60,15 +59,33 @@ export default class ProductsService extends Service {
 						},
 						rawImportToDB: {
 							rest: "POST /rawImportToDB",
-							params: {
-							},
-							async handler(ctx: Context<{  sourcedMetadata: { comicvine: { volume: { api_detail_url: string}, volumeInformation: {}}}}>) {
+							params: {},
+							async handler(
+								ctx: Context<{
+									sourcedMetadata: {
+										comicvine: {
+											volume: { api_detail_url: string };
+											volumeInformation: {};
+										};
+									};
+								}>
+							) {
 								console.log("ASDASD", ctx.params);
 								let volumeDetails;
 								const comicMetadata = ctx.params;
-								if (!isNil(comicMetadata.sourcedMetadata.comicvine.volume)) {
-									volumeDetails = await this.getComicVineVolumeMetadata(comicMetadata.sourcedMetadata.comicvine.volume.api_detail_url);
-									comicMetadata.sourcedMetadata.comicvine.volumeInformation = volumeDetails;
+								if (
+									!isNil(
+										comicMetadata.sourcedMetadata.comicvine
+											.volume
+									)
+								) {
+									volumeDetails =
+										await this.getComicVineVolumeMetadata(
+											comicMetadata.sourcedMetadata
+												.comicvine.volume.api_detail_url
+										);
+									comicMetadata.sourcedMetadata.comicvine.volumeInformation =
+										volumeDetails;
 								}
 								return new Promise((resolve, reject) => {
 									Comic.create(ctx.params, (error, data) => {
@@ -89,30 +106,86 @@ export default class ProductsService extends Service {
 						applyComicVineMetadata: {
 							rest: "POST /applyComicVineMetadata",
 							params: {},
-							async handler(ctx: Context<{ match: { volume: { api_detail_url: string }, volumeInformation: object }, comicObjectId: string }>) {
+							async handler(
+								ctx: Context<{
+									match: {
+										volume: { api_detail_url: string };
+										volumeInformation: object;
+									};
+									comicObjectId: string;
+								}>
+							) {
 								// 1. find mongo object by id
 								// 2. import payload into sourcedMetadata.comicvine
-								const comicObjectId = new ObjectId(ctx.params.comicObjectId);
+								const comicObjectId = new ObjectId(
+									ctx.params.comicObjectId
+								);
 								const matchedResult = ctx.params.match;
 								let volumeDetailsPromise;
 								if (!isNil(matchedResult.volume)) {
-									volumeDetailsPromise = this.getComicVineVolumeMetadata(matchedResult.volume.api_detail_url)
+									volumeDetailsPromise =
+										this.getComicVineVolumeMetadata(
+											matchedResult.volume.api_detail_url
+										);
 								}
 								return new Promise(async (resolve, reject) => {
-									const volumeDetails = await volumeDetailsPromise;
-									matchedResult.volumeInformation = volumeDetails;
-									Comic.findByIdAndUpdate(comicObjectId, { sourcedMetadata: { comicvine: matchedResult } }, { new: true }, (err, result) => {
-										if (err) {
-											console.log(err);
+									const volumeDetails =
+										await volumeDetailsPromise;
+									matchedResult.volumeInformation =
+										volumeDetails;
+									Comic.findByIdAndUpdate(
+										comicObjectId,
+										{
+											sourcedMetadata: {
+												comicvine: matchedResult,
+											},
+										},
+										{ new: true },
+										(err, result) => {
+											if (err) {
+												console.log(err);
+												reject(err);
+											} else {
+												// 3. Fetch and append volume information
+												resolve(result);
+											}
+										}
+									);
+								});
+							},
+						},
+						applyAirDCPPDownloadMetadata: {
+							rest: "POST /applyAirDCPPDownloadMetadata",
+							params: {},
+							async handler(
+								ctx: Context<{
+									comicObjectId: string;
+									resultId: string;
+									downloadResult: {};
+									searchInstanceId: string;
+								}>
+							) {
+								const comicObjectId = new ObjectId(
+									ctx.params.comicObjectId
+								);
+								return new Promise((resolve, reject) => {
+									Comic.findByIdAndUpdate(comicObjectId, {
+										acquisition: {
+											directconnect: {
+												resultId: ctx.params.resultId,
+												downloadResult: ctx.params.downloadResult,
+												searchInstanceId: ctx.params.searchInstanceId,
+											}
+										}
+									}, { new: true}, (err, result) =>{
+										if(err) {
 											reject(err);
 										} else {
-											// 3. Fetch and append volume information
 											resolve(result);
 										}
 									});
 								});
 							},
-
 						},
 
 						getComicBooks: {
@@ -136,26 +209,32 @@ export default class ProductsService extends Service {
 						},
 					},
 					methods: {
-						getComicVineVolumeMetadata: apiDetailURL => {
+						getComicVineVolumeMetadata: (apiDetailURL) => {
 							return new Promise((resolve, reject) => {
-								return https.get(`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, (resp) => {
+								return https
+									.get(
+										`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
+										(resp) => {
+											let data = "";
+											resp.on("data", (chunk) => {
+												data += chunk;
+											});
 
-									let data = '';
-									resp.on('data', (chunk) => {
-										data += chunk;
+											resp.on("end", () => {
+												const volumeInformation =
+													JSON.parse(data);
+												resolve(
+													volumeInformation.results
+												);
+											});
+										}
+									)
+									.on("error", (err) => {
+										console.log("Error: " + err.message);
+										reject(err);
 									});
-
-									resp.on('end', () => {
-										const volumeInformation = JSON.parse(data);
-										resolve(volumeInformation.results);
-									});
-
-								}).on("error", (err) => {
-									console.log("Error: " + err.message);
-									reject(err);
-								});
 							});
-						}
+						},
 					},
 				},
 				schema
