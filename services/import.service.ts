@@ -73,7 +73,7 @@ export default class ProductsService extends Service {
 								console.log("ASDASD", ctx.params);
 								let volumeDetails;
 								const comicMetadata = ctx.params;
-								if (
+								if (comicMetadata.sourcedMetadata.comicvine && 
 									!isNil(
 										comicMetadata.sourcedMetadata.comicvine
 											.volume
