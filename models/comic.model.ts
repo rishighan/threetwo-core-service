@@ -46,7 +46,7 @@ const ComicSchema = mongoose.Schema({
 	acquisition: {
 		wanted: Boolean,
 		release: {},
-		directconnect: {},
+		directconnect: Array,
 		torrent: {
 			sourceApplication: String,
 			magnet: String,

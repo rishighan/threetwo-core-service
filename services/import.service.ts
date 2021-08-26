@@ -70,10 +70,10 @@ export default class ProductsService extends Service {
 									};
 								}>
 							) {
-								console.log("ASDASD", ctx.params);
 								let volumeDetails;
 								const comicMetadata = ctx.params;
-								if (comicMetadata.sourcedMetadata.comicvine && 
+								if (
+									comicMetadata.sourcedMetadata.comicvine &&
 									!isNil(
 										comicMetadata.sourcedMetadata.comicvine
 											.volume
@@ -161,7 +161,8 @@ export default class ProductsService extends Service {
 								ctx: Context<{
 									comicObjectId: string;
 									resultId: string;
-									downloadResult: {};
+									bundleId: string;
+									directoryIds: [];
 									searchInstanceId: string;
 								}>
 							) {
@@ -169,21 +170,30 @@ export default class ProductsService extends Service {
 									ctx.params.comicObjectId
 								);
 								return new Promise((resolve, reject) => {
-									Comic.findByIdAndUpdate(comicObjectId, {
-										acquisition: {
-											directconnect: {
-												resultId: ctx.params.resultId,
-												downloadResult: ctx.params.downloadResult,
-												searchInstanceId: ctx.params.searchInstanceId,
+									Comic.findByIdAndUpdate(
+										comicObjectId,
+										{
+											$push: {
+												"acquisition.directconnect": {
+													resultId:
+														ctx.params.resultId,
+													bundleId: ctx.params.bundleId,
+													directoryIds: ctx.params.directoryIds,
+													searchInstanceId:
+														ctx.params
+															.searchInstanceId,
+												},
+											},
+										},
+										{ new: true, safe: true, upsert: true },
+										(err, result) => {
+											if (err) {
+												reject(err);
+											} else {
+												resolve(result);
 											}
 										}
-									}, { new: true}, (err, result) =>{
-										if(err) {
-											reject(err);
-										} else {
-											resolve(result);
-										}
-									});
+									);
 								});
 							},
 						},
