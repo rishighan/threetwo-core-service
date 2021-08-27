@@ -108,7 +108,7 @@ export default class ApiService extends Service {
 								let comicBookCoverMetadata =
 									await extractCoverFromFile(
 										extractionOptions,
-									    folder	
+										folder
 									);
 								const dbImportResult = await this.broker.call(
 									"import.rawImportToDB",
@@ -121,6 +121,9 @@ export default class ApiService extends Service {
 											},
 										},
 										rawFileDetails: comicBookCoverMetadata,
+										sourcedMetadata: {
+											comicvine: {},
+										},
 									},
 									{}
 								);
