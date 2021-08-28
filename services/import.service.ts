@@ -14,7 +14,7 @@ import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 const ObjectId = require("mongoose").Types.ObjectId;
 
-export default class ProductsService extends Service {
+export default class ImportService extends Service {
 	public constructor(
 		public broker: ServiceBroker,
 		schema: ServiceSchema<{}> = { name: "import" }
