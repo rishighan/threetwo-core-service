@@ -2,6 +2,7 @@ FROM node:buster-slim
 
 # Show all node logs
 ENV NPM_CONFIG_LOGLEVEL warn
+ENV SERVICES=./dist/services
 ENV MONGO_URI=mongodb://localhost:27017/threetwo
 
 RUN mkdir /threetwo-import-service
@@ -36,4 +37,4 @@ RUN npm install
 COPY . .
 
 EXPOSE 3000
-CMD npm run dev
+CMD npm start
