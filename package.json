@@ -27,7 +27,7 @@
     "jest": "^25.1.0",
     "jest-cli": "^25.1.0",
     "moleculer-repl": "^0.6.2",
-    "threetwo-ui-typings": "^1.0.2-0",
+    "threetwo-ui-typings": "^1.0.3",
     "ts-jest": "^25.3.0",
     "ts-node": "^8.8.1"
   },
@@ -59,7 +59,6 @@
     "socket.io": "^4.1.1",
     "socket.io-stream": "^0.5.3",
     "typescript": "^3.8.3",
-    "unrar": "github:cnboker/node-unrar",
     "xml2js": "^0.4.23"
   },
   "engines": {

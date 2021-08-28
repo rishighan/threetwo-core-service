@@ -7,7 +7,7 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 	IFolderData,
-} from "../interfaces/folder.interface";
+} from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
 import { includes, remove, indexOf } from "lodash";
 
