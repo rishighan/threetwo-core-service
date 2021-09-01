@@ -89,7 +89,7 @@ export const extractCoverFromFile = async (
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
 			result = await calibre.run(
-				"ebook-meta",
+				`/opt/calibre/ebook-meta`,
 				[path.resolve(constructedPaths.inputFilePath)],
 				{
 					getCover: targetCoverImageFilePath,
