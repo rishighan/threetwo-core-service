@@ -2,10 +2,8 @@ FROM node:buster-slim
 
 # Show all node logs
 ENV NPM_CONFIG_LOGLEVEL warn
-ENV SERVICES=./dist/services
-ENV MONGO_URI=mongodb://localhost:27017/threetwo
+ENV NODE_ENV=production
 
-RUN mkdir /threetwo-import-service
 WORKDIR /threetwo-import-service
 
 RUN apt-get update \
@@ -29,12 +27,17 @@ COPY package.json package-lock.json ./
 COPY moleculer.config.ts ./
 COPY tsconfig.json ./
 
-RUN npm cache verify
 # Install Dependncies
 RUN npm install -g typescript ts-node
-RUN npm install
+RUN npm ci --silent
 
 COPY . .
 
+# Build and cleanup
+RUN npm run build \
+ && npm prune
+
+
 EXPOSE 3000
-CMD npm start
+# Start server
+CMD ["npm", "start"]

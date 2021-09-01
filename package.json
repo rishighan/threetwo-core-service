@@ -1,15 +1,18 @@
 {
-  "name": "threetwo-import-service",
+  "name": "threetwo-library-service",
   "version": "1.0.0",
   "description": "My Moleculer-based microservices project",
   "scripts": {
     "build": "tsc --build tsconfig.json",
     "dev": "ts-node ./node_modules/moleculer/bin/moleculer-runner.js --hot --repl --config moleculer.config.ts services/**/*.service.ts",
-    "start": "./node_modules/moleculer/bin/moleculer-runner.js --config dist/moleculer.config.js",
+    "start": "moleculer-runner --config dist/moleculer.config.js",
     "cli": "moleculer connect NATS",
     "ci": "jest --watch",
     "test": "jest --coverage",
-    "lint": "eslint --ext .js,.ts ."
+    "lint": "eslint --ext .js,.ts .",
+    "dc:up": "docker-compose up --build -d",
+    "dc:logs": "docker-compose logs -f",
+    "dc:down": "docker-compose down"
   },
   "keywords": [
     "microservices",
@@ -27,7 +30,6 @@
     "jest": "^25.1.0",
     "jest-cli": "^25.1.0",
     "moleculer-repl": "^0.6.2",
-    "threetwo-ui-typings": "^1.0.3",
     "ts-jest": "^25.3.0",
     "ts-node": "^8.8.1"
   },
@@ -42,6 +44,7 @@
     "imghash": "^0.0.9",
     "leven": "^3.1.0",
     "lodash": "^4.17.21",
+    "mkdirp": "^0.5.5",
     "moleculer": "^0.14.16",
     "moleculer-db": "^0.8.13",
     "moleculer-db-adapter-mongo": "^0.4.7",
@@ -58,6 +61,7 @@
     "sharp": "^0.28.1",
     "socket.io": "^4.1.1",
     "socket.io-stream": "^0.5.3",
+    "threetwo-ui-typings": "^1.0.3",
     "typescript": "^3.8.3",
     "xml2js": "^0.4.23"
   },
