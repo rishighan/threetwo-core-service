@@ -17,7 +17,7 @@ This microservice houses endpoints for the following functions:
 4. Run `npm i`
 5. Assuming you installed mongo correctly, run `MONGO_URI=mongodb://localhost:27017/threetwo npm run dev`
 6. You should see the service spin up and a list of all the endpoints in the terminal
-7. The service can be accessed through `http://localhost/api/import/*`
+7. The service can be accessed through `http://localhost:3000/api/import/*`
 ## Docker Instructions
 
 1. Build the image using `docker build . -t frishi/threetwo-import-service`. Give it a hot minute.
