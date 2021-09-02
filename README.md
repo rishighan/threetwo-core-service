@@ -10,7 +10,7 @@ This microservice houses endpoints for the following functions:
 
 ## Local Development
 
-1. You need `calibre` in your local path
+1. You need `calibre` in your local path.
    On `macOS` you can `brew install calibre` and make sure that `ebook-meta` is present on the path
 2. You need `mongo` for the data store. on `macOS` you can use [these instructions](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/) to install it
 3. Clone this repo
