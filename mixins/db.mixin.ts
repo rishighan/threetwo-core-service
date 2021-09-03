@@ -12,9 +12,9 @@ export const DbMixin = (collection, model)  => {
 				pass: process.env.MONGO_INITDB_ROOT_PASSWORD,
 				keepAlive: true,
 			}),
-			model: model,
-			collection    
+			model,
+			collection,
 		};
-	} 
+	}
 	mkdir(path.resolve("./data"));
 };

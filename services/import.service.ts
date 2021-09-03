@@ -14,7 +14,7 @@ import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 const ObjectId = require("mongoose").Types.ObjectId;
 
-export default class ProductsService extends Service {
+export default class ImportService extends Service {
 	public constructor(
 		public broker: ServiceBroker,
 		schema: ServiceSchema<{}> = { name: "import" }
@@ -219,14 +219,12 @@ export default class ProductsService extends Service {
 						},
 					},
 					methods: {
-						getComicVineVolumeMetadata: (apiDetailURL) => {
-							return new Promise((resolve, reject) => {
-								return https
+						getComicVineVolumeMetadata: apiDetailURL => new Promise((resolve, reject) => https
 									.get(
 										`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
-										(resp) => {
+										resp => {
 											let data = "";
-											resp.on("data", (chunk) => {
+											resp.on("data", chunk => {
 												data += chunk;
 											});
 
@@ -239,12 +237,10 @@ export default class ProductsService extends Service {
 											});
 										}
 									)
-									.on("error", (err) => {
+									.on("error", err => {
 										console.log("Error: " + err.message);
 										reject(err);
-									});
-							});
-						},
+									})),
 					},
 				},
 				schema

@@ -9,7 +9,7 @@ import {
 import {
 	resizeImage,
 } from "../utils/imagetransformation.utils";
-export default class ProductsService extends Service {
+export default class ImageTransformation extends Service {
 	// @ts-ignore
 	public constructor(
 		public broker: ServiceBroker,

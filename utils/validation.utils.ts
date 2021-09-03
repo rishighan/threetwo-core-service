@@ -4,7 +4,7 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 	IFolderData,
-} from "../interfaces/folder.interface";
+} from "threetwo-ui-typings";
 const Validator = require("fastest-validator");
 import { logger } from "./logger.utils";
 

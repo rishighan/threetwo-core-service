@@ -14,11 +14,11 @@ export default class ApiService extends Service {
 			// More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
 			settings: {
 				port: process.env.PORT || 3000,
+
 				routes: [
 					{
 						path: "/api",
 						whitelist: [
-							// Access to any actions in all services under "/api" URL
 							"**",
 						],
 						cors: {
@@ -37,10 +37,10 @@ export default class ApiService extends Service {
 						},
 						use: [],
 						mergeParams: true,
+						authentication: false,
+						authorization: false,
 						autoAliases: true,
 						aliases: {},
-
-						// Calling options. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Calling-options
 						callingOptions: {},
 
 						bodyParsers: {
@@ -70,11 +70,10 @@ export default class ApiService extends Service {
 				logResponseData: null,
 				assets: {
 					folder: "public",
+					// Options to `server-static` module
 					options: {},
 				},
 			},
-
-			methods: {},
 			events: {
 				"**"(payload, sender, event) {
 					if (this.io)
@@ -85,6 +84,8 @@ export default class ApiService extends Service {
 						});
 				},
 			},
+
+			methods: {},
 			started(): any {
 				// Create a Socket.IO instance, passing it our server
 				this.io = IO.listen(this.server);
