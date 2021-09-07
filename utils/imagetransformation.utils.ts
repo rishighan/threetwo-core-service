@@ -43,10 +43,8 @@ export const calculateLevenshteinDistance = async (
 	imagePath1: string,
 	imagePath2: string
 ): Promise<Record<string, unknown>> => {
-	console.log("AGANTUK", imagePath1)
 	const hash1 = await imghash.hash(imagePath1);
 	const hash2 = await imghash.hash(imagePath2);
-	console.log("HASHISH", hash1)
 	if (!isNull(hash1) && !isNull(hash2)) {
 		return new Promise((resolve, reject) => {
 			resolve({ levenshteinDistance: leven(hash1, hash2) });

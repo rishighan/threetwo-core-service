@@ -31,13 +31,10 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createReadStream, createWriteStream, readFileSync, stat } from "fs";
 const fse = require("fs-extra");
 import path from "path";
-import { each, isEmpty, map, flatten } from "lodash";
 
 import {
-	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
@@ -45,11 +42,9 @@ import {
 	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
-import { validateComicBookMetadata } from "../utils/validation.utils";
 import {
 	constructPaths,
 	explodePath,
-	isValidImageFileExtension,
 } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
 const { writeFile, readFile } = require("fs").promises;
@@ -89,7 +84,7 @@ export const extractCoverFromFile = async (
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
 			result = await calibre.run(
-				`/opt/calibre/ebook-meta`,
+				`ebook-meta`,
 				[path.resolve(constructedPaths.inputFilePath)],
 				{
 					getCover: targetCoverImageFilePath,
