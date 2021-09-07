@@ -31,7 +31,7 @@ SOFTWARE.
  *     Initial:        2021/07/29        Rishi Ghan
  */
 
-import { each, map, isUndefined, isNull, assign } from "lodash";
+import { each, isNull } from "lodash";
 import stringSimilarity from "string-similarity";
 import https from "https";
 import { createWriteStream } from "fs";
