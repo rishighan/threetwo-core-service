@@ -68,6 +68,9 @@ export default class ImportService extends Service {
 											volumeInformation: {};
 										};
 									};
+									rawFileDetails: {
+										name: string;
+									};
 								}>
 							) {
 								let volumeDetails;
@@ -87,7 +90,7 @@ export default class ImportService extends Service {
 									comicMetadata.sourcedMetadata.comicvine.volumeInformation =
 										volumeDetails;
 								}
-								return new Promise((resolve, reject) => {
+								return new Promise(async (resolve, reject) => {
 									Comic.create(ctx.params, (error, data) => {
 										if (data) {
 											resolve(data);
@@ -115,8 +118,8 @@ export default class ImportService extends Service {
 									comicObjectId: string;
 								}>
 							) {
-								// 1. find mongo object by id
-								// 2. import payload into sourcedMetadata.comicvine
+								// 1. Find mongo object by id
+								// 2. Import payload into sourcedMetadata.comicvine
 								const comicObjectId = new ObjectId(
 									ctx.params.comicObjectId
 								);
@@ -177,8 +180,10 @@ export default class ImportService extends Service {
 												"acquisition.directconnect": {
 													resultId:
 														ctx.params.resultId,
-													bundleId: ctx.params.bundleId,
-													directoryIds: ctx.params.directoryIds,
+													bundleId:
+														ctx.params.bundleId,
+													directoryIds:
+														ctx.params.directoryIds,
 													searchInstanceId:
 														ctx.params
 															.searchInstanceId,
@@ -219,12 +224,14 @@ export default class ImportService extends Service {
 						},
 					},
 					methods: {
-						getComicVineVolumeMetadata: apiDetailURL => new Promise((resolve, reject) => https
+						getComicVineVolumeMetadata: (apiDetailURL) =>
+							new Promise((resolve, reject) =>
+								https
 									.get(
 										`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
-										resp => {
+										(resp) => {
 											let data = "";
-											resp.on("data", chunk => {
+											resp.on("data", (chunk) => {
 												data += chunk;
 											});
 
@@ -237,10 +244,11 @@ export default class ImportService extends Service {
 											});
 										}
 									)
-									.on("error", err => {
+									.on("error", (err) => {
 										console.log("Error: " + err.message);
 										reject(err);
-									})),
+									})
+							),
 					},
 				},
 				schema

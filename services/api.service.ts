@@ -3,6 +3,12 @@ import ApiGateway from "moleculer-web";
 import { extractCoverFromFile } from "../utils/uncompression.utils";
 import { map } from "lodash";
 const IO = require("socket.io")();
+import Comic from "../models/comic.model";
+import {
+	IExtractComicBookCoverErrorResponse,
+	IExtractedComicBookCoverFile,
+} from "threetwo-ui-typings";
+import { logger } from "../utils/logger.utils";
 
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -18,9 +24,7 @@ export default class ApiService extends Service {
 				routes: [
 					{
 						path: "/api",
-						whitelist: [
-							"**",
-						],
+						whitelist: ["**"],
 						cors: {
 							origin: "*",
 							methods: [
@@ -106,33 +110,50 @@ export default class ApiService extends Service {
 
 							const { extractionOptions, walkedFolders } = params;
 							map(walkedFolders, async (folder, idx) => {
-								let comicBookCoverMetadata =
-									await extractCoverFromFile(
+								let comicExists = await Comic.exists({
+									"rawFileDetails.name": `${folder.name}`,
+								});
+								if (!comicExists) {
+									let comicBookCoverMetadata:
+										| IExtractedComicBookCoverFile
+										| IExtractComicBookCoverErrorResponse
+										| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
 										extractionOptions,
 										folder
 									);
-								const dbImportResult = await this.broker.call(
-									"import.rawImportToDB",
-									{
-										importStatus: {
-											isImported: true,
-											tagged: false,
-											matchedResult: {
-												score: "0",
-											},
-										},
-										rawFileDetails: comicBookCoverMetadata,
-										sourcedMetadata: {
-											comicvine: {},
-										},
-									},
-									{}
-								);
 
-								client.emit("comicBookCoverMetadata", {
-									comicBookCoverMetadata,
-									dbImportResult,
-								});
+									const dbImportResult =
+										await this.broker.call(
+											"import.rawImportToDB",
+											{
+												importStatus: {
+													isImported: true,
+													tagged: false,
+													matchedResult: {
+														score: "0",
+													},
+												},
+												rawFileDetails:
+													comicBookCoverMetadata,
+												sourcedMetadata: {
+													comicvine: {},
+												},
+											},
+											{}
+										);
+
+									client.emit("comicBookCoverMetadata", {
+										comicBookCoverMetadata,
+										dbImportResult,
+									});
+								} else {
+									logger.info(
+										`Comic: \"${folder.name}\" already exists in the database`
+									);
+									client.emit("comicBookExists", {
+										name: folder.name,
+									});
+								}
 							});
 						}
 					);
