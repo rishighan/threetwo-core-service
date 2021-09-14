@@ -1,5 +1,5 @@
 "use strict";
-import { isNil } from "lodash";
+import { isNil, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -12,6 +12,13 @@ import Comic from "../models/comic.model";
 import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
+import { logger } from "../utils/logger.utils";
+const rabbitmq = require("../queue/importQueue");
+import {
+	IExtractComicBookCoverErrorResponse,
+	IExtractedComicBookCoverFile,
+} from "threetwo-ui-typings";
+import { extractCoverFromFile } from "../utils/uncompression.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class ImportService extends Service {
@@ -55,6 +62,77 @@ export default class ImportService extends Service {
 							params: {},
 							async handler(ctx: Context<{}>) {
 								return convertXMLToJSON("lagos");
+							},
+						},
+						importComicsToDb: {
+							rest: "POST /importComicsToDB",
+							params: {},
+							async handler(
+								ctx: Context<{
+									extractionOptions: any;
+									walkedFolders: [
+										{
+											name: string;
+											extension: string;
+											containedIn: string;
+											fileSize: number;
+											isFile: boolean;
+											isLink: boolean;
+										}
+									];
+								}>
+							) {
+								const { extractionOptions, walkedFolders } =
+									ctx.params;
+								map(walkedFolders, async (folder, idx) => {
+									let comicExists = await Comic.exists({
+										"rawFileDetails.name": `${folder.name}`,
+									});
+									if (!comicExists) {
+										let comicBookCoverMetadata:
+											| IExtractedComicBookCoverFile
+											| IExtractComicBookCoverErrorResponse
+											| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
+											extractionOptions,
+											folder
+										);
+
+										// const dbImportResult =
+										// 	await this.broker.call(
+										// 		"import.rawImportToDB",
+										// 		{
+										// 			importStatus: {
+										// 				isImported: true,
+										// 				tagged: false,
+										// 				matchedResult: {
+										// 					score: "0",
+										// 				},
+										// 			},
+										// 			rawFileDetails:
+										// 				comicBookCoverMetadata,
+										// 			sourcedMetadata: {
+										// 				comicvine: {},
+										// 			},
+										// 		},
+										// 		{}
+										// 	);
+										rabbitmq(
+											"comicBookCovers",
+											JSON.stringify({
+												comicBookCoverMetadata,
+											})
+										);
+									} else {
+										logger.info(
+											`Comic: \"${folder.name}\" already exists in the database`
+										);
+										rabbitmq("comicBookCovers",
+											JSON.stringify({
+												name: folder.name,
+											})
+										);
+									}
+								});
 							},
 						},
 						rawImportToDB: {

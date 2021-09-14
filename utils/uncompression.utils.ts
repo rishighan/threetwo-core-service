@@ -97,7 +97,7 @@ export const extractCoverFromFile = async (
 			resolve({
 				name: walkedFolder.name,
 				path: renditionPath, 
-				fileSize: stats.size,
+				fileSize: walkedFolder.fileSize,
 				extension: path.extname(constructedPaths.inputFilePath),
 				containedIn: walkedFolder.containedIn,
 				calibreMetadata: {

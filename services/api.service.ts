@@ -1,15 +1,7 @@
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
-import { extractCoverFromFile } from "../utils/uncompression.utils";
-import { map } from "lodash";
+import { connectQueue } from "../queue/consumer";
 const IO = require("socket.io")();
-import Comic from "../models/comic.model";
-import {
-	IExtractComicBookCoverErrorResponse,
-	IExtractedComicBookCoverFile,
-} from "threetwo-ui-typings";
-import { logger } from "../utils/logger.utils";
-
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -91,77 +83,8 @@ export default class ApiService extends Service {
 
 			methods: {},
 			started(): any {
-				// Create a Socket.IO instance, passing it our server
 				this.io = IO.listen(this.server);
-
-				// Add a connect listener
-				this.io.on("connection", (client) => {
-					this.logger.info("Client connected via websocket!");
-
-					client.on(
-						"importComicsToDB",
-						async ({ action, params, opts }, done) => {
-							this.logger.info(
-								"Received request from client! Action:",
-								action,
-								", Params:",
-								params
-							);
-
-							const { extractionOptions, walkedFolders } = params;
-							map(walkedFolders, async (folder, idx) => {
-								let comicExists = await Comic.exists({
-									"rawFileDetails.name": `${folder.name}`,
-								});
-								if (!comicExists) {
-									let comicBookCoverMetadata:
-										| IExtractedComicBookCoverFile
-										| IExtractComicBookCoverErrorResponse
-										| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
-										extractionOptions,
-										folder
-									);
-
-									const dbImportResult =
-										await this.broker.call(
-											"import.rawImportToDB",
-											{
-												importStatus: {
-													isImported: true,
-													tagged: false,
-													matchedResult: {
-														score: "0",
-													},
-												},
-												rawFileDetails:
-													comicBookCoverMetadata,
-												sourcedMetadata: {
-													comicvine: {},
-												},
-											},
-											{}
-										);
-
-									client.emit("comicBookCoverMetadata", {
-										comicBookCoverMetadata,
-										dbImportResult,
-									});
-								} else {
-									logger.info(
-										`Comic: \"${folder.name}\" already exists in the database`
-									);
-									client.emit("comicBookExists", {
-										name: folder.name,
-									});
-								}
-							});
-						}
-					);
-
-					client.on("disconnect", () => {
-						this.logger.info("Client disconnected");
-					});
-				});
+				connectQueue(this.io);
 			},
 		});
 	}

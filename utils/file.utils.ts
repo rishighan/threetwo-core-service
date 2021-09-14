@@ -1,6 +1,7 @@
 const Walk = require("@root/walk");
 
 import path from "path";
+import fs from "fs";
 import {
 	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
@@ -21,6 +22,7 @@ export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
 		containedIn: "",
 		isFile: false,
 		isLink: true,
+		fileSize: 0,
 	};
 
 	const walk = Walk.create({ sort: filterOutDotFiles });
@@ -30,9 +32,11 @@ export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
 			return false;
 		}
 		if ([".cbz", ".cbr"].includes(path.extname(dirent.name))) {
+			console.log(path.resolve(pathname));
 			walkResult = {
 				name: path.basename(dirent.name, path.extname(dirent.name)),
 				extension: path.extname(dirent.name),
+				fileSize: fs.statSync(path.resolve(pathname)).size,
 				containedIn: path.dirname(pathname),
 				isFile: dirent.isFile(),
 				isLink: dirent.isSymbolicLink(),
