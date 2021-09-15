@@ -2,12 +2,12 @@ import { default as Pino } from "pino";
 import { default as pinopretty } from "pino-pretty";
 
 export const logger = Pino({
-  name: "threetwo!",
+  name: "Threetwo!",
   prettyPrint: { colorize: true },
   // crlf: false,
   // errorLikeObjectKeys: ["err", "error"],
   // errorProps: "",
-  // levelFirst: false, // --levelFirst
+  // levelFirst: false,
   messageKey: "msg", // --messageKey
   levelKey: "level", // --levelKey
   // messageFormat: false, // --messageFormat

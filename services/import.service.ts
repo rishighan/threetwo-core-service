@@ -13,7 +13,7 @@ import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 import { logger } from "../utils/logger.utils";
-const rabbitmq = require("../queue/importQueue");
+import { sendRabbitMQ } from "../queue/importQueue";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -66,6 +66,11 @@ export default class ImportService extends Service {
 						},
 						importComicsToDb: {
 							rest: "POST /importComicsToDB",
+							bulkhead: {
+								enabled: true,
+								concurrency: 50,
+								maxQueueSize: 100,
+							},
 							params: {},
 							async handler(
 								ctx: Context<{
@@ -82,57 +87,64 @@ export default class ImportService extends Service {
 									];
 								}>
 							) {
-								const { extractionOptions, walkedFolders } =
-									ctx.params;
-								map(walkedFolders, async (folder, idx) => {
-									let comicExists = await Comic.exists({
-										"rawFileDetails.name": `${folder.name}`,
-									});
-									if (!comicExists) {
-										let comicBookCoverMetadata:
-											| IExtractedComicBookCoverFile
-											| IExtractComicBookCoverErrorResponse
-											| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
-											extractionOptions,
-											folder
-										);
+								try {
+									const { extractionOptions, walkedFolders } =
+										ctx.params;
+									map(walkedFolders, async (folder, idx) => {
+										let comicExists = await Comic.exists({
+											"rawFileDetails.name": `${folder.name}`,
+										});
+										if (!comicExists) {
+											// 1. Extract cover and cover metadata
+											let comicBookCoverMetadata:
+												| IExtractedComicBookCoverFile
+												| IExtractComicBookCoverErrorResponse
+												| IExtractedComicBookCoverFile[] =
+												await extractCoverFromFile(
+													extractionOptions,
+													folder
+												);
 
-										// const dbImportResult =
-										// 	await this.broker.call(
-										// 		"import.rawImportToDB",
-										// 		{
-										// 			importStatus: {
-										// 				isImported: true,
-										// 				tagged: false,
-										// 				matchedResult: {
-										// 					score: "0",
-										// 				},
-										// 			},
-										// 			rawFileDetails:
-										// 				comicBookCoverMetadata,
-										// 			sourcedMetadata: {
-										// 				comicvine: {},
-										// 			},
-										// 		},
-										// 		{}
-										// 	);
-										rabbitmq(
-											"comicBookCovers",
-											JSON.stringify({
-												comicBookCoverMetadata,
-											})
-										);
-									} else {
-										logger.info(
-											`Comic: \"${folder.name}\" already exists in the database`
-										);
-										rabbitmq("comicBookCovers",
-											JSON.stringify({
-												name: folder.name,
-											})
-										);
-									}
-								});
+											// 2. Add to mongo
+											const dbImportResult =
+												await this.broker.call(
+													"import.rawImportToDB",
+													{
+														importStatus: {
+															isImported: true,
+															tagged: false,
+															matchedResult: {
+																score: "0",
+															},
+														},
+														rawFileDetails:
+															comicBookCoverMetadata,
+														sourcedMetadata: {
+															comicvine: {},
+														},
+													},
+													{}
+												);
+											// 3. Send to the queue
+											sendRabbitMQ(
+												"comicBookCovers",
+												JSON.stringify({
+													comicBookCoverMetadata,
+													dbImportResult,
+												})
+											);
+										} else {
+											logger.info(
+												`Comic: \"${folder.name}\" already exists in the database`
+											);
+										}
+									});
+								} catch (error) {
+									logger.error(
+										"Error importing comic books",
+										error
+									);
+								}
 							},
 						},
 						rawImportToDB: {

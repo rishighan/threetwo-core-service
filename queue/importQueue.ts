@@ -1,8 +1,6 @@
 import { logger } from "../utils/logger.utils";
-
 //RabbitMQ
 const amqp = require("amqplib/callback_api");
-
 const rabbitUrl = "amqp://localhost";
 
 export const sendRabbitMQ = (queueName, data) => {
@@ -16,7 +14,6 @@ export const sendRabbitMQ = (queueName, data) => {
 			if (error1) {
 				throw error1;
 			}
-            channel.prefetch(1);
 			const queue = queueName;
             // Checks for “queueName (updateStock)” queue. If it doesn’t exist, then it creates one.
 			channel.assertQueue(queue, {
@@ -31,4 +28,3 @@ export const sendRabbitMQ = (queueName, data) => {
 		}, 500);
 	});
 };
-module.exports = sendRabbitMQ;

@@ -1,7 +1,5 @@
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
-import { connectQueue } from "../queue/consumer";
-const IO = require("socket.io")();
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -71,20 +69,11 @@ export default class ApiService extends Service {
 				},
 			},
 			events: {
-				"**"(payload, sender, event) {
-					if (this.io)
-						this.io.emit("event", {
-							sender,
-							event,
-							payload,
-						});
-				},
+				
 			},
 
 			methods: {},
 			started(): any {
-				this.io = IO.listen(this.server);
-				connectQueue(this.io);
 			},
 		});
 	}
