@@ -1,5 +1,10 @@
 "use strict";
-import {BrokerOptions, Errors, MetricRegistry, ServiceBroker} from "moleculer";
+import {
+	BrokerOptions,
+	Errors,
+	MetricRegistry,
+	ServiceBroker,
+} from "moleculer";
 
 /**
  * Moleculer ServiceBroker configuration file
@@ -36,21 +41,33 @@ const brokerConfig: BrokerOptions = {
 
 	// Enable/disable logging or use custom logger. More info: https://moleculer.services/docs/0.14/logging.html
 	// Available logger types: "Console", "File", "Pino", "Winston", "Bunyan", "debug", "Log4js", "Datadog"
-	logger: {
-		type: "Console",
-		options: {
-			// Using colors on the output
-			colors: true,
-			// Print module names with different colors (like docker-compose for containers)
-			moduleColors: false,
-			// Line formatter. It can be "json", "short", "simple", "full", a `Function` or a template string like "{timestamp} {level} {nodeID}/{mod}: {msg}"
-			formatter: "full",
-			// Custom object printer. If not defined, it uses the `util.inspect` method.
-			objectPrinter: null,
-			// Auto-padding the module name in order to messages begin at the same column.
-			autoPadding: false,
+	logger: [
+		{
+			type: "Console",
+			options: {
+				level: "info",
+			},
 		},
-	},
+		{
+			type: "File",
+			options: {
+				level: "debug",
+				folder: "./logs",
+				filename: "threetwo-import-service.log",
+				// Using colors on the output
+				colors: true,
+				// Print module names with different colors (like docker-compose for containers)
+				moduleColors: false,
+				// Line formatter. It can be "json", "short", "simple", "full", a `Function` or a template string like "{timestamp} {level} {nodeID}/{mod}: {msg}"
+				formatter: "json",
+				// Custom object printer. If not defined, it uses the `util.inspect` method.
+				objectPrinter: null,
+				eol: "\n",
+				// Auto-padding the module name in order to messages begin at the same column.
+				autoPadding: true,
+			},
+		},
+	],
 	// Default log level for built-in console logger. It can be overwritten in logger options above.
 	// Available values: trace, debug, info, warn, error, fatal
 	logLevel: "info",
@@ -63,7 +80,7 @@ const brokerConfig: BrokerOptions = {
 
 	// Define a cacher.
 	// More info: https://moleculer.services/docs/0.14/caching.html
-    cacher: "Memory",
+	cacher: "Memory",
 
 	// Define a serializer.
 	// Available values: "JSON", "Avro", "ProtoBuf", "MsgPack", "Notepack", "Thrift".
@@ -180,12 +197,12 @@ const brokerConfig: BrokerOptions = {
 			options: {
 				// Custom logger
 				logger: null,
-					// Using colors
-					colors: true,
-					// Width of row
-					width: 100,
-					// Gauge width in the row
-					gaugeWidth: 40,
+				// Using colors
+				colors: true,
+				// Width of row
+				width: 100,
+				// Gauge width in the row
+				gaugeWidth: 40,
 			},
 		},
 	},
@@ -202,7 +219,6 @@ const brokerConfig: BrokerOptions = {
 	started: async (broker: ServiceBroker): Promise<void> => {},
 	stopped: async (broker: ServiceBroker): Promise<void> => {},
 	 */
-
 };
 
 export = brokerConfig;

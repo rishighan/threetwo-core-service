@@ -1,20 +1,19 @@
-import { default as Pino } from "pino";
-import { default as pinopretty } from "pino-pretty";
+const Pino = require("pino");
 
 export const logger = Pino({
   name: "Threetwo!",
   prettyPrint: { colorize: true },
-  // crlf: false,
-  // errorLikeObjectKeys: ["err", "error"],
+  crlf: false,
+  errorLikeObjectKeys: ["err", "error"],
   // errorProps: "",
-  // levelFirst: false,
+  levelFirst: false,
   messageKey: "msg", // --messageKey
   levelKey: "level", // --levelKey
   // messageFormat: false, // --messageFormat
   // timestampKey: "time", // --timestampKey
-  // translateTime: false, // --translateTime
+  translateTime: false, // --translateTime
   // search: "foo == `bar`", // --search
   // ignore: "pid,hostname", // --ignore
-  // hideObject: false, // --hideObject
+  hideObject: false, // --hideObject
   // singleLine: false,
 });

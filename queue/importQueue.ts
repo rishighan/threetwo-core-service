@@ -22,9 +22,9 @@ export const sendRabbitMQ = (queueName, data) => {
 			channel.sendToQueue(queue, Buffer.from(data));
 			logger.info(`${data} sent`);
 		});
-		setTimeout(function () {
+		setTimeout(function() {
 			connection.close();
-			//process.exit(0);
+			// process.exit(0);
 		}, 500);
 	});
 };

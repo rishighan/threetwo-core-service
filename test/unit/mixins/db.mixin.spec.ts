@@ -2,7 +2,7 @@
 
 import { ServiceBroker } from "moleculer";
 import DbService from "moleculer-db";
-import DbMixin from "../../../mixins/db.mixin";
+import {DbMixin} from "../../../mixins/db.mixin";
 
 describe("Test DB mixin", () => {
 

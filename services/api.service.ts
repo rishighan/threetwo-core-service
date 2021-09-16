@@ -58,6 +58,10 @@ export default class ApiService extends Service {
 						path: "/comics",
 						use: [ApiGateway.serveStatic("comics")],
 					},
+					{
+						path: "/logs",
+						use: [ApiGateway.serveStatic("logs")],
+					},
 				],
 				log4XXResponses: false,
 				logRequestParams: null,
