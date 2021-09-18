@@ -1,5 +1,9 @@
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
+import chokidar from "chokidar";
+import { logger } from "../utils/logger.utils";
+import path from "path";
+import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -72,12 +76,50 @@ export default class ApiService extends Service {
 					options: {},
 				},
 			},
-			events: {
-				
-			},
+			events: {},
 
 			methods: {},
 			started(): any {
+				const fileWatcher = chokidar.watch(path.resolve("./comics"), {
+					ignored: /(^|[\/\\])\../, // ignore dotfiles
+					persistent: true,
+					ignoreInitial: true,
+					atomic: true,
+					awaitWriteFinish: {
+						stabilityThreshold: 2000,
+						pollInterval: 100,
+					},
+				});
+				fileWatcher
+					.on("add", async (path, stats) => {
+						logger.info(
+							`File ${path} has been added with stats: ${JSON.stringify(
+								stats
+							)}`
+						);
+						const walkedFolders:IFolderData = await broker.call("import.walkFolders", {basePathToWalk: path});
+						const extractionOptions: IExtractionOptions = {
+							extractTarget: "cover",
+							targetExtractionFolder: "./userdata/covers",
+							extractionMode: "single",
+							paginationOptions: {
+							  pageLimit: 25,
+							  page: 1,
+							},
+						  };
+						this.broker.call("import.importComicsToDb", {walkedFolders, extractionOptions });
+					})
+					.on("change", (path, stats) =>
+						logger.info(
+							`File ${path} has been changed. Stats: ${stats}`
+						)
+					)
+					.on("unlink", (path) =>
+						logger.info(`File ${path} has been removed`)
+					)
+					.on("addDir", (path) =>
+						logger.info(`Directory ${path} has been added`)
+					);
 			},
 		});
 	}

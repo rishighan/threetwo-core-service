@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.utils";
 const amqp = require("amqplib/callback_api");
 const rabbitUrl = "amqp://localhost";
 
-export const sendRabbitMQ = (queueName, data) => {
+export const sendToRabbitMQ = (queueName, data) => {
     // connect to local rabbitmq instance
 	amqp.connect(rabbitUrl, (error0, connection) => {
 		if (error0) {

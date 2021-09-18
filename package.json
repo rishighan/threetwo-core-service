@@ -24,6 +24,7 @@
     "@types/unzipper": "^0.10.3",
     "@typescript-eslint/eslint-plugin": "^2.26.0",
     "@typescript-eslint/parser": "^2.26.0",
+    "chokidar": "^3.5.2",
     "eslint": "^6.8.0",
     "eslint-plugin-import": "^2.20.2",
     "eslint-plugin-prefer-arrow": "^1.2.2",
@@ -63,7 +64,7 @@
     "sharp": "^0.28.1",
     "socket.io": "^4.1.1",
     "socket.io-stream": "^0.5.3",
-    "threetwo-ui-typings": "^1.0.4",
+    "threetwo-ui-typings": "^1.0.5",
     "typescript": "^3.8.3",
     "xml2js": "^0.4.23"
   },

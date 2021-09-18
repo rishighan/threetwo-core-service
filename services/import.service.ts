@@ -13,7 +13,7 @@ import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 import { logger } from "../utils/logger.utils";
-import { sendRabbitMQ } from "../queue/importQueue";
+import { sendToRabbitMQ } from "../queue/importQueue";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -126,7 +126,7 @@ export default class ImportService extends Service {
 													{}
 												);
 											// 3. Send to the queue
-											sendRabbitMQ(
+											sendToRabbitMQ(
 												"comicBookCovers",
 												JSON.stringify({
 													comicBookCoverMetadata,
@@ -311,6 +311,14 @@ export default class ImportService extends Service {
 							async handler(ctx: Context<{ id: string }>) {
 								return await Comic.findById(ctx.params.id);
 							},
+						},
+						axn: {
+							rest: "GET /axn",
+							params: {},
+							async handler(ctx: Context<{path, stats}>) {
+								logger.info(ctx.params);
+								return {"pandurang": "hari"};
+							}
 						},
 					},
 					methods: {
