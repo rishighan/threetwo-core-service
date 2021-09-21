@@ -1,5 +1,5 @@
 "use strict";
-import { isNil, map } from "lodash";
+import { each, forOwn, isNil, isUndefined, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -64,8 +64,8 @@ export default class ImportService extends Service {
 								return convertXMLToJSON("lagos");
 							},
 						},
-						importComicsToDb: {
-							rest: "POST /importComicsToDB",
+						processAndImportToDB: {
+							rest: "POST /processAndImportToDB",
 							bulkhead: {
 								enabled: true,
 								concurrency: 50,
@@ -312,13 +312,56 @@ export default class ImportService extends Service {
 								return await Comic.findById(ctx.params.id);
 							},
 						},
-						axn: {
-							rest: "GET /axn",
+						getComicBookGroups: {
+							rest: "GET /getComicBookGroups",
 							params: {},
-							async handler(ctx: Context<{path, stats}>) {
-								logger.info(ctx.params);
-								return {"pandurang": "hari"};
-							}
+							async handler(ctx: Context<{}>) {
+								let volumesMetadata = [];
+								// 1. get volumes with issues mapped where issue count > 2
+								const volumes = await Comic.aggregate([
+									{
+										$group: {
+											_id: "$sourcedMetadata.comicvine.volume.id",
+											volumeURI: {
+												$last: "$sourcedMetadata.comicvine.volume.api_detail_url",
+											},
+											count: { $sum: 1 },
+										},
+									},
+									{
+										$match: {
+											count: { $gte: 2 },
+										},
+									},
+									{ $sort: { updatedAt: -1 } },
+									{ $skip: 0 },
+									{ $limit: 5 },
+								]);
+								// 2. Map over the aggregation result and get volume metadata from CV
+								// 2a. Make a call to comicvine-service
+								volumesMetadata = map(
+									volumes,
+									async (volume) => {
+										if (!isNil(volume.volumeURI)) {
+											return await ctx.call(
+												"comicvine.getVolumes",
+												{
+													volumeURI: volume.volumeURI,
+													data: {
+														format: "json",
+														fieldList:
+															"id,name,deck,api_detail_url",
+														limit: "1",
+														offset: "0",
+													},
+												}
+											);
+										}
+									}
+								);
+							
+								return Promise.all(volumesMetadata);
+							},
 						},
 					},
 					methods: {

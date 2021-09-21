@@ -107,7 +107,7 @@ export default class ApiService extends Service {
 							  page: 1,
 							},
 						  };
-						this.broker.call("import.importComicsToDb", {walkedFolders, extractionOptions });
+						this.broker.call("import.processAndImportToDB", {walkedFolders, extractionOptions });
 					})
 					.on("change", (path, stats) =>
 						logger.info(
