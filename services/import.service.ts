@@ -21,7 +21,6 @@ import {
 } from "threetwo-ui-typings";
 import {
 	extractCoverFromFile,
-	getPageCountFromRarArchive,
 	unrarArchive,
 } from "../utils/uncompression.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
@@ -369,13 +368,6 @@ export default class ImportService extends Service {
 
 								return Promise.all(volumesMetadata);
 							},
-						},
-						getPageCountForComicBook: {
-							rest: "POST /getPageCountsForComicBook",
-							params: {},
-							async handler(ctx:Context<{filePath: string}>) {
-								return await getPageCountFromRarArchive(ctx.params.filePath);
-							}
 						},
 						unrarArchive: {
 							rest: "POST /unrarArchive",

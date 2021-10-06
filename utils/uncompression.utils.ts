@@ -142,6 +142,7 @@ export const unrarArchive = async (
 		console.error("Failed to read file", err)
 	);
 	try {
+		logger.info("Unrar initiating.")
 		await fse.ensureDir(options.targetExtractionFolder, directoryOptions);
 		logger.info(`${options.targetExtractionFolder} was created.`);
 
@@ -158,26 +159,15 @@ export const unrarArchive = async (
 			const fileName = explodePath(
 				file.fileHeader.name
 			).fileName;
-
-
-			await fse.writeFile(
-				options.targetExtractionFolder + "/" + fileName,
-				fileBuffer
+			// resize image
+			await resizeImage(
+				fileBuffer,
+				path.resolve(options.targetExtractionFolder + "/" + fileName),
+				200
 			);
 
-
-
-
-			// folder.forEach(async (page) => {
-			// 	await resizeImage(
-			// 		page.path + "/" + page.name + page.extension,
-			// 		path.resolve(options.targetExtractionFolder + "/" + page.name + page.extension),
-			// 		200
-			// 	);
-			// });
-			// walk the newly created folder and return results
-
 		}
+		// walk the newly created folder and return results
 		return await walkFolder(options.targetExtractionFolder, [
 			".jpg",
 			".png",
@@ -187,9 +177,4 @@ export const unrarArchive = async (
 	} catch (error) {
 		logger.error(`${error}`);
 	}
-};
-
-export const getPageCountFromRarArchive = async (filePath: string) => {
-	const pageCount = await list(filePath);
-	return pageCount.length;
 };
