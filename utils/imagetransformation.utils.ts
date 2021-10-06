@@ -22,20 +22,22 @@ export const resizeImage = async (
 	newWidth: number,
 	newHeight?: number
 ): Promise<ISharpResizedImageStats> => {
-	return new Promise((resolve, reject) => {
-		sharp(imageFile)
-			.resize(newWidth)
-			.toFile(`${outputPath}`, (err, info) => {
-				if (err) {
-					logger.error("Failed to resize image:");
-					logger.error(err);
-					reject(err);
-				}
+	const buffer = await sharp(imageFile)
+		.resize(newWidth, newHeight, {
+			fit: sharp.fit.inside,
+			withoutEnlargement: true,
+		})
+		.toBuffer();
+	return await sharp(buffer).toFile(`${outputPath}`, (err, info) => {
+		if (err) {
+			logger.error("Failed to resize image:");
+			logger.error(err);
+			return err;
+		}
 
-				logger.info("Image file resized with the following parameters:");
-				logger.info(info);
-				resolve(info);
-			});
+		logger.info("Image file resized with the following parameters:");
+		logger.info(info);
+		return info;
 	});
 };
 
@@ -50,6 +52,6 @@ export const calculateLevenshteinDistance = async (
 			resolve({ levenshteinDistance: leven(hash1, hash2) });
 		});
 	} else {
-		reject("Can't calculate the Levenshtein distance")
+		reject("Can't calculate the Levenshtein distance");
 	}
 };

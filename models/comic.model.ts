@@ -39,6 +39,11 @@ const ComicSchema = mongoose.Schema({
 		fileSize: Number,
 		extension: String,
 		containedIn: String,
+		pageCount: Number,
+		cover: {
+			filePath: String,
+			stats: Object,
+		},
 		calibreMetadata :{
 			coverWriteResult: String,
 		}

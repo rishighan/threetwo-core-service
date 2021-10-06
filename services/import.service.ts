@@ -1,5 +1,5 @@
 "use strict";
-import { each, forOwn, isNil, isUndefined, map } from "lodash";
+import { isNil, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -17,8 +17,13 @@ import { sendToRabbitMQ } from "../queue/importQueue";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
+	IExtractionOptions,
 } from "threetwo-ui-typings";
-import { extractCoverFromFile } from "../utils/uncompression.utils";
+import {
+	extractCoverFromFile,
+	getPageCountFromRarArchive,
+	unrarArchive,
+} from "../utils/uncompression.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class ImportService extends Service {
@@ -53,7 +58,8 @@ export default class ImportService extends Service {
 								ctx: Context<{ basePathToWalk: string }>
 							) {
 								return await walkFolder(
-									ctx.params.basePathToWalk
+									ctx.params.basePathToWalk,
+									[".cbz", ".cbr"],
 								);
 							},
 						},
@@ -78,6 +84,7 @@ export default class ImportService extends Service {
 									walkedFolders: [
 										{
 											name: string;
+											path: string;
 											extension: string;
 											containedIn: string;
 											fileSize: number;
@@ -104,7 +111,7 @@ export default class ImportService extends Service {
 													extractionOptions,
 													folder
 												);
-
+											
 											// 2. Add to mongo
 											const dbImportResult =
 												await this.broker.call(
@@ -359,10 +366,25 @@ export default class ImportService extends Service {
 										}
 									}
 								);
-							
+
 								return Promise.all(volumesMetadata);
 							},
 						},
+						getPageCountForComicBook: {
+							rest: "POST /getPageCountsForComicBook",
+							params: {},
+							async handler(ctx:Context<{filePath: string}>) {
+								return await getPageCountFromRarArchive(ctx.params.filePath);
+							}
+						},
+						unrarArchive: {
+							rest: "POST /unrarArchive",
+							params: {},
+							timeout: 10000,
+							async handler(ctx: Context<{ filePath: string, options: IExtractionOptions,}>) {
+								return await unrarArchive(ctx.params.filePath, ctx.params.options);
+							}
+						}
 					},
 					methods: {
 						getComicVineVolumeMetadata: (apiDetailURL) =>

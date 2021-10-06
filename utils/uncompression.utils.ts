@@ -42,17 +42,12 @@ import {
 	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
 import { logger } from "./logger.utils";
-import {
-	constructPaths,
-	explodePath,
-} from "../utils/file.utils";
+import { constructPaths, explodePath, walkFolder } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
-const { writeFile, readFile } = require("fs").promises;
 
-import sevenBin from "7zip-bin";
-import { list, extract } from "node-7z";
-const pathTo7zip = sevenBin.path7za;
-const unrarer = require("node-unrar-js");
+const sevenZip = require("7zip-min");
+import { list } from "unrar-promise";
+const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 
 export const extractCoverFromFile = async (
@@ -65,24 +60,35 @@ export const extractCoverFromFile = async (
 > => {
 	return new Promise(async (resolve, reject) => {
 		try {
-			const constructedPaths = constructPaths(extractionOptions, walkedFolder);
-			const calibre = new Calibre({
-				library: path.resolve("./userdata/calibre-lib"),
-			});
+			const constructedPaths = constructPaths(
+				extractionOptions,
+				walkedFolder
+			);
+			const calibre = new Calibre();
+
 			// create directory
 			const directoryOptions = {
 				mode: 0o2775,
 			};
-		
+
 			try {
-				await fse.ensureDir(constructedPaths.targetPath, directoryOptions);
+				await fse.ensureDir(
+					constructedPaths.targetPath,
+					directoryOptions
+				);
 				logger.info(`${constructedPaths.targetPath} was created.`);
 			} catch (error) {
 				logger.error(`${error}: Couldn't create directory.`);
 			}
-			// extract the cover 
+
+			// extract the cover
 			let result: string;
-			const targetCoverImageFilePath = path.resolve(constructedPaths.targetPath + "/" + walkedFolder.name + "_cover.jpg")
+			const targetCoverImageFilePath = path.resolve(
+				constructedPaths.targetPath +
+				"/" +
+				walkedFolder.name +
+				"_cover.jpg"
+			);
 			result = await calibre.run(
 				`ebook-meta`,
 				[path.resolve(constructedPaths.inputFilePath)],
@@ -90,19 +96,32 @@ export const extractCoverFromFile = async (
 					getCover: targetCoverImageFilePath,
 				}
 			);
+
 			// create renditions
-			const renditionPath = constructedPaths.targetPath + "/" + walkedFolder.name + "_200px.jpg";
-			const stats:ISharpResizedImageStats = await resizeImage(targetCoverImageFilePath, path.resolve(renditionPath), 200);
+			const renditionPath =
+				constructedPaths.targetPath +
+				"/" +
+				walkedFolder.name +
+				"_200px.jpg";
+			const stats: ISharpResizedImageStats = await resizeImage(
+				targetCoverImageFilePath,
+				path.resolve(renditionPath),
+				200
+			);
 
 			resolve({
 				name: walkedFolder.name,
-				path: renditionPath, 
+				path: renditionPath,
 				fileSize: walkedFolder.fileSize,
 				extension: path.extname(constructedPaths.inputFilePath),
+				cover: {
+					filePath: renditionPath,
+					stats,
+				},
 				containedIn: walkedFolder.containedIn,
 				calibreMetadata: {
 					coverWriteResult: result,
-				}
+				},
 			});
 		} catch (error) {
 			console.log(error);
@@ -110,149 +129,67 @@ export const extractCoverFromFile = async (
 	});
 };
 
-export const unzip = async (
-	extractionOptions: IExtractionOptions,
-	walkedFolder: IFolderData
-): Promise<
-	| IExtractedComicBookCoverFile
-	| IExtractedComicBookCoverFile[]
-	| IExtractComicBookCoverErrorResponse
-> => {
-	const paths = constructPaths(extractionOptions, walkedFolder);
+export const unrarArchive = async (
+	filePath: string,
+	options: IExtractionOptions
+) => {
+	// create directory
 	const directoryOptions = {
 		mode: 0o2775,
 	};
 
+	const fileBuffer = await fse.readFile(filePath).catch((err) =>
+		console.error("Failed to read file", err)
+	);
 	try {
-		await fse.ensureDir(paths.targetPath, directoryOptions);
-		logger.info(`${paths.targetPath} was created.`);
+		await fse.ensureDir(options.targetExtractionFolder, directoryOptions);
+		logger.info(`${options.targetExtractionFolder} was created.`);
+
+		const extractor = await unrar.createExtractorFromData({
+			data: fileBuffer,
+		});
+		const files = extractor.extract({});
+		const extractedFiles = [...files.files];
+		for (const file of extractedFiles) {
+			logger.info(
+				`Attempting to write ${file.fileHeader.name}`
+			);
+			const fileBuffer = file.extraction;
+			const fileName = explodePath(
+				file.fileHeader.name
+			).fileName;
+
+
+			await fse.writeFile(
+				options.targetExtractionFolder + "/" + fileName,
+				fileBuffer
+			);
+
+
+
+
+			// folder.forEach(async (page) => {
+			// 	await resizeImage(
+			// 		page.path + "/" + page.name + page.extension,
+			// 		path.resolve(options.targetExtractionFolder + "/" + page.name + page.extension),
+			// 		200
+			// 	);
+			// });
+			// walk the newly created folder and return results
+
+		}
+		return await walkFolder(options.targetExtractionFolder, [
+			".jpg",
+			".png",
+			".jpeg",
+		]);
+
 	} catch (error) {
-		logger.error(`${error}: Couldn't create directory.`);
-	}
-	switch (extractionOptions.extractTarget) {
-		case "cover":
-			return new Promise((resolve, reject) => {
-				try {
-					let firstImg;
-
-					const listStream = list(path.resolve(paths.inputFilePath), {
-						$cherryPick: ["*.png", "*.jpg", , "*.jpeg", "*.webp"],
-						$bin: pathTo7zip,
-						$progress: true,
-						recursive: true,
-					});
-
-					listStream.on("data", (data) => {
-						if (!firstImg) firstImg = data;
-					});
-					listStream.on("end", () => {
-						if (firstImg) {
-							const extractStream = extract(
-								paths.inputFilePath,
-								paths.targetPath,
-								{
-									$cherryPick: firstImg.file,
-									$bin: pathTo7zip,
-									$progress: true,
-									recursive: true,
-								}
-							);
-							extractStream.on("data", (data) => {
-								//do something with the image
-								console.log(data);
-							});
-						}
-					});
-				} catch (error) {
-					console.log(error);
-				}
-				// resolve({
-				// 	name: `${extractedFiles[0].fileHeader.name}`,
-				// 	path: paths.targetPath,
-				// 	fileSize: extractedFiles[0].fileHeader.packSize,
-				// 	containedIn: walkedFolder.containedIn,
-				//
-				// })
-			});
-
-		case "all":
-			break;
-
-		default:
-			return {
-				message: "File format not supported, yet.",
-				errorCode: "90",
-				data: "asda",
-			};
+		logger.error(`${error}`);
 	}
 };
 
-export const unrar = async (
-	extractionOptions: IExtractionOptions,
-	walkedFolder: IFolderData
-): Promise<IExtractedComicBookCoverFile> => {
-	switch (extractionOptions.extractTarget) {
-		case "cover":
-			return new Promise(async (resolve, reject) => {
-				const paths = constructPaths(extractionOptions, walkedFolder);
-				const directoryOptions = {
-					mode: 0o2775,
-				};
-				try {
-					// read the file into a buffer
-					const fileBuffer = await readFile(
-						paths.inputFilePath
-					).catch((err) => console.error("Failed to read file", err));
-					try {
-						await fse.ensureDir(paths.targetPath, directoryOptions);
-						logger.info(`${paths.targetPath} was created.`);
-					} catch (error) {
-						logger.error(`${error}: Couldn't create directory.`);
-					}
-
-					const extractor = await unrarer.createExtractorFromData({
-						data: fileBuffer,
-					});
-					const files = extractor.extract({});
-					const extractedFiles = [...files.files];
-
-					for (const file of extractedFiles) {
-						logger.info(
-							`Attempting to write ${file.fileHeader.name}`
-						);
-						const fileBuffer = file.extraction;
-						const fileName = explodePath(
-							file.fileHeader.name
-						).fileName;
-
-						if (
-							fileName !== "" &&
-							file.fileHeader.flags.directory === false
-						) {
-							await writeFile(
-								paths.targetPath + "/" + fileName,
-								fileBuffer
-							);
-						}
-					}
-					resolve({
-						name: `${extractedFiles[0].fileHeader.name}`,
-						path: paths.targetPath,
-						extension: path.extname(extractedFiles[0].fileHeader.name),
-						fileSize: extractedFiles[0].fileHeader.packSize,
-						containedIn: walkedFolder.containedIn,
-						calibreMetadata: {
-							coverWriteResult: "",
-						}
-					});
-				} catch (error) {
-					logger.error(`${error}: Couldn't write file.`);
-					reject(error);
-				}
-			});
-		case "all":
-			break;
-		default:
-			break;
-	}
+export const getPageCountFromRarArchive = async (filePath: string) => {
+	const pageCount = await list(filePath);
+	return pageCount.length;
 };

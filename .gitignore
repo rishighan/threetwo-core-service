@@ -68,3 +68,4 @@ dist/
 comics/
 userdata/
 .DS_Store
+erl_crash.dump

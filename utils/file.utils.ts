@@ -14,10 +14,11 @@ import { includes, remove, indexOf } from "lodash";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 
-export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
+export const walkFolder = async (folder: string, formats: string[]): Promise<IFolderData[]> => {
 	const result: IFolderData[] = [];
 	let walkResult: IFolderData = {
 		name: "",
+		path: "",
 		extension: "",
 		containedIn: "",
 		isFile: false,
@@ -31,10 +32,10 @@ export const walkFolder = async (folder: string): Promise<IFolderData[]> => {
 			logger.error("Failed to lstat directory", { error: err });
 			return false;
 		}
-		if ([".cbz", ".cbr"].includes(path.extname(dirent.name))) {
-			console.log(path.resolve(pathname));
+		if ([...formats].includes(path.extname(dirent.name))) {
 			walkResult = {
 				name: path.basename(dirent.name, path.extname(dirent.name)),
+				path: path.dirname(pathname),
 				extension: path.extname(dirent.name),
 				fileSize: fs.statSync(path.resolve(pathname)).size,
 				containedIn: path.dirname(pathname),

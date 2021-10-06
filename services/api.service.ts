@@ -102,10 +102,6 @@ export default class ApiService extends Service {
 							extractTarget: "cover",
 							targetExtractionFolder: "./userdata/covers",
 							extractionMode: "single",
-							paginationOptions: {
-							  pageLimit: 25,
-							  page: 1,
-							},
 						  };
 						this.broker.call("import.processAndImportToDB", {walkedFolders, extractionOptions });
 					})
