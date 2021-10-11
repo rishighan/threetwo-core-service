@@ -3,6 +3,7 @@ import ApiGateway from "moleculer-web";
 import chokidar from "chokidar";
 import { logger } from "../utils/logger.utils";
 import path from "path";
+import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -90,20 +91,42 @@ export default class ApiService extends Service {
 						pollInterval: 100,
 					},
 				});
+				const fileCopyDelaySeconds = 10;
+				const checkFileCopyComplete = (path, previousPath) => {
+					fs.stat(path, async (err, stat) => {
+						if (err) { throw err; }
+						if (stat.mtime.getTime() === previousPath.mtime.getTime()) {
+							logger.info('File copy complete, starting import...');
+							const walkedFolders: IFolderData = await broker.call("import.walkFolders", { basePathToWalk: path });
+							const extractionOptions: IExtractionOptions = {
+								extractTarget: "cover",
+								targetExtractionFolder: "./userdata/covers",
+								extractionMode: "single",
+							};
+							await this.broker.call("import.processAndImportToDB", { walkedFolders, extractionOptions });
+						} else {
+							setTimeout(checkFileCopyComplete, fileCopyDelaySeconds * 1000, path, stat);
+						}
+					})
+				}
 				fileWatcher
 					.on("add", async (path, stats) => {
+						logger.info("Watcher detected new files.")
 						logger.info(
 							`File ${path} has been added with stats: ${JSON.stringify(
 								stats
 							)}`
 						);
-						const walkedFolders:IFolderData = await broker.call("import.walkFolders", {basePathToWalk: path});
-						const extractionOptions: IExtractionOptions = {
-							extractTarget: "cover",
-							targetExtractionFolder: "./userdata/covers",
-							extractionMode: "single",
-						  };
-						this.broker.call("import.processAndImportToDB", {walkedFolders, extractionOptions });
+
+						logger.info('File copy started...');
+						fs.stat(path, function (err, stat) {
+							if (err) {
+								logger.error('Error watching file for copy completion. ERR: ' + err.message);
+								logger.error('Error file not processed. PATH: ' + path);
+								throw err;
+							}
+							setTimeout(checkFileCopyComplete, fileCopyDelaySeconds * 1000, path, stat);
+						});
 					})
 					.on("change", (path, stats) =>
 						logger.info(

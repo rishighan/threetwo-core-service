@@ -23,6 +23,7 @@ import {
 	extractCoverFromFile,
 	unrarArchive,
 } from "../utils/uncompression.utils";
+import {scrapeIssuesFromDOM} from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class ImportService extends Service {
@@ -368,6 +369,13 @@ export default class ImportService extends Service {
 
 								return Promise.all(volumesMetadata);
 							},
+						},
+						scrapeIssueNamesFromDOM: {
+							rest: "POST /scrapeIssueNamesFromDOM",
+							params: {},
+							async handler(ctx: Context<{ html: string}>) {
+								return scrapeIssuesFromDOM(ctx.params.html);
+							}
 						},
 						unrarArchive: {
 							rest: "POST /unrarArchive",
