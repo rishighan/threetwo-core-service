@@ -46,7 +46,6 @@ import { constructPaths, explodePath, walkFolder } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
 
 const sevenZip = require("7zip-min");
-import { list } from "unrar-promise";
 const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 
