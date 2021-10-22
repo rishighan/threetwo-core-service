@@ -1,7 +1,7 @@
 import { logger } from "../utils/logger.utils";
 //RabbitMQ
 const amqp = require("amqplib/callback_api");
-const rabbitUrl = process.env.DOCKER_HOST ? `amqp://${process.env.DOCKER_HOST}` : `amqp://localhost`;
+const rabbitUrl = process.env.DOCKER_RABBITMQ_HOST ? `amqp://${process.env.DOCKER_RABBITMQ_HOST}` : `amqp://localhost`;
 
 export const sendToRabbitMQ = (queueName, data) => {
     // connect to local rabbitmq instance
