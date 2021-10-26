@@ -13,7 +13,6 @@ import { walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
 import { logger } from "../utils/logger.utils";
-import { sendToRabbitMQ } from "../queue/importQueue";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -72,16 +71,12 @@ export default class ImportService extends Service {
 						},
 						processAndImportToDB: {
 							rest: "POST /processAndImportToDB",
-							bulkhead: {
-								enabled: true,
-								concurrency: 50,
-								maxQueueSize: 100,
-							},
+							
 							params: {},
 							async handler(
 								ctx: Context<{
 									extractionOptions: any;
-									walkedFolders: [
+									walkedFolders: 
 										{
 											name: string;
 											path: string;
@@ -90,16 +85,15 @@ export default class ImportService extends Service {
 											fileSize: number;
 											isFile: boolean;
 											isLink: boolean;
-										}
-									];
+										};
 								}>
 							) {
 								try {
 									const { extractionOptions, walkedFolders } =
 										ctx.params;
-									map(walkedFolders, async (folder, idx) => {
+									// map(walkedFolders, async (folder, idx) => {
 										let comicExists = await Comic.exists({
-											"rawFileDetails.name": `${folder.name}`,
+											"rawFileDetails.name": `${walkedFolders.name}`,
 										});
 										if (!comicExists) {
 											// 1. Extract cover and cover metadata
@@ -109,7 +103,7 @@ export default class ImportService extends Service {
 												| IExtractedComicBookCoverFile[] =
 												await extractCoverFromFile(
 													extractionOptions,
-													folder
+													walkedFolders
 												);
 											
 											// 2. Add to mongo
@@ -132,20 +126,13 @@ export default class ImportService extends Service {
 													},
 													{}
 												);
-											// 3. Send to the queue
-											sendToRabbitMQ(
-												"comicBookCovers",
-												JSON.stringify({
-													comicBookCoverMetadata,
-													dbImportResult,
-												})
-											);
+											
 										} else {
 											logger.info(
-												`Comic: \"${folder.name}\" already exists in the database`
+												`Comic: \"${walkedFolders.name}\" already exists in the database`
 											);
 										}
-									});
+									// });
 								} catch (error) {
 									logger.error(
 										"Error importing comic books",

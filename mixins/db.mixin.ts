@@ -11,6 +11,7 @@ export const DbMixin = (collection, model)  => {
 				user: process.env.MONGO_INITDB_ROOT_USERNAME,
 				pass: process.env.MONGO_INITDB_ROOT_PASSWORD,
 				keepAlive: true,
+				useUnifiedTopology: true,
 			}),
 			model,
 			collection,
