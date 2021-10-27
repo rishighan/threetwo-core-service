@@ -126,7 +126,7 @@ export default class ImportService extends Service {
 													{}
 												);
 											
-												return await dbImportResult;
+												return { comicBookCoverMetadata, dbImportResult };
 										} else {
 											logger.info(
 												`Comic: \"${walkedFolders.name}\" already exists in the database`
@@ -377,7 +377,7 @@ export default class ImportService extends Service {
 							new Promise((resolve, reject) =>
 								https
 									.get(
-										`${apiDetailURL}?api_key=a5fa0663683df8145a85d694b5da4b87e1c92c69&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
+										`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
 										(resp) => {
 											let data = "";
 											resp.on("data", (chunk) => {

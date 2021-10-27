@@ -98,21 +98,16 @@ export default class ApiService extends Service {
 				this.io.on("connection", (client) => {
 					this.logger.info("Client connected via websocket!");
 
-					client.on("action", (action, done) => {
+					client.on("action", async (action) => {
 						switch (action.type) {
 							case "LS_IMPORT":
-								this.broker
-									.call(
-										"libraryqueue.enqueue",
-										action.data,
-										{}
-									)
-									.then((res) => {
-										if (done) {
-											done(res);
-										}
-									})
-									.catch((err) => this.logger.error(err));
+								// 1. Send task to queue
+								const result = await this.broker.call(
+									"libraryqueue.enqueue",
+									action.data,
+									{}
+								);
+								
 								break;
 						}
 					});

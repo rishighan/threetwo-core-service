@@ -7,6 +7,7 @@ import {
 	Errors,
 } from "moleculer";
 import BullMQMixin from "moleculer-bull";
+const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`; 
 
 export default class LibraryQueueService extends Service {
 	public constructor(
@@ -18,7 +19,7 @@ export default class LibraryQueueService extends Service {
 			Service.mergeSchemas(
 				{
 					name: "libraryqueue",
-					mixins: [BullMQMixin("redis://0.0.0.0:6379")],
+					mixins: [BullMQMixin(REDIS_URI)],
 					settings: {},
 					hooks: {},
 					queues: {
@@ -27,6 +28,7 @@ export default class LibraryQueueService extends Service {
 								this.logger.info("New job received!", job.data);
 								this.logger.info(`Processing queue...`);
 								const result = await this.broker.call('import.processAndImportToDB', job.data);
+                                
 								return Promise.resolve({
                                     result,
 									id: job.id,
@@ -40,11 +42,11 @@ export default class LibraryQueueService extends Service {
 							rest: "POST /enqueue",
 							params: {},
 							async handler(ctx: Context<{ extractionOptions: object, walkedFolders: object}>) {
-                                console.log(ctx.params);
-								const job = await this.createJob("mail.send", {
+								return await this.createJob("process.import", {
                                     extractionOptions: ctx.params.extractionOptions,
 									walkedFolders: ctx.params.walkedFolders,
 								});
+                                
 								
 							},
 						},
