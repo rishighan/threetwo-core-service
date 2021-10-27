@@ -91,7 +91,6 @@ export default class ImportService extends Service {
 								try {
 									const { extractionOptions, walkedFolders } =
 										ctx.params;
-									// map(walkedFolders, async (folder, idx) => {
 										let comicExists = await Comic.exists({
 											"rawFileDetails.name": `${walkedFolders.name}`,
 										});
@@ -127,12 +126,12 @@ export default class ImportService extends Service {
 													{}
 												);
 											
+												return await dbImportResult;
 										} else {
 											logger.info(
 												`Comic: \"${walkedFolders.name}\" already exists in the database`
 											);
 										}
-									// });
 								} catch (error) {
 									logger.error(
 										"Error importing comic books",

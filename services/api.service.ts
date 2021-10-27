@@ -99,39 +99,24 @@ export default class ApiService extends Service {
 					this.logger.info("Client connected via websocket!");
 
 					client.on("action", (action, done) => {
-						console.log(action);
 						switch (action.type) {
 							case "LS_IMPORT":
 								this.broker
 									.call(
-										"import.processAndImportToDB",
+										"libraryqueue.enqueue",
 										action.data,
 										{}
 									)
 									.then((res) => {
-										if (done) done(res);
+										if (done) {
+											done(res);
+										}
 									})
 									.catch((err) => this.logger.error(err));
 								break;
 						}
 					});
-
-					// client.on("call", ({ action, params, opts }, done) => {
-					// 	this.logger.info(
-					// 		"Received request from client! Action:",
-					// 		action,
-					// 		", Params:",
-					// 		params
-					// 	);
-
-					// 	this.broker
-					// 		.call(action, params, opts)
-					// 		.then((res) => {
-					// 			if (done) done(res);
-					// 		})
-					// 		.catch((err) => this.logger.error(err));
-					// });
-
+					// Add a disconnect listener
 					client.on("disconnect", () => {
 						this.logger.info("Client disconnected");
 					});
