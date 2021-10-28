@@ -5,7 +5,11 @@ import { logger } from "../utils/logger.utils";
 import path from "path";
 import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
-import IO from "socket.io";
+import { createServer } from "http";
+import { Server } from "socket.io";
+
+const socketServer = createServer();
+const SOCKET_HOST = process.env.DOCKER_HOST || `localhost`;
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -92,7 +96,8 @@ export default class ApiService extends Service {
 			started(): any {
 				// Socket gateway-ish
 				// Create a Socket.IO instance, passing it our server
-				this.io = new IO.Server(3001);
+				socketServer.listen(3001, SOCKET_HOST);
+				this.io = new Server(socketServer, {});
 
 				// Add a connect listener
 				this.io.on("connection", (client) => {
