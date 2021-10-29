@@ -8,18 +8,11 @@ WORKDIR /threetwo-import-service
 
 RUN apk update && \
     apk add --no-cache --upgrade \
-    bash \
-    ca-certificates \
-    gcc \
-    dcron \
-    imagemagick \
-    mesa-gl \
-    python3 \
-    qt5-qtbase-x11 \
     wget \
+    imagemagick \
+    python3 \
     nodejs \
     npm \
-    xdg-utils \
     xvfb \
     xz && \
     wget -O- ${CALIBRE_INSTALLER_SOURCE_CODE_URL} | python3 -c "import sys; main=lambda:sys.stderr.write('Download failed\n'); exec(sys.stdin.read()); main(install_dir='/opt', isolated=True)" && \
