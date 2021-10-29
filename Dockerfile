@@ -1,26 +1,28 @@
-FROM node:buster-slim
+FROM jeanblanchard/alpine-glibc
 
 # Show all node logs
 ENV NPM_CONFIG_LOGLEVEL warn
 ENV NODE_ENV=production
-
+ENV CALIBRE_INSTALLER_SOURCE_CODE_URL https://raw.githubusercontent.com/kovidgoyal/calibre/master/setup/linux-installer.py
 WORKDIR /threetwo-import-service
 
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && apt-get install -y \
-    bash git openssh-server \
+RUN apk update && \
+    apk add --no-cache --upgrade \
+    bash \
     ca-certificates \
     gcc \
-    libgl1-mesa-glx \
-    python3 python3-pip \
-    qtbase5-dev \
+    dcron \
+    imagemagick \
+    mesa-gl \
+    python3 \
+    qt5-qtbase-x11 \
     wget \
+    nodejs \
+    npm \
     xdg-utils \
-    xz-utils \
-    libvips-dev build-essential
-
-RUN wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin install_dir=/opt isolated=y && \
+    xvfb \
+    xz && \
+    wget -O- ${CALIBRE_INSTALLER_SOURCE_CODE_URL} | python3 -c "import sys; main=lambda:sys.stderr.write('Download failed\n'); exec(sys.stdin.read()); main(install_dir='/opt', isolated=True)" && \
     rm -rf /tmp/calibre-installer-cache
 
 COPY package.json package-lock.json ./

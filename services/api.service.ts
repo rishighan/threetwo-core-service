@@ -96,7 +96,7 @@ export default class ApiService extends Service {
 			started(): any {
 				// Socket gateway-ish
 				// Create a Socket.IO instance, passing it our server
-				socketServer.listen(3001, "0.0.0.0");
+				socketServer.listen(3001, SOCKET_HOST);
 				this.io = new Server(socketServer, {});
 
 				// Add a connect listener
