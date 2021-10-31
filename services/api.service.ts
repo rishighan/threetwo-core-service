@@ -96,9 +96,8 @@ export default class ApiService extends Service {
 			started(): any {
 				// Socket gateway-ish
 				// Create a Socket.IO instance, passing it our server
-				socketServer.listen(3001, SOCKET_HOST);
+				socketServer.listen(3001, `0.0.0.0`);
 				this.io = new Server(socketServer, {});
-
 				// Add a connect listener
 				this.io.on("connection", (client) => {
 					this.logger.info("Client connected via websocket!");
