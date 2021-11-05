@@ -374,10 +374,15 @@ export default class ImportService extends Service {
 					},
 					methods: {
 						getComicVineVolumeMetadata: (apiDetailURL) =>
-							new Promise((resolve, reject) =>
+							new Promise((resolve, reject) => {
+								const options = {
+									headers: {
+										'User-Agent': 'ThreeTwo',
+									}
+								}
 								https
 									.get(
-										`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
+										`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, options,
 										(resp) => {
 											let data = "";
 											resp.on("data", (chunk) => {
@@ -397,6 +402,7 @@ export default class ImportService extends Service {
 										console.log("Error: " + err.message);
 										reject(err);
 									})
+								}
 							),
 					},
 				},
