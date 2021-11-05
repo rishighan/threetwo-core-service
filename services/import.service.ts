@@ -217,7 +217,6 @@ export default class ImportService extends Service {
 								return new Promise(async (resolve, reject) => {
 									const volumeDetails =
 										await volumeDetailsPromise;
-										console.log(volumeDetails);
 									matchedResult.volumeInformation =
 										volumeDetails;
 									Comic.findByIdAndUpdate(
@@ -391,6 +390,7 @@ export default class ImportService extends Service {
 											});
 
 											resp.on("end", () => {
+												console.log("HERE, BITCHES< HERE")
 												const volumeInformation =
 													JSON.parse(data);
 												resolve(
