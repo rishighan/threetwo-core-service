@@ -390,7 +390,7 @@ export default class ImportService extends Service {
 											});
 
 											resp.on("end", () => {
-												console.log("HERE, BITCHES< HERE")
+												console.log(data, "HERE, BITCHES< HERE")
 												const volumeInformation =
 													JSON.parse(data);
 												resolve(
