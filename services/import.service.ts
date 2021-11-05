@@ -217,6 +217,7 @@ export default class ImportService extends Service {
 								return new Promise(async (resolve, reject) => {
 									const volumeDetails =
 										await volumeDetailsPromise;
+										console.log(volumeDetails);
 									matchedResult.volumeInformation =
 										volumeDetails;
 									Comic.findByIdAndUpdate(
