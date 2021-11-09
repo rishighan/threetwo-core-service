@@ -25,7 +25,6 @@ import {
 import {scrapeIssuesFromDOM} from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 
-console.log("HEYOOOOO", process.env.COMICVINE_API_KEY);
 export default class ImportService extends Service {
 	public constructor(
 		public broker: ServiceBroker,
