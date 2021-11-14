@@ -67,7 +67,7 @@
     "sharp": "^0.28.1",
     "socket.io": "^4.3.1",
     "socket.io-stream": "^0.5.3",
-    "threetwo-ui-typings": "^1.0.10",
+    "threetwo-ui-typings": "^1.0.11",
     "typescript": "^3.8.3",
     "unrar": "^0.2.0",
     "xml2js": "^0.4.23"

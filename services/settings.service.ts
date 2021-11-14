@@ -21,27 +21,22 @@ export default class SettingsService extends Service {
 				{
 					name: "settings",
 					mixins: [DbMixin("settings", Settings)],
-					settings: {
-						
-					},
+					settings: {},
 					hooks: {},
 					actions: {
-                        getSettings: {
-                            rest: "GET /getAllSettings",
-                            params: {},
-                            async handler(ctx: Context<{}>) {
+						getSettings: {
+							rest: "GET /getAllSettings",
+							params: {},
+							async handler(ctx: Context<{}>) {},
+						},
 
-                            }
-                        },
-
-                        saveSettings: {
-                            rest: "POST /saveSettings",
-                            params: {},
-                            async handler(ctx: Context<{}>) {
-
-                            }
-                        }
-						
+						saveSettings: {
+							rest: "POST /saveSettings",
+							params: {},
+							async handler(ctx: Context<{}>) {
+								console.log(ctx.params);
+							},
+						},
 					},
 					methods: {},
 				},

@@ -84,11 +84,12 @@ export const extractCoverFromFile = async (
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(
 				constructedPaths.targetPath +
-				"/" +
-				walkedFolder.name +
-				"_cover.jpg"
+					"/" +
+					walkedFolder.name +
+					"_cover.jpg"
 			);
-			const ebookMetaPath = `${process.env.CALIBRE_EBOOK_META_PATH}` || `ebook-meta`;
+			const ebookMetaPath =
+				`${process.env.CALIBRE_EBOOK_META_PATH}` || `ebook-meta`;
 			result = await calibre.run(
 				ebookMetaPath,
 				[constructedPaths.inputFilePath],
@@ -116,7 +117,6 @@ export const extractCoverFromFile = async (
 				extension: path.extname(constructedPaths.inputFilePath),
 				cover: {
 					filePath: renditionPath,
-					stats,
 				},
 				containedIn: walkedFolder.containedIn,
 				calibreMetadata: {
@@ -138,11 +138,11 @@ export const unrarArchive = async (
 		mode: 0o2775,
 	};
 
-	const fileBuffer = await fse.readFile(filePath).catch((err) =>
-		console.error("Failed to read file", err)
-	);
+	const fileBuffer = await fse
+		.readFile(filePath)
+		.catch((err) => console.error("Failed to read file", err));
 	try {
-		logger.info("Unrar initiating.")
+		logger.info("Unrar initiating.");
 		await fse.ensureDir(options.targetExtractionFolder, directoryOptions);
 		logger.info(`${options.targetExtractionFolder} was created.`);
 
@@ -152,20 +152,15 @@ export const unrarArchive = async (
 		const files = extractor.extract({});
 		const extractedFiles = [...files.files];
 		for (const file of extractedFiles) {
-			logger.info(
-				`Attempting to write ${file.fileHeader.name}`
-			);
+			logger.info(`Attempting to write ${file.fileHeader.name}`);
 			const fileBuffer = file.extraction;
-			const fileName = explodePath(
-				file.fileHeader.name
-			).fileName;
+			const fileName = explodePath(file.fileHeader.name).fileName;
 			// resize image
 			await resizeImage(
 				fileBuffer,
 				path.resolve(options.targetExtractionFolder + "/" + fileName),
 				200
 			);
-
 		}
 		// walk the newly created folder and return results
 		return await walkFolder(options.targetExtractionFolder, [
@@ -173,7 +168,6 @@ export const unrarArchive = async (
 			".png",
 			".jpeg",
 		]);
-
 	} catch (error) {
 		logger.error(`${error}`);
 	}
