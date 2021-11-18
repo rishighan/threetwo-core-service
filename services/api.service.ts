@@ -111,7 +111,7 @@ export default class ApiService extends Service {
 									action.data,
 									{}
 								);
-								
+
 								break;
 						}
 					});
@@ -142,9 +142,7 @@ export default class ApiService extends Service {
 							stat.mtime.getTime() ===
 							previousPath.mtime.getTime()
 						) {
-							logger.info(
-								"File copy complete, starting import..."
-							);
+							logger.info("File detected, starting import...");
 							const walkedFolders: IFolderData =
 								await broker.call("import.walkFolders", {
 									basePathToWalk: path,
