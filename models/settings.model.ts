@@ -4,14 +4,15 @@ const paginate = require("mongoose-paginate-v2");
 const SettingsScehma = mongoose.Schema({
 	directConnect: {
 		client: {
-			name: String,
-			version: String,
-			airdcppUserSettings: Object,
-			hostname: String,
-			protocol: String,
-			username: String,
-			password: String,
-			hubs: [{}],
+			host: {
+				username: String,
+				password: String,
+				hostname: String,
+				protocol: String,
+			},
+			airDCPPUserSettings: Object,
+
+			hubs: Array,
 		},
 	},
 });

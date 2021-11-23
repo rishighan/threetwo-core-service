@@ -8,7 +8,17 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Settings from "../models/settings.model";
-import { isEmpty } from "lodash";
+import {
+	isEmpty,
+	isUndefined,
+	pick,
+	pickBy,
+	identity,
+	map,
+	omitBy,
+	isNil,
+} from "lodash";
+const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class SettingsService extends Service {
 	// @ts-ignore
@@ -45,29 +55,56 @@ export default class SettingsService extends Service {
 							params: {},
 							async handler(
 								ctx: Context<{
-									settingsObject: {
-										hostname: string;
-										protocol: string;
-										username: string;
-										password: string;
+									settingsPayload: {
+										host: object;
+										airDCPPUserSettings: object;
+										hubs: [];
 									};
-									airdcppUserSettings: object;
+									settingsObjectId: string;
 								}>
 							) {
-								console.log(ctx.params);
-								const { settingsObject, airdcppUserSettings } =
-									ctx.params;
+								console.log("varan bhat", ctx.params);
+								const { host, airDCPPUserSettings, hubs } =
+									ctx.params.settingsPayload;
+								let query = {
+									host,
+									airDCPPUserSettings,
+									hubs,
+								};
+								const keysToUpdate = pickBy(query, identity);
+								let updateQuery = {};
 
-								const result = await Settings.create({
-									directConnect: {
-										client: {
-											...settingsObject,
-											airdcppUserSettings,
-										},
-									},
+								map(Object.keys(keysToUpdate), (key) => {
+									updateQuery[`directConnect.client.${key}`] =
+										query[key];
 								});
-								console.log("ASDASD", result);
+								const options = {
+									upsert: true,
+									new: true,
+									setDefaultsOnInsert: true,
+								};
+								const filter = {
+									_id: new ObjectId(
+										ctx.params.settingsObjectId
+									),
+								};
+								const result = Settings.findOneAndUpdate(
+									filter,
+									{ $set: updateQuery },
+									options
+								);
+
 								return result;
+							},
+						},
+						deleteSettings: {
+							rest: "POST /deleteSettings",
+							params: {},
+							async handler(ctx: Context<{}>) {
+								return await Settings.remove(
+									{},
+									(result) => result
+								);
 							},
 						},
 					},
