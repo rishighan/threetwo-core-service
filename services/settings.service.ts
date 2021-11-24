@@ -8,16 +8,7 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Settings from "../models/settings.model";
-import {
-	isEmpty,
-	isUndefined,
-	pick,
-	pickBy,
-	identity,
-	map,
-	omitBy,
-	isNil,
-} from "lodash";
+import { isEmpty, pickBy, identity, map } from "lodash";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class SettingsService extends Service {
