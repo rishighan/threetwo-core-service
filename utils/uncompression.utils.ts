@@ -88,8 +88,9 @@ export const extractCoverFromFile = async (
 					walkedFolder.name +
 					"_cover.jpg"
 			);
-			const ebookMetaPath =
-				`${process.env.CALIBRE_EBOOK_META_PATH}` || `ebook-meta`;
+			const ebookMetaPath = process.env.CALIBRE_EBOOK_META_PATH
+				? `${process.env.CALIBRE_EBOOK_META_PATH}`
+				: `ebook-meta`;
 			result = await calibre.run(
 				ebookMetaPath,
 				[constructedPaths.inputFilePath],
