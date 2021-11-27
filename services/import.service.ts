@@ -22,8 +22,11 @@ import {
 	extractCoverFromFile,
 	unrarArchive,
 } from "../utils/uncompression.utils";
-import {scrapeIssuesFromDOM} from "../utils/scraping.utils";
+import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
+import mongoose from "mongoose";
+import fsExtra from "fs-extra";
+import path from "path";
 
 export default class ImportService extends Service {
 	public constructor(
@@ -58,7 +61,7 @@ export default class ImportService extends Service {
 							) {
 								return await walkFolder(
 									ctx.params.basePathToWalk,
-									[".cbz", ".cbr"],
+									[".cbz", ".cbr"]
 								);
 							},
 						},
@@ -71,67 +74,68 @@ export default class ImportService extends Service {
 						},
 						processAndImportToDB: {
 							rest: "POST /processAndImportToDB",
-							
+
 							params: {},
 							async handler(
 								ctx: Context<{
 									extractionOptions: any;
-									walkedFolders: 
-										{
-											name: string;
-											path: string;
-											extension: string;
-											containedIn: string;
-											fileSize: number;
-											isFile: boolean;
-											isLink: boolean;
-										};
+									walkedFolders: {
+										name: string;
+										path: string;
+										extension: string;
+										containedIn: string;
+										fileSize: number;
+										isFile: boolean;
+										isLink: boolean;
+									};
 								}>
 							) {
 								try {
 									const { extractionOptions, walkedFolders } =
 										ctx.params;
-										let comicExists = await Comic.exists({
-											"rawFileDetails.name": `${walkedFolders.name}`,
-										});
-										if (!comicExists) {
-											// 1. Extract cover and cover metadata
-											let comicBookCoverMetadata:
-												| IExtractedComicBookCoverFile
-												| IExtractComicBookCoverErrorResponse
-												| IExtractedComicBookCoverFile[] =
-												await extractCoverFromFile(
-													extractionOptions,
-													walkedFolders
-												);
-											
-											// 2. Add to mongo
-											const dbImportResult =
-												await this.broker.call(
-													"import.rawImportToDB",
-													{
-														importStatus: {
-															isImported: true,
-															tagged: false,
-															matchedResult: {
-																score: "0",
-															},
-														},
-														rawFileDetails:
-															comicBookCoverMetadata,
-														sourcedMetadata: {
-															comicvine: {},
+									let comicExists = await Comic.exists({
+										"rawFileDetails.name": `${walkedFolders.name}`,
+									});
+									if (!comicExists) {
+										// 1. Extract cover and cover metadata
+										let comicBookCoverMetadata:
+											| IExtractedComicBookCoverFile
+											| IExtractComicBookCoverErrorResponse
+											| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
+											extractionOptions,
+											walkedFolders
+										);
+
+										// 2. Add to mongo
+										const dbImportResult =
+											await this.broker.call(
+												"import.rawImportToDB",
+												{
+													importStatus: {
+														isImported: true,
+														tagged: false,
+														matchedResult: {
+															score: "0",
 														},
 													},
-													{}
-												);
-											
-												return { comicBookCoverMetadata, dbImportResult };
-										} else {
-											logger.info(
-												`Comic: \"${walkedFolders.name}\" already exists in the database`
+													rawFileDetails:
+														comicBookCoverMetadata,
+													sourcedMetadata: {
+														comicvine: {},
+													},
+												},
+												{}
 											);
-										}
+
+										return {
+											comicBookCoverMetadata,
+											dbImportResult,
+										};
+									} else {
+										logger.info(
+											`Comic: \"${walkedFolders.name}\" already exists in the database`
+										);
+									}
 								} catch (error) {
 									logger.error(
 										"Error importing comic books",
@@ -356,33 +360,61 @@ export default class ImportService extends Service {
 								return Promise.all(volumesMetadata);
 							},
 						},
+						flushDB: {
+							rest: "POST /flushDB",
+							params: {},
+							async handler(ctx: Context<{}>) {
+								return await mongoose.connection.db
+									.dropCollection("comics")
+									.then((data) => {
+										logger.info(data);
+										const foo = fsExtra.emptyDirSync(
+											path.resolve("./userdata/covers")
+										);
+										const foo2 = fsExtra.emptyDirSync(
+											path.resolve("./userdata/expanded")
+										);
+										return { foo, foo2 };
+									})
+									.catch((error) => error);
+							},
+						},
 						scrapeIssueNamesFromDOM: {
 							rest: "POST /scrapeIssueNamesFromDOM",
 							params: {},
-							async handler(ctx: Context<{ html: string}>) {
+							async handler(ctx: Context<{ html: string }>) {
 								return scrapeIssuesFromDOM(ctx.params.html);
-							}
+							},
 						},
 						unrarArchive: {
 							rest: "POST /unrarArchive",
 							params: {},
 							timeout: 10000,
-							async handler(ctx: Context<{ filePath: string, options: IExtractionOptions,}>) {
-								return await unrarArchive(ctx.params.filePath, ctx.params.options);
-							}
-						}
+							async handler(
+								ctx: Context<{
+									filePath: string;
+									options: IExtractionOptions;
+								}>
+							) {
+								return await unrarArchive(
+									ctx.params.filePath,
+									ctx.params.options
+								);
+							},
+						},
 					},
 					methods: {
 						getComicVineVolumeMetadata: (apiDetailURL) =>
 							new Promise((resolve, reject) => {
 								const options = {
 									headers: {
-										'User-Agent': 'ThreeTwo',
-									}
-								}
+										"User-Agent": "ThreeTwo",
+									},
+								};
 								return https
 									.get(
-										`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`, options,
+										`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
+										options,
 										(resp) => {
 											let data = "";
 											resp.on("data", (chunk) => {
@@ -390,7 +422,10 @@ export default class ImportService extends Service {
 											});
 
 											resp.on("end", () => {
-												console.log(data, "HERE, BITCHES< HERE")
+												console.log(
+													data,
+													"HERE, BITCHES< HERE"
+												);
 												const volumeInformation =
 													JSON.parse(data);
 												resolve(
@@ -402,9 +437,8 @@ export default class ImportService extends Service {
 									.on("error", (err) => {
 										console.log("Error: " + err.message);
 										reject(err);
-									})
-								}
-							),
+									});
+							}),
 					},
 				},
 				schema
