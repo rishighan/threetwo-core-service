@@ -9,10 +9,9 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { walkFolder } from "../utils/file.utils";
+import { explodePath, walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import https from "https";
-import { logger } from "../utils/logger.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -20,12 +19,14 @@ import {
 } from "threetwo-ui-typings";
 import {
 	extractCoverFromFile,
+	extractCoverFromFile2,
 	unrarArchive,
 } from "../utils/uncompression.utils";
 import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
-import mongoose from "mongoose";
 import fsExtra from "fs-extra";
+const through2 = require("through2");
+import klaw from "klaw";
 import path from "path";
 
 export default class ImportService extends Service {
@@ -72,6 +73,84 @@ export default class ImportService extends Service {
 								return convertXMLToJSON("lagos");
 							},
 						},
+						newImport: {
+							rest: "POST /newImport",
+							params: {},
+							async handler(
+								ctx: Context<{
+									extractionOptions?: any;
+								}>
+							) {
+								// 1. Walk the Source folder
+								klaw(path.resolve(process.env.COMICS_DIRECTORY))
+									// 1.1 Filter on .cb* extensions
+									.pipe(
+										through2.obj(function (
+											item,
+											enc,
+											next
+										) {
+											let fileExtension = path.extname(
+												item.path
+											);
+											if (
+												[
+													".cbz",
+													".cbr",
+													".cb7",
+												].includes(fileExtension)
+											) {
+												this.push(item);
+											}
+
+											next();
+										})
+									)
+									// 1.2 Pipe filtered results to the next step
+									.on("data", async (item) => {
+										console.info(
+											"Found a file at path: %s",
+											item.path
+										);
+										let comicExists = await Comic.exists({
+											"rawFileDetails.name": `${path.basename(
+												item.path,
+												path.extname(item.path)
+											)}`,
+										});
+										if (!comicExists) {
+										// 2. Send the extraction job to the queue
+										await broker.call(
+												"libraryqueue.enqueue",
+												{
+													fileObject: {
+														filePath: item.path,
+														size: item.stats.size,
+													},
+												}
+											);
+										} else {
+											console.log(
+												"Comic already exists in the library."
+											);
+										}
+									})
+									.on("end", () => {
+										console.log("Import process complete.");
+									});
+							},
+						},
+						nicefyPath: {
+							rest: "POST /nicefyPath",
+							params: {},
+							async handler(
+								ctx: Context<{
+									filePath: string;
+								}>
+							) {
+								return explodePath(ctx.params.filePath);
+							},
+						},
 						processAndImportToDB: {
 							rest: "POST /processAndImportToDB",
 
@@ -96,6 +175,11 @@ export default class ImportService extends Service {
 									let comicExists = await Comic.exists({
 										"rawFileDetails.name": `${walkedFolders.name}`,
 									});
+									// rough flow of import process
+									// 1. Walk folder
+									// 2. For each folder, call extract function
+									// 3. For each successful extraction, run dbImport
+
 									if (!comicExists) {
 										// 1. Extract cover and cover metadata
 										let comicBookCoverMetadata:
@@ -132,12 +216,12 @@ export default class ImportService extends Service {
 											dbImportResult,
 										};
 									} else {
-										logger.info(
+										console.info(
 											`Comic: \"${walkedFolders.name}\" already exists in the database`
 										);
 									}
 								} catch (error) {
-									logger.error(
+									console.error(
 										"Error importing comic books",
 										error
 									);
@@ -233,7 +317,7 @@ export default class ImportService extends Service {
 										{ new: true },
 										(err, result) => {
 											if (err) {
-												console.log(err);
+												console.info(err);
 												reject(err);
 											} else {
 												// 3. Fetch and append volume information
@@ -364,17 +448,17 @@ export default class ImportService extends Service {
 							rest: "POST /flushDB",
 							params: {},
 							async handler(ctx: Context<{}>) {
-								return await mongoose.connection.db
-									.dropCollection("comics")
+								return await Comic.collection
+									.drop()
 									.then((data) => {
-										logger.info(data);
+										console.info(data);
 										const foo = fsExtra.emptyDirSync(
 											path.resolve("./userdata/covers")
 										);
 										const foo2 = fsExtra.emptyDirSync(
 											path.resolve("./userdata/expanded")
 										);
-										return { foo, foo2 };
+										return { data, foo, foo2 };
 									})
 									.catch((error) => error);
 							},
@@ -422,7 +506,7 @@ export default class ImportService extends Service {
 											});
 
 											resp.on("end", () => {
-												console.log(
+												console.info(
 													data,
 													"HERE, BITCHES< HERE"
 												);
@@ -435,7 +519,7 @@ export default class ImportService extends Service {
 										}
 									)
 									.on("error", (err) => {
-										console.log("Error: " + err.message);
+										console.info("Error: " + err.message);
 										reject(err);
 									});
 							}),

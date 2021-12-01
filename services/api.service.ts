@@ -1,7 +1,6 @@
 import { Service, ServiceBroker, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
 import chokidar from "chokidar";
-import { logger } from "../utils/logger.utils";
 import path from "path";
 import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
@@ -107,24 +106,24 @@ export default class ApiService extends Service {
 				});
 				// Add a connect listener
 				this.io.on("connection", (client) => {
-					this.logger.info("Client connected via websocket!");
+					console.log("Client connected via websocket!");
 
 					client.on("action", async (action) => {
 						switch (action.type) {
 							case "LS_IMPORT":
 								// 1. Send task to queue
 								const result = await this.broker.call(
-									"libraryqueue.enqueue",
+									"import.newImport",
 									action.data,
 									{}
 								);
-
+								client.emit("LS_COVER_EXTRACTED", result);
 								break;
 						}
 					});
 					// Add a disconnect listener
 					client.on("disconnect", () => {
-						this.logger.info("Client disconnected");
+						console.log("Client disconnected");
 					});
 				});
 
@@ -149,7 +148,8 @@ export default class ApiService extends Service {
 							stat.mtime.getTime() ===
 							previousPath.mtime.getTime()
 						) {
-							logger.info("File detected, starting import...");
+							console.log("File detected, starting import...");
+							// this walking business needs to go, SACURATAYYY, SACURATAYYY!! This dude needs to go.
 							const walkedFolders: IFolderData =
 								await broker.call("import.walkFolders", {
 									basePathToWalk: path,
@@ -175,21 +175,21 @@ export default class ApiService extends Service {
 				};
 				fileWatcher
 					.on("add", async (path, stats) => {
-						logger.info("Watcher detected new files.");
-						logger.info(
+						console.log("Watcher detected new files.");
+						console.log(
 							`File ${path} has been added with stats: ${JSON.stringify(
 								stats
 							)}`
 						);
 
-						logger.info("File copy started...");
+						console.log("File copy started...");
 						fs.stat(path, function (err, stat) {
 							if (err) {
-								logger.error(
+								console.log(
 									"Error watching file for copy completion. ERR: " +
 										err.message
 								);
-								logger.error(
+								console.log(
 									"Error file not processed. PATH: " + path
 								);
 								throw err;
@@ -203,15 +203,15 @@ export default class ApiService extends Service {
 						});
 					})
 					.on("change", (path, stats) =>
-						logger.info(
+						console.log(
 							`File ${path} has been changed. Stats: ${stats}`
 						)
 					)
 					.on("unlink", (path) =>
-						logger.info(`File ${path} has been removed`)
+						console.log(`File ${path} has been removed`)
 					)
 					.on("addDir", (path) =>
-						logger.info(`Directory ${path} has been added`)
+						console.log(`Directory ${path} has been added`)
 					);
 			},
 		});

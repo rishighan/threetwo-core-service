@@ -1,5 +1,4 @@
 const sharp = require("sharp");
-import { logger } from "./logger.utils";
 import { ISharpResizedImageStats } from "threetwo-ui-typings";
 const imghash = require("imghash");
 const leven = require("leven");
@@ -30,13 +29,12 @@ export const resizeImage = async (
 		.toBuffer();
 	return await sharp(buffer).toFile(`${outputPath}`, (err, info) => {
 		if (err) {
-			logger.error("Failed to resize image:");
-			logger.error(err);
+			console.log("Failed to resize image:");
+			console.log(err);
 			return err;
 		}
 
-		logger.info("Image file resized with the following parameters:");
-		logger.info(info);
+		console.log("Image file %s resized with the following parameters: %o", imageFile, info);
 		return info;
 	});
 };

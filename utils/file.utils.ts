@@ -9,7 +9,6 @@ import {
 	IExtractionOptions,
 	IFolderData,
 } from "threetwo-ui-typings";
-import { logger } from "./logger.utils";
 import { includes, remove, indexOf } from "lodash";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
@@ -29,7 +28,7 @@ export const walkFolder = async (folder: string, formats: string[]): Promise<IFo
 	const walk = Walk.create({ sort: filterOutDotFiles });
 	await walk(folder, async (err, pathname, dirent) => {
 		if (err) {
-			logger.error("Failed to lstat directory", { error: err });
+			console.log("Failed to lstat directory", { error: err });
 			return false;
 		}
 		if ([...formats].includes(path.extname(dirent.name))) {
@@ -42,7 +41,7 @@ export const walkFolder = async (folder: string, formats: string[]): Promise<IFo
 				isFile: dirent.isFile(),
 				isLink: dirent.isSymbolicLink(),
 			};
-			logger.info(
+			console.log(
 				`Scanned ${dirent.name} contained in ${path.dirname(pathname)}`
 			);
 			result.push(walkResult);

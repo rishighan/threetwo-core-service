@@ -6,7 +6,6 @@ import {
 	IFolderData,
 } from "threetwo-ui-typings";
 const Validator = require("fastest-validator");
-import { logger } from "./logger.utils";
 
 export const validateComicBookMetadata = (
 	comicBookMetadataObject: IExtractedComicBookCoverFile
@@ -19,9 +18,9 @@ export const validateComicBookMetadata = (
 	};
 	const check = validator.compile(sch);
 	if (check(comicBookMetadataObject)) {
-		logger.info(`Valid comic book metadata: ${comicBookMetadataObject}`);
+		console.log(`Valid comic book metadata: ${comicBookMetadataObject}`);
 	} else {
-		logger.error(
+		console.log(
 			`Comic book metadata was invalid:
 			${comicBookMetadataObject}`
 		);

@@ -41,13 +41,15 @@ import {
 	IFolderData,
 	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
-import { logger } from "./logger.utils";
+
 import { constructPaths, explodePath, walkFolder } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
-
+import { isNil } from "lodash";
 const sevenZip = require("7zip-min");
 const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
+console.info("COMICS_DIRECTORY", process.env.COMICS_DIRECTORY);
+console.info("USERDATA_DIRECTORY", process.env.USERDATA_DIRECTORY);
 
 export const extractCoverFromFile = async (
 	extractionOptions: IExtractionOptions,
@@ -75,9 +77,9 @@ export const extractCoverFromFile = async (
 					constructedPaths.targetPath,
 					directoryOptions
 				);
-				logger.info(`${constructedPaths.targetPath} was created.`);
+				console.info(`${constructedPaths.targetPath} was created.`);
 			} catch (error) {
-				logger.error(`${error}: Couldn't create directory.`);
+				console.error(`${error}: Couldn't create directory.`);
 			}
 
 			// extract the cover
@@ -125,9 +127,85 @@ export const extractCoverFromFile = async (
 				},
 			});
 		} catch (error) {
-			console.log(error);
+			console.info(error);
 		}
 	});
+};
+
+export const extractCoverFromFile2 = async (
+	fileObject: any
+): Promise<any> => {
+	try {
+		const { filePath, size} = fileObject;
+		
+		const calibre = new Calibre();
+		console.info(`Initiating extraction process for path ${filePath}`);
+
+		// 1. Check for process.env.COMICS_DIRECTORY and process.env.USERDATA_DIRECTORY
+		if (!isNil(process.env.USERDATA_DIRECTORY)) {
+			// 2. Create the directory to which the cover image will be extracted
+			console.info("Attempting to create target directory for cover extraction...");
+			const directoryOptions = {
+				mode: 0o2775,
+			};
+			const fileNameWithExtension = path.basename(filePath);
+			const fileNameWithoutExtension = path.basename(filePath, path.extname(filePath));
+			const targetDirectory = `${process.env.USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+			
+			await fse.ensureDir(targetDirectory, directoryOptions);
+			console.info(`%s was created.`, targetDirectory);
+
+			// 3. extract the cover
+			console.info(`Starting cover extraction...`);
+			let result: string;
+			const targetCoverImageFilePath = path.resolve(
+				targetDirectory +
+					"/" +
+					fileNameWithoutExtension +
+					"_cover.jpg"
+			);
+			const ebookMetaPath = process.env.CALIBRE_EBOOK_META_PATH
+				? `${process.env.CALIBRE_EBOOK_META_PATH}`
+				: `ebook-meta`;
+			result = await calibre.run(
+				ebookMetaPath,
+				[filePath],
+				{
+					getCover: targetCoverImageFilePath,
+				}
+			);
+			console.info(`ebook-meta ran with the following result: %o`, result)
+
+			// 4. create rendition path
+			const renditionPath =
+				targetDirectory+
+				"/" +
+				fileNameWithoutExtension +
+				"_200px.jpg";
+
+			// 5. resize image
+			await resizeImage(
+				targetCoverImageFilePath,
+				path.resolve(renditionPath),
+				200
+			);
+			return {
+				name: fileNameWithoutExtension,
+				path:  filePath,
+				fileSize: size,
+				extension: path.extname(filePath),
+				cover: {
+					filePath: path.relative(process.cwd(),renditionPath),
+				},
+				containedIn: path.dirname(fileNameWithExtension),
+				calibreMetadata: {
+					coverWriteResult: result,
+				},
+			};
+		}
+	} catch (error) {
+		console.error(error);
+	}
 };
 
 export const unrarArchive = async (
@@ -143,9 +221,9 @@ export const unrarArchive = async (
 		.readFile(filePath)
 		.catch((err) => console.error("Failed to read file", err));
 	try {
-		logger.info("Unrar initiating.");
+		console.info("Unrar initiating.");
 		await fse.ensureDir(options.targetExtractionFolder, directoryOptions);
-		logger.info(`${options.targetExtractionFolder} was created.`);
+		console.info(`${options.targetExtractionFolder} was created.`);
 
 		const extractor = await unrar.createExtractorFromData({
 			data: fileBuffer,
@@ -153,7 +231,7 @@ export const unrarArchive = async (
 		const files = extractor.extract({});
 		const extractedFiles = [...files.files];
 		for (const file of extractedFiles) {
-			logger.info(`Attempting to write ${file.fileHeader.name}`);
+			console.info(`Attempting to write ${file.fileHeader.name}`);
 			const fileBuffer = file.extraction;
 			const fileName = explodePath(file.fileHeader.name).fileName;
 			// resize image
@@ -170,6 +248,6 @@ export const unrarArchive = async (
 			".jpeg",
 		]);
 	} catch (error) {
-		logger.error(`${error}`);
+		console.info(`${error}`);
 	}
 };
