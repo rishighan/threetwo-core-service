@@ -19,7 +19,6 @@ export default class LibraryQueueService extends Service {
 		schema: ServiceSchema<{}> = { name: "libraryqueue" }
 	) {
 		super(broker);
-		console.log(this.io);
 		this.parseServiceSchema(
 			Service.mergeSchemas(
 				{

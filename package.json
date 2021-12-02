@@ -31,7 +31,8 @@
     "jest-cli": "^27.2.5",
     "moleculer-repl": "^0.6.6",
     "ts-jest": "^25.3.0",
-    "ts-node": "^8.8.1"
+    "ts-node": "^8.8.1",
+    "typescript": "^3.9.10"
   },
   "dependencies": {
     "7zip-bin": "^5.1.1",
@@ -64,11 +65,9 @@
     "node-calibre": "^2.1.1",
     "node-unrar-js": "^1.0.2",
     "sharp": "^0.28.1",
-    "socket.io": "^4.3.2",
-    "socket.io-stream": "^0.5.3",
+    "socket.io": "^4.4.0",
     "threetwo-ui-typings": "^1.0.11",
     "through2": "^4.0.2",
-    "typescript": "^3.8.3",
     "unrar": "^0.2.0",
     "xml2js": "^0.4.23"
   },

@@ -17,11 +17,8 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 } from "threetwo-ui-typings";
-import {
-	extractCoverFromFile,
-	extractCoverFromFile2,
-	unrarArchive,
-} from "../utils/uncompression.utils";
+import { unrarArchive } from "../utils/uncompression.utils";
+import { extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
@@ -120,8 +117,8 @@ export default class ImportService extends Service {
 											)}`,
 										});
 										if (!comicExists) {
-										// 2. Send the extraction job to the queue
-										await broker.call(
+											// 2. Send the extraction job to the queue
+											await broker.call(
 												"libraryqueue.enqueue",
 												{
 													fileObject: {
@@ -186,9 +183,8 @@ export default class ImportService extends Service {
 										let comicBookCoverMetadata:
 											| IExtractedComicBookCoverFile
 											| IExtractComicBookCoverErrorResponse
-											| IExtractedComicBookCoverFile[] = await extractCoverFromFile(
+											| IExtractedComicBookCoverFile[] = await extractCoverFromFile2(
 											extractionOptions,
-											walkedFolders
 										);
 
 										// 2. Add to mongo
@@ -454,10 +450,14 @@ export default class ImportService extends Service {
 									.then((data) => {
 										console.info(data);
 										const foo = fsExtra.emptyDirSync(
-											path.resolve(`${USERDATA_DIRECTORY}/covers`)
+											path.resolve(
+												`${USERDATA_DIRECTORY}/covers`
+											)
 										);
 										const foo2 = fsExtra.emptyDirSync(
-											path.resolve(`${USERDATA_DIRECTORY}/expanded`)
+											path.resolve(
+												`${USERDATA_DIRECTORY}/expanded`
+											)
 										);
 										return { data, foo, foo2 };
 									})
