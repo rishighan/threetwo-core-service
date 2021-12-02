@@ -48,8 +48,7 @@ import { isNil } from "lodash";
 const sevenZip = require("7zip-min");
 const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
-console.info("COMICS_DIRECTORY", process.env.COMICS_DIRECTORY);
-console.info("USERDATA_DIRECTORY", process.env.USERDATA_DIRECTORY);
+import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
 
 export const extractCoverFromFile = async (
 	extractionOptions: IExtractionOptions,
@@ -142,7 +141,7 @@ export const extractCoverFromFile2 = async (
 		console.info(`Initiating extraction process for path ${filePath}`);
 
 		// 1. Check for process.env.COMICS_DIRECTORY and process.env.USERDATA_DIRECTORY
-		if (!isNil(process.env.USERDATA_DIRECTORY)) {
+		if (!isNil(USERDATA_DIRECTORY)) {
 			// 2. Create the directory to which the cover image will be extracted
 			console.info("Attempting to create target directory for cover extraction...");
 			const directoryOptions = {
@@ -150,7 +149,7 @@ export const extractCoverFromFile2 = async (
 			};
 			const fileNameWithExtension = path.basename(filePath);
 			const fileNameWithoutExtension = path.basename(filePath, path.extname(filePath));
-			const targetDirectory = `${process.env.USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 			
 			await fse.ensureDir(targetDirectory, directoryOptions);
 			console.info(`%s was created.`, targetDirectory);

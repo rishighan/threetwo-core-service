@@ -28,6 +28,7 @@ import fsExtra from "fs-extra";
 const through2 = require("through2");
 import klaw from "klaw";
 import path from "path";
+import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 
 export default class ImportService extends Service {
 	public constructor(
@@ -82,7 +83,7 @@ export default class ImportService extends Service {
 								}>
 							) {
 								// 1. Walk the Source folder
-								klaw(path.resolve(process.env.COMICS_DIRECTORY))
+								klaw(path.resolve(COMICS_DIRECTORY))
 									// 1.1 Filter on .cb* extensions
 									.pipe(
 										through2.obj(function (
@@ -453,10 +454,10 @@ export default class ImportService extends Service {
 									.then((data) => {
 										console.info(data);
 										const foo = fsExtra.emptyDirSync(
-											path.resolve("./userdata/covers")
+											path.resolve(`${USERDATA_DIRECTORY}/covers`)
 										);
 										const foo2 = fsExtra.emptyDirSync(
-											path.resolve("./userdata/expanded")
+											path.resolve(`${USERDATA_DIRECTORY}/expanded`)
 										);
 										return { data, foo, foo2 };
 									})

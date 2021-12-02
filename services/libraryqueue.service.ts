@@ -65,6 +65,7 @@ export default class LibraryQueueService extends Service {
 						},
 					},
 					actions: {
+					
 						enqueue: {
 							rest: "POST /enqueue",
 							params: {},
