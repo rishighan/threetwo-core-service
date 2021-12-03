@@ -5,9 +5,8 @@ import path from "path";
 import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
 import { createServer } from "http";
-import { Server } from "socket.io";
-
-const socketServer = createServer();
+import { Server, Socket } from "socket.io";
+import { SocketIOMixin } from "../mixins/socket.io.mixin";
 const SOCKET_HOST = process.env.DOCKER_HOST || `localhost`;
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -15,7 +14,7 @@ export default class ApiService extends Service {
 		// @ts-ignore
 		this.parseServiceSchema({
 			name: "api",
-			mixins: [ApiGateway],
+			mixins: [ApiGateway, SocketIOMixin],
 			// More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
 			settings: {
 				port: process.env.PORT || 3000,
@@ -94,16 +93,7 @@ export default class ApiService extends Service {
 			methods: {},
 			started(): any {
 				// Socket gateway-ish
-				// Create a Socket.IO instance, passing it our server
-				socketServer.listen(3001, `0.0.0.0`);
-				this.io = new Server(socketServer, {
-					cors: {
-						origin: "*",
-						methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-						preflightContinue: false,
-						optionsSuccessStatus: 204,
-					},
-				});
+				this.io = SocketIOMixin();
 				// Add a connect listener
 				this.io.on("connection", (client) => {
 					console.log("Client connected via websocket!");

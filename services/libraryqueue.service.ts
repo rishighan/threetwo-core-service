@@ -54,6 +54,7 @@ export default class LibraryQueueService extends Service {
 									},
 									{}
 								);
+							
 
 								return Promise.resolve({
 									dbImportResult,
