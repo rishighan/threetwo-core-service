@@ -28,6 +28,7 @@ export default class LibraryQueueService extends Service {
 					hooks: {},
 					queues: {
 						"process.import": {
+							concurrency: 30,
 							async process(job: SandboxedJob) {
 								console.info("New job received!", job.data);
 								console.info(`Processing queue...`);

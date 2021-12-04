@@ -80,6 +80,7 @@ export default class ImportService extends Service {
 								}>
 							) {
 								// 1. Walk the Source folder
+								
 								klaw(path.resolve(COMICS_DIRECTORY))
 									// 1.1 Filter on .cb* extensions
 									.pipe(
