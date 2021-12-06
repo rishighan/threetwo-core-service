@@ -11,6 +11,7 @@ import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { extractCoverFromFile2 } from "../utils/uncompression.utils";
+import { io } from "./api.service";
 const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
 
 export default class LibraryQueueService extends Service {
@@ -55,7 +56,6 @@ export default class LibraryQueueService extends Service {
 									},
 									{}
 								);
-							
 
 								return Promise.resolve({
 									dbImportResult,
@@ -66,7 +66,6 @@ export default class LibraryQueueService extends Service {
 						},
 					},
 					actions: {
-					
 						enqueue: {
 							rest: "POST /enqueue",
 							params: {},
@@ -83,27 +82,32 @@ export default class LibraryQueueService extends Service {
 					},
 					methods: {},
 					async started(): Promise<any> {
-						const failed = await this.getQueue("process.import").on(
-							"failed",
-							async (job, error) => {
+						io.on("connection", async (client) => {
+							await this.getQueue(
+								"process.import"
+							).on("failed", async (job, error) => {
 								console.error(
 									`An error occured in 'process.import' queue on job id '${job.id}': ${error.message}`
 								);
-							}
-						);
-						const completed = await this.getQueue(
-							"process.import"
-						).on("completed", async (job, res) => {
-							console.info(
-								`Job with the id '${job.id}' completed.`
-							);
-						});
-						const stalled = await this.getQueue(
-							"process.import"
-						).on("stalled", async (job) => {
-							console.warn(
-								`The job with the id '${job} got stalled!`
-							);
+							});
+							await this.getQueue(
+								"process.import"
+							).on("completed", async (job, res) => {
+								client.emit("action", {
+									type: "LS_COVER_EXTRACTED",
+									result: res,
+								});
+								console.info(
+									`Job with the id '${job.id}' completed.`
+								);
+							});
+							await this.getQueue(
+								"process.import"
+							).on("stalled", async (job) => {
+								console.warn(
+									`The job with the id '${job} got stalled!`
+								);
+							});
 						});
 					},
 				},

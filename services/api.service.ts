@@ -8,6 +8,7 @@ import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import { SocketIOMixin } from "../mixins/socket.io.mixin";
 const SOCKET_HOST = process.env.DOCKER_HOST || `localhost`;
+export const io = SocketIOMixin();
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -81,8 +82,8 @@ export default class ApiService extends Service {
 			},
 			events: {
 				"**"(payload, sender, event) {
-					if (this.io)
-						this.io.emit("event", {
+					if (io)
+						io.emit("event", {
 							sender,
 							event,
 							payload,
@@ -92,10 +93,9 @@ export default class ApiService extends Service {
 
 			methods: {},
 			started(): any {
-				// Socket gateway-ish
-				this.io = SocketIOMixin();
+				
 				// Add a connect listener
-				this.io.on("connection", (client) => {
+				io.on("connection", (client) => {
 					console.log("Client connected via websocket!");
 
 					client.on("action", async (action) => {
