@@ -1,5 +1,16 @@
 const mongoose = require("mongoose");
+var mexp = require('mongoose-elasticsearch-xp').v7;
 const paginate = require("mongoose-paginate-v2");
+
+const { Client } = require("@elastic/elasticsearch");
+const eSClient = new Client({
+	node: "http://ghost:9200",
+	auth: {
+		username: "elastic",
+		password: "password",
+	},
+});
+
 
 const ComicSchema = mongoose.Schema({
 	importStatus: {
@@ -34,7 +45,7 @@ const ComicSchema = mongoose.Schema({
 		gcd: {},
 	},
 	rawFileDetails: {
-		name: String,
+		name: { type: String, es_indexed: true },
 		path: String,
 		fileSize: Number,
 		extension: String,
@@ -63,7 +74,9 @@ const ComicSchema = mongoose.Schema({
 		},
 	},
 }, { timestamps: true});
-
+ComicSchema.plugin(mexp, {
+	client: eSClient,
+});
 ComicSchema.plugin(paginate);
 const Comic = mongoose.model("Comic", ComicSchema);
 export default Comic;

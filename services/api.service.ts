@@ -72,8 +72,8 @@ export default class ApiService extends Service {
 					},
 				],
 				log4XXResponses: false,
-				logRequestParams: null,
-				logResponseData: null,
+				logRequestParams: true,
+				logResponseData: true,
 				assets: {
 					folder: "public",
 					// Options to `server-static` module
