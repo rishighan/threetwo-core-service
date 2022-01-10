@@ -1,4 +1,4 @@
-# threetwo-import-service
+# threetwo-core-service
 
 This [moleculer-based](https://github.com/moleculerjs/moleculer-web) microservice houses endpoints for the following functions:
 
