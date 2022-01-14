@@ -4,10 +4,7 @@ import chokidar from "chokidar";
 import path from "path";
 import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
-import { createServer } from "http";
-import { Server, Socket } from "socket.io";
 import { SocketIOMixin } from "../mixins/socket.io.mixin";
-const SOCKET_HOST = process.env.DOCKER_HOST || `localhost`;
 export const io = SocketIOMixin();
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {

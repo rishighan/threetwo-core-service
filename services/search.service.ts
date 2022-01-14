@@ -9,7 +9,7 @@ import {
 
 const { Client } = require("@elastic/elasticsearch");
 const client = new Client({
-	node: "http://ghost:9200",
+	node: "http://tower.local:9200",
 	auth: {
 		username: "elastic",
 		password: "password",

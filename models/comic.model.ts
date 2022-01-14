@@ -3,8 +3,9 @@ var mexp = require('mongoose-elasticsearch-xp').v7;
 const paginate = require("mongoose-paginate-v2");
 
 const { Client } = require("@elastic/elasticsearch");
+console.log("YENADADADADA", Client)
 const eSClient = new Client({
-	node: "http://ghost:9200",
+	node: "http://tower.local:9200",
 	auth: {
 		username: "elastic",
 		password: "password",

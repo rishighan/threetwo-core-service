@@ -33,7 +33,7 @@ import {
  */
 const brokerConfig: BrokerOptions = {
 	// Namespace of nodes to segment your nodes on the same network.
-	namespace: "",
+	namespace: "threetwo-core-services",
 	// Unique node identifier. Must be unique in a namespace.
 	nodeID: null,
 	// Custom metadata store. Store here what you want. Accessing: `this.broker.metadata`
