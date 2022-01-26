@@ -128,7 +128,7 @@ export default class ApiService extends Service {
 							},
 						}
 					);
-					const fileCopyDelaySeconds = 10;
+					const fileCopyDelaySeconds = 30;
 					const checkFileCopyComplete = (path, previousPath) => {
 						fs.stat(path, async (err, stat) => {
 							if (err) {
@@ -146,11 +146,10 @@ export default class ApiService extends Service {
 									await broker.call("import.walkFolders", {
 										basePathToWalk: path,
 									});
-								console.log(walkedFolder);
 								await this.broker.call("libraryqueue.enqueue", {
 									fileObject: {
 										filePath: walkedFolder[0].filePath,
-										size: walkedFolder[0].fileSize,
+										fileSize: walkedFolder[0].fileSize,
 									},
 								});
 							} else {

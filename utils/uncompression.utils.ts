@@ -55,7 +55,7 @@ export const extractCoverFromFile2 = async (
 	fileObject: any
 ): Promise<any> => {
 	try {
-		const { filePath, fileSize} = fileObject;
+		const { filePath, fileSize } = fileObject;
 		
 		const calibre = new Calibre();
 		console.info(`Initiating extraction process for path ${filePath}`);
