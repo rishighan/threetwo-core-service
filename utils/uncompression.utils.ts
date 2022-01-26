@@ -55,8 +55,6 @@ export const extractCoverFromFile2 = async (
 	fileObject: any
 ): Promise<any> => {
 	try {
-		console.log("ASDASD!@#!#!@#!@#");
-		console.log(fileObject);
 		const { filePath, fileSize} = fileObject;
 		
 		const calibre = new Calibre();

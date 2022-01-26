@@ -147,10 +147,12 @@ export default class ApiService extends Service {
 										basePathToWalk: path,
 									});
 								console.log(walkedFolder);
-								await this.broker.call(
-									"import.processAndImportToDB",
-									{ walkedFolder }
-								);
+								await this.broker.call("libraryqueue.enqueue", {
+									fileObject: {
+										filePath: walkedFolder[0].filePath,
+										size: walkedFolder[0].fileSize,
+									},
+								});
 							} else {
 								setTimeout(
 									checkFileCopyComplete,
