@@ -27,6 +27,7 @@ import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 
+console.log(process.env.MONGO_URI);
 export default class ImportService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -128,8 +129,7 @@ export default class ImportService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							extractionOptions: any;
-							walkedFolders: {
+							walkedFolder: {
 								name: string;
 								path: string;
 								extension: string;
@@ -141,10 +141,9 @@ export default class ImportService extends Service {
 						}>
 					) {
 						try {
-							const { extractionOptions, walkedFolders } =
-								ctx.params;
+							const { walkedFolder } = ctx.params;
 							let comicExists = await Comic.exists({
-								"rawFileDetails.name": `${walkedFolders.name}`,
+								"rawFileDetails.name": `${walkedFolder.name}`,
 							});
 							// rough flow of import process
 							// 1. Walk folder
@@ -157,7 +156,7 @@ export default class ImportService extends Service {
 									| IExtractedComicBookCoverFile
 									| IExtractComicBookCoverErrorResponse
 									| IExtractedComicBookCoverFile[] = await extractCoverFromFile2(
-									extractionOptions
+									walkedFolder[0]
 								);
 
 								// 2. Add to mongo
@@ -185,7 +184,7 @@ export default class ImportService extends Service {
 								};
 							} else {
 								console.info(
-									`Comic: \"${walkedFolders.name}\" already exists in the database`
+									`Comic: \"${walkedFolder.name}\" already exists in the database`
 								);
 							}
 						} catch (error) {
@@ -459,7 +458,9 @@ export default class ImportService extends Service {
 									});
 
 									resp.on("end", () => {
-										console.log(`${apiDetailURL} returned data.`)
+										console.log(
+											`${apiDetailURL} returned data.`
+										);
 										const volumeInformation =
 											JSON.parse(data);
 										resolve(volumeInformation.results);

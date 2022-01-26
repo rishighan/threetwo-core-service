@@ -90,7 +90,6 @@ export default class ApiService extends Service {
 
 			methods: {},
 			started(): any {
-				
 				// Add a connect listener
 				io.on("connection", (client) => {
 					console.log("Client connected via websocket!");
@@ -112,94 +111,102 @@ export default class ApiService extends Service {
 					client.on("disconnect", () => {
 						console.log("Client disconnected");
 					});
-				});
 
-				// Filewatcher
-				const fileWatcher = chokidar.watch(path.resolve("./comics"), {
-					ignored: /(^|[\/\\])\../, // ignore dotfiles
-					persistent: true,
-					ignoreInitial: true,
-					atomic: true,
-					awaitWriteFinish: {
-						stabilityThreshold: 2000,
-						pollInterval: 100,
-					},
-				});
-				const fileCopyDelaySeconds = 10;
-				const checkFileCopyComplete = (path, previousPath) => {
-					fs.stat(path, async (err, stat) => {
-						if (err) {
-							throw err;
+					// Filewatcher
+					const fileWatcher = chokidar.watch(
+						path.resolve("./comics"),
+						{
+							ignored: /(^|[\/\\])\../, // ignore dotfiles
+							persistent: true,
+							usePolling: true,
+							ignoreInitial: true,
+							atomic: true,
+							depth: 1,
+							awaitWriteFinish: {
+								stabilityThreshold: 2000,
+								pollInterval: 100,
+							},
 						}
-						if (
-							stat.mtime.getTime() ===
-							previousPath.mtime.getTime()
-						) {
-							console.log("File detected, starting import...");
-							// this walking business needs to go, SACURATAYYY, SACURATAYYY!! This dude needs to go.
-							const walkedFolders: IFolderData =
-								await broker.call("import.walkFolders", {
-									basePathToWalk: path,
-								});
-							const extractionOptions: IExtractionOptions = {
-								extractTarget: "cover",
-								targetExtractionFolder: "./userdata/covers",
-								extractionMode: "single",
-							};
-							await this.broker.call(
-								"import.processAndImportToDB",
-								{ walkedFolders, extractionOptions }
-							);
-						} else {
-							setTimeout(
-								checkFileCopyComplete,
-								fileCopyDelaySeconds * 1000,
-								path,
-								stat
-							);
-						}
-					});
-				};
-				fileWatcher
-					.on("add", async (path, stats) => {
-						console.log("Watcher detected new files.");
-						console.log(
-							`File ${path} has been added with stats: ${JSON.stringify(
-								stats
-							)}`
-						);
-
-						console.log("File copy started...");
-						fs.stat(path, function (err, stat) {
+					);
+					const fileCopyDelaySeconds = 10;
+					const checkFileCopyComplete = (path, previousPath) => {
+						fs.stat(path, async (err, stat) => {
 							if (err) {
-								console.log(
-									"Error watching file for copy completion. ERR: " +
-										err.message
-								);
-								console.log(
-									"Error file not processed. PATH: " + path
-								);
 								throw err;
 							}
-							setTimeout(
-								checkFileCopyComplete,
-								fileCopyDelaySeconds * 1000,
-								path,
-								stat
-							);
+							if (
+								stat.mtime.getTime() ===
+								previousPath.mtime.getTime()
+							) {
+								console.log(
+									"File detected, starting import..."
+								);
+								// this walking business needs to go, SACURATAYYY, SACURATAYYY!! This dude needs to go.
+								const walkedFolder: IFolderData =
+									await broker.call("import.walkFolders", {
+										basePathToWalk: path,
+									});
+								console.log(walkedFolder);
+								await this.broker.call(
+									"import.processAndImportToDB",
+									{ walkedFolder }
+								);
+							} else {
+								setTimeout(
+									checkFileCopyComplete,
+									fileCopyDelaySeconds * 1000,
+									path,
+									stat
+								);
+							}
 						});
-					})
-					.on("change", (path, stats) =>
-						console.log(
-							`File ${path} has been changed. Stats: ${stats}`
+					};
+					fileWatcher
+						.on("add", async (path, stats) => {
+							console.log("Watcher detected new files.");
+							console.log(
+								`File ${path} has been added with stats: ${JSON.stringify(
+									stats
+								)}`
+							);
+
+							console.log("File copy started...");
+							fs.stat(path, function (err, stat) {
+								if (err) {
+									console.log(
+										"Error watching file for copy completion. ERR: " +
+											err.message
+									);
+									console.log(
+										"Error file not processed. PATH: " +
+											path
+									);
+									throw err;
+								}
+								setTimeout(
+									checkFileCopyComplete,
+									fileCopyDelaySeconds * 1000,
+									path,
+									stat
+								);
+								client.emit("action", {
+									type: "LS_COMIC_ADDED",
+									result: path,
+								});
+							});
+						})
+						.on("change", (path, stats) =>
+							console.log(
+								`File ${path} has been changed. Stats: ${stats}`
+							)
 						)
-					)
-					.on("unlink", (path) =>
-						console.log(`File ${path} has been removed`)
-					)
-					.on("addDir", (path) =>
-						console.log(`Directory ${path} has been added`)
-					);
+						.on("unlink", (path) =>
+							console.log(`File ${path} has been removed`)
+						)
+						.on("addDir", (path) =>
+							console.log(`Directory ${path} has been added`)
+						);
+				});
 			},
 		});
 	}

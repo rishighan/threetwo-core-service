@@ -3,7 +3,7 @@ const mkdir = require("mkdirp").sync;
 const DbService = require("moleculer-db");
 const MongoAdapter = require("moleculer-db-adapter-mongoose");
 
-export const DbMixin = (collection, model)  => {
+export const DbMixin = (collection, model) => {
 	if(process.env.MONGO_URI) {
 		return {
 			mixins: [DbService],
@@ -12,6 +12,7 @@ export const DbMixin = (collection, model)  => {
 				pass: process.env.MONGO_INITDB_ROOT_PASSWORD,
 				keepAlive: true,
 				useUnifiedTopology: true,
+				family: 4,
 			}),
 			model,
 			collection,

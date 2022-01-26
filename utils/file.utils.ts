@@ -17,7 +17,7 @@ export const walkFolder = async (folder: string, formats: string[]): Promise<IFo
 	const result: IFolderData[] = [];
 	let walkResult: IFolderData = {
 		name: "",
-		path: "",
+		filePath: "",
 		extension: "",
 		containedIn: "",
 		isFile: false,
@@ -34,7 +34,7 @@ export const walkFolder = async (folder: string, formats: string[]): Promise<IFo
 		if ([...formats].includes(path.extname(dirent.name))) {
 			walkResult = {
 				name: path.basename(dirent.name, path.extname(dirent.name)),
-				path: path.dirname(pathname),
+				filePath: path.resolve(pathname),
 				extension: path.extname(dirent.name),
 				fileSize: fs.statSync(path.resolve(pathname)).size,
 				containedIn: path.dirname(pathname),

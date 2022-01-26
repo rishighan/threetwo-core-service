@@ -14,6 +14,7 @@ import { extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { io } from "./api.service";
 const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
 
+console.log(`REDIS -> ${REDIS_URI}`);
 export default class LibraryQueueService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);

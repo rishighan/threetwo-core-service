@@ -55,7 +55,9 @@ export const extractCoverFromFile2 = async (
 	fileObject: any
 ): Promise<any> => {
 	try {
-		const { filePath, size} = fileObject;
+		console.log("ASDASD!@#!#!@#!@#");
+		console.log(fileObject);
+		const { filePath, fileSize} = fileObject;
 		
 		const calibre = new Calibre();
 		console.info(`Initiating extraction process for path ${filePath}`);
@@ -111,7 +113,7 @@ export const extractCoverFromFile2 = async (
 			return {
 				name: fileNameWithoutExtension,
 				path:  filePath,
-				fileSize: size,
+				fileSize,
 				extension: path.extname(filePath),
 				cover: {
 					filePath: path.relative(process.cwd(),renditionPath),
