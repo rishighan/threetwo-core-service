@@ -141,7 +141,6 @@ export default class ApiService extends Service {
 								console.log(
 									"File detected, starting import..."
 								);
-								// this walking business needs to go, SACURATAYYY, SACURATAYYY!! This dude needs to go.
 								const walkedFolder: IFolderData =
 									await broker.call("import.walkFolders", {
 										basePathToWalk: path,

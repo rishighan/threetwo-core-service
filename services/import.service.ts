@@ -367,7 +367,7 @@ export default class ImportService extends Service {
 							},
 							{
 								$match: {
-									count: { $gte: 2 },
+									count: { $gte: 1 },
 								},
 							},
 							{ $sort: { updatedAt: -1 } },
