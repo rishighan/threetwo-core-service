@@ -1,3 +1,38 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2022 Rishi Ghan
+ *
+ The MIT License (MIT)
+
+Copyright (c) 2022 Rishi Ghan
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
+ */
+
+/*
+ * Revision History:
+ *     Initial:        2022/01/28        Rishi Ghan
+ */
+
+
+
 "use strict";
 import { isNil, map } from "lodash";
 import {
@@ -98,7 +133,7 @@ export default class ImportService extends Service {
 									await broker.call("libraryqueue.enqueue", {
 										fileObject: {
 											filePath: item.path,
-											size: item.stats.size,
+											fileSize: item.stats.size,
 										},
 									});
 								} else {
@@ -449,7 +484,7 @@ export default class ImportService extends Service {
 						};
 						return https
 							.get(
-								`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0&field_list=id,name,description,image,first_issue,last_issue,publisher,count_of_issues,character_credits,person_credits,aliases`,
+								`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0`,
 								options,
 								(resp) => {
 									let data = "";

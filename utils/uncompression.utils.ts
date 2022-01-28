@@ -5,7 +5,7 @@
  *
  The MIT License (MIT)
 
-Copyright (c) 2021 Rishi Ghan
+Copyright (c) 2022 Rishi Ghan
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -110,7 +110,7 @@ export const extractCoverFromFile2 = async (
 			);
 			return {
 				name: fileNameWithoutExtension,
-				path:  filePath,
+				filePath,
 				fileSize,
 				extension: path.extname(filePath),
 				cover: {
