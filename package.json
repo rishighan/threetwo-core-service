@@ -73,7 +73,7 @@
     "node-unrar-js": "^1.0.2",
     "sharp": "^0.28.3",
     "socket.io": "^4.4.0",
-    "threetwo-ui-typings": "^1.0.11",
+    "threetwo-ui-typings": "^1.0.12",
     "through2": "^4.0.2",
     "unrar": "^0.2.0",
     "xml2js": "^0.4.23"
