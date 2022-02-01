@@ -34,7 +34,7 @@ SOFTWARE.
 
 
 "use strict";
-import { isNil, map } from "lodash";
+import { isNil, isUndefined, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -55,6 +55,7 @@ import {
 import { unrarArchive } from "../utils/uncompression.utils";
 import { extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
+import axios from "axios";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
 const through2 = require("through2");
@@ -394,6 +395,7 @@ export default class ImportService extends Service {
 							{
 								$group: {
 									_id: "$sourcedMetadata.comicvine.volume.id",
+									comicObjectId : { $first: "$_id" },
 									volumeURI: {
 										$last: "$sourcedMetadata.comicvine.volume.api_detail_url",
 									},
@@ -412,8 +414,9 @@ export default class ImportService extends Service {
 						// 2. Map over the aggregation result and get volume metadata from CV
 						// 2a. Make a call to comicvine-service
 						volumesMetadata = map(volumes, async (volume) => {
+							console.log(volume);
 							if (!isNil(volume.volumeURI)) {
-								return await ctx.call("comicvine.getVolumes", {
+								const volumeMetadata = await ctx.call("comicvine.getVolumes", {
 									volumeURI: volume.volumeURI,
 									data: {
 										format: "json",
@@ -423,11 +426,62 @@ export default class ImportService extends Service {
 										offset: "0",
 									},
 								});
+								volumeMetadata["comicObjectId"] = volume.comicObjectId;
+								return volumeMetadata;
 							}
 						});
 
 						return Promise.all(volumesMetadata);
 					},
+				},
+				getIssuesForSeries: {
+					rest: "POST /getIssuesForSeries",
+					params: {},
+					handler: async (ctx:Context<{ comicObjectID: string }>) => {
+						// 1. Query mongo to get issues for a given volume
+						const comicBookDetails: any = await this.broker.call(
+							"import.getComicBookById",
+							{ id: ctx.params.comicObjectID }
+						);
+
+						// 2. Query CV and get metadata for them
+						comicBookDetails.sourcedMetadata.comicvine.volumeInformation.issues.map(
+							async (issue: any, idx: any) => {
+								const issueMetadata: any =
+									await axios.request({
+										url: `${issue.api_detail_url}?api_key=${process.env.COMICVINE_API_KEY}`,
+										params: {
+											resources: "issues",
+											limit: "100",
+											format: "json",
+										},
+										headers: {
+											"User-Agent": "ThreeTwo",
+										},
+									});
+								const metadata =
+									issueMetadata.data.results;
+									
+								// 2a. Query Mongo with Elastic to see if a match exists for a given issue's name, and issue number
+								if (
+									!isUndefined(metadata.volume.name) &&
+									!isUndefined(metadata.issue_number)
+								) {
+									console.log("asdasd", metadata.volume.name);
+									await ctx.broker.call("libraryqueue.issuesForSeries", { queryObject: {
+										issueName:
+											metadata.volume
+												.name,
+										issueNumber:
+											metadata.issue_number,
+									}});
+									
+								}
+
+								return issueMetadata.data.results;
+							}
+						);
+					}
 				},
 				flushDB: {
 					rest: "POST /flushDB",

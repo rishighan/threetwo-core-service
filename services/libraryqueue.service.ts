@@ -31,9 +31,9 @@ SOFTWARE.
  *     Initial:        2022/01/28        Rishi Ghan
  */
 
-
 "use strict";
 
+import { isNil, isUndefined } from "lodash";
 import {
 	Context,
 	Service,
@@ -41,6 +41,7 @@ import {
 	ServiceSchema,
 	Errors,
 } from "moleculer";
+
 import BullMQMixin from "moleculer-bull";
 import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
@@ -95,6 +96,30 @@ export default class LibraryQueueService extends Service {
 						});
 					},
 				},
+				"issue.findMatchesInLibrary": {
+					concurrency: 20,
+					async process(job: SandboxedJob) {
+						try {
+							console.log(
+								"reached the issuematchinlibrary queue"
+							);
+							console.log(job.data);
+							const matchesInLibrary = await this.broker.call(
+								"search.searchComic",
+								{
+									queryObject: job.data.queryObject,
+								}
+							);
+							console.log(
+								`Matches in Library: ${matchesInLibrary}`
+							);
+
+							return Promise.all(matchesInLibrary);
+						} catch (error) {
+							throw error;
+						}
+					},
+				},
 			},
 			actions: {
 				enqueue: {
@@ -108,6 +133,23 @@ export default class LibraryQueueService extends Service {
 						return await this.createJob("process.import", {
 							fileObject: ctx.params.fileObject,
 						});
+					},
+				},
+				issuesForSeries: {
+					rest: "POST /findIssuesForSeries",
+					params: {},
+					handler: async (
+						ctx: Context<{ queryObject: {
+							issueName: string,
+							issueNumber: string,
+						} }>
+					) => {
+						return await this.createJob(
+							"issue.findMatchesInLibrary",
+							{
+								queryObject: ctx.params.queryObject,
+							}
+						);
 					},
 				},
 			},
@@ -135,6 +177,35 @@ export default class LibraryQueueService extends Service {
 						}
 					);
 					await this.getQueue("process.import").on(
+						"stalled",
+						async (job) => {
+							console.warn(
+								`The job with the id '${job} got stalled!`
+							);
+						}
+					);
+
+					await this.getQueue("issue.findMatchesInLibrary").on(
+						"failed",
+						async (job, error) => {
+							console.error(
+								`An error occured in 'issue.findMatchesInLibrary' queue on job id '${job.id}': ${error.message}`
+							);
+						}
+					);
+					await this.getQueue("issue.findMatchesInLibrary").on(
+						"completed",
+						async (job, res) => {
+							client.emit("action", {
+								type: "LS_COVER_EXTRACTED",
+								result: res,
+							});
+							console.info(
+								`Job with the id '${job.id}' completed.`
+							);
+						}
+					);
+					await this.getQueue("issue.findMatchesInLibrary").on(
 						"stalled",
 						async (job) => {
 							console.warn(
