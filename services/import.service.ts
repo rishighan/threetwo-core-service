@@ -31,8 +31,6 @@ SOFTWARE.
  *     Initial:        2022/01/28        Rishi Ghan
  */
 
-
-
 "use strict";
 import { isNil, isUndefined, map } from "lodash";
 import {
@@ -395,7 +393,7 @@ export default class ImportService extends Service {
 							{
 								$group: {
 									_id: "$sourcedMetadata.comicvine.volume.id",
-									comicObjectId : { $first: "$_id" },
+									comicObjectId: { $first: "$_id" },
 									volumeURI: {
 										$last: "$sourcedMetadata.comicvine.volume.api_detail_url",
 									},
@@ -416,17 +414,21 @@ export default class ImportService extends Service {
 						volumesMetadata = map(volumes, async (volume) => {
 							console.log(volume);
 							if (!isNil(volume.volumeURI)) {
-								const volumeMetadata = await ctx.call("comicvine.getVolumes", {
-									volumeURI: volume.volumeURI,
-									data: {
-										format: "json",
-										fieldList:
-											"id,name,deck,api_detail_url",
-										limit: "1",
-										offset: "0",
-									},
-								});
-								volumeMetadata["comicObjectId"] = volume.comicObjectId;
+								const volumeMetadata = await ctx.call(
+									"comicvine.getVolumes",
+									{
+										volumeURI: volume.volumeURI,
+										data: {
+											format: "json",
+											fieldList:
+												"id,name,deck,api_detail_url",
+											limit: "1",
+											offset: "0",
+										},
+									}
+								);
+								volumeMetadata["comicObjectId"] =
+									volume.comicObjectId;
 								return volumeMetadata;
 							}
 						});
@@ -434,21 +436,23 @@ export default class ImportService extends Service {
 						return Promise.all(volumesMetadata);
 					},
 				},
-				getIssuesForSeries: {
-					rest: "POST /getIssuesForSeries",
+				findIssuesForSeriesInLibrary: {
+					rest: "POST /findIssuesForSeriesInLibrary",
 					params: {},
-					handler: async (ctx:Context<{ comicObjectID: string }>) => {
-						// 1. Query mongo to get issues for a given volume
+					handler: async (
+						ctx: Context<{ comicObjectID: string }>
+					) => {
+						// 1. Query mongo to get the comic document by its _id
 						const comicBookDetails: any = await this.broker.call(
 							"import.getComicBookById",
 							{ id: ctx.params.comicObjectID }
 						);
 
 						// 2. Query CV and get metadata for them
-						comicBookDetails.sourcedMetadata.comicvine.volumeInformation.issues.map(
-							async (issue: any, idx: any) => {
-								const issueMetadata: any =
-									await axios.request({
+						const foo =
+							await comicBookDetails.sourcedMetadata.comicvine.volumeInformation.issues.map(
+								async (issue: any, idx: any) => {
+									const metadata: any = await axios.request({
 										url: `${issue.api_detail_url}?api_key=${process.env.COMICVINE_API_KEY}`,
 										params: {
 											resources: "issues",
@@ -459,29 +463,34 @@ export default class ImportService extends Service {
 											"User-Agent": "ThreeTwo",
 										},
 									});
-								const metadata =
-									issueMetadata.data.results;
-									
-								// 2a. Query Mongo with Elastic to see if a match exists for a given issue's name, and issue number
-								if (
-									!isUndefined(metadata.volume.name) &&
-									!isUndefined(metadata.issue_number)
-								) {
-									console.log("asdasd", metadata.volume.name);
-									await ctx.broker.call("libraryqueue.issuesForSeries", { queryObject: {
-										issueName:
-											metadata.volume
-												.name,
-										issueNumber:
-											metadata.issue_number,
-									}});
-									
-								}
+									const issueMetadata = metadata.data.results;
 
-								return issueMetadata.data.results;
-							}
-						);
-					}
+									// 2a. Enqueue the Elasticsearch job
+									if (
+										!isUndefined(issueMetadata.volume.name) &&
+										!isUndefined(issueMetadata.issue_number)
+									) {
+										await ctx.broker.call(
+											"libraryqueue.issuesForSeries",
+											{
+												queryObject: {
+													issueId: issue.id,
+													issueName:
+														issueMetadata.volume
+															.name,
+													issueNumber:
+														issueMetadata.issue_number,
+													issueMetadata,
+												},
+											}
+										);
+									}
+									// 3. Just return the issues
+									return issueMetadata;
+								}
+							);
+						return Promise.all(foo);
+					},
 				},
 				flushDB: {
 					rest: "POST /flushDB",

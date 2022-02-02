@@ -95,10 +95,10 @@ export default class ApiService extends Service {
 					console.log("Client connected via websocket!");
 
 					client.on("action", async (action) => {
-						console.log("ACCCCCTION", action);
 						switch (action.type) {
 							case "LS_IMPORT":
 								// 1. Send task to queue
+								console.log(`Recieved ${action.type} event.`)
 								await this.broker.call(
 									"import.newImport",
 									action.data,

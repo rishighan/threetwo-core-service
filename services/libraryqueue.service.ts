@@ -33,7 +33,7 @@ SOFTWARE.
 
 "use strict";
 
-import { isNil, isUndefined } from "lodash";
+import { extend, isNil, isUndefined } from "lodash";
 import {
 	Context,
 	Service,
@@ -101,20 +101,30 @@ export default class LibraryQueueService extends Service {
 					async process(job: SandboxedJob) {
 						try {
 							console.log(
-								"reached the issuematchinlibrary queue"
+								"Job recieved to find issue matches in library."
 							);
-							console.log(job.data);
 							const matchesInLibrary = await this.broker.call(
 								"search.searchComic",
 								{
 									queryObject: job.data.queryObject,
 								}
 							);
-							console.log(
-								`Matches in Library: ${matchesInLibrary}`
-							);
+							if (
+								!isNil(matchesInLibrary) &&
+								!isUndefined(matchesInLibrary)
+							) {
+								console.log("Matches found in library:");
 
-							return Promise.all(matchesInLibrary);
+								const foo = extend(
+									{ issue: job.data.queryObject.issueMetadata },
+									{ matches: matchesInLibrary }
+								);
+								return foo;
+							} else {
+								console.log(
+									"No match was found for this issue in the library."
+								);
+							}
 						} catch (error) {
 							throw error;
 						}
@@ -139,10 +149,14 @@ export default class LibraryQueueService extends Service {
 					rest: "POST /findIssuesForSeries",
 					params: {},
 					handler: async (
-						ctx: Context<{ queryObject: {
-							issueName: string,
-							issueNumber: string,
-						} }>
+						ctx: Context<{
+							queryObject: {
+								issueName: string;
+								issueNumber: string;
+								issueId: string;
+								issueMetadata: object;
+							};
+						}>
 					) => {
 						return await this.createJob(
 							"issue.findMatchesInLibrary",
@@ -197,7 +211,7 @@ export default class LibraryQueueService extends Service {
 						"completed",
 						async (job, res) => {
 							client.emit("action", {
-								type: "LS_COVER_EXTRACTED",
+								type: "CV_ISSUES_FOR_VOLUME_IN_LIBRARY_SUCCESS",
 								result: res,
 							});
 							console.info(
