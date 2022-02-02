@@ -475,7 +475,8 @@ export default class ImportService extends Service {
 											{
 												queryObject: {
 													issueId: issue.id,
-													issueName:
+													issueName: issueMetadata.name,
+													volumeName:
 														issueMetadata.volume
 															.name,
 													issueNumber:

@@ -19,7 +19,7 @@ const client = new Client({
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { refineQuery } from "filename-parser";
-import { filter } from "lodash";
+import { filter, isEmpty, isNull } from "lodash";
 
 console.log(client);
 
@@ -42,31 +42,96 @@ export default class SettingsService extends Service {
 							params: {},
 							timeout: 400000,
 							async handler(
-								ctx: Context<{ queryObject: {
-									issueName: string,
-									issueNumber: string,
-								} }>
+								ctx: Context<{
+									queryObject: {
+										issueName: string;
+										volumeName: string;
+										issueNumber: string;
+									};
+								}>
 							) {
-								console.log(ctx.params);
-								return Comic.esSearch({
-									query: {
+								let elasticSearchQuery = {};
+								console.log(
+									"Volume: ",
+									ctx.params.queryObject.volumeName
+								);
+								console.log(
+									"Issue: ",
+									ctx.params.queryObject.issueName
+								);
+								if (
+									isNull(ctx.params.queryObject.volumeName)
+								) {
+									elasticSearchQuery = {
 										match: {
 											"rawFileDetails.name": {
-												query: ctx.params.queryObject.issueName,
-												operator: "or",
+												query: ctx.params.queryObject
+													.issueName,
+												operator: "and",
 												fuzziness: "AUTO",
 											},
 										},
-										
-									},
+									};
+								} else if (
+									isNull(ctx.params.queryObject.issueName)
+								) {
+									elasticSearchQuery = {
+										match: {
+											"rawFileDetails.name": {
+												query: ctx.params.queryObject
+													.volumeName,
+												operator: "and",
+												fuzziness: "AUTO",
+											},
+										},
+									};
+								} else {
+									elasticSearchQuery = {
+										bool: {
+											should: [
+												{
+													match_phrase: {
+														"rawFileDetails.name":
+															ctx.params
+																.queryObject
+																.issueName,
+													},
+												},
+												{
+													match_phrase: {
+														"rawFileDetails.name":
+															ctx.params
+																.queryObject
+																.volumeName,
+													},
+												},
+											],
+										},
+									};
+								}
+								console.log(elasticSearchQuery);
+								return Comic.esSearch({
+									query: elasticSearchQuery,
 								}).then(function (results) {
 									// results here
-									const foo = results.body.hits.hits.map((hit) => {
-										const parsedFilename = refineQuery(hit._source.rawFileDetails.name);
-										if(parsedFilename.searchParams.searchTerms.number === parseInt(ctx.params.queryObject.issueNumber, 10)) {
-											return hit;
-										} 
-									});
+									const foo = results.body.hits.hits.map(
+										(hit) => {
+											const parsedFilename = refineQuery(
+												hit._source.rawFileDetails.name
+											);
+											if (
+												parsedFilename.searchParams
+													.searchTerms.number ===
+												parseInt(
+													ctx.params.queryObject
+														.issueNumber,
+													10
+												)
+											) {
+												return hit;
+											}
+										}
+									);
 									return filter(foo, null);
 								});
 							},

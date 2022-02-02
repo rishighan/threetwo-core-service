@@ -114,6 +114,7 @@ export default class LibraryQueueService extends Service {
 								!isUndefined(matchesInLibrary)
 							) {
 								console.log("Matches found in library:");
+								console.log(matchesInLibrary);
 
 								const foo = extend(
 									{ issue: job.data.queryObject.issueMetadata },
@@ -152,6 +153,7 @@ export default class LibraryQueueService extends Service {
 						ctx: Context<{
 							queryObject: {
 								issueName: string;
+								volumeName: string;
 								issueNumber: string;
 								issueId: string;
 								issueMetadata: object;
