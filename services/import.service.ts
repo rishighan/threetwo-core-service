@@ -32,7 +32,7 @@ SOFTWARE.
  */
 
 "use strict";
-import { isNil, isUndefined, map } from "lodash";
+import { isDate, isNil, isUndefined, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -382,6 +382,19 @@ export default class ImportService extends Service {
 					async handler(ctx: Context<{ id: string }>) {
 						return await Comic.findById(ctx.params.id);
 					},
+				},
+				getComicBooksByIds: {
+					rest: "POST /getComicBooksByIds",
+					params: { ids: "array" },
+					handler: async (ctx: Context<{ ids: [string]}>) => {
+						console.log(ctx.params.ids);
+						const queryIds = ctx.params.ids.map((id) => new ObjectId(id));
+						return await Comic.find({
+							'_id': {
+								$in: queryIds,
+							}
+						})
+					}
 				},
 				getComicBookGroups: {
 					rest: "GET /getComicBookGroups",

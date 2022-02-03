@@ -59,9 +59,7 @@ export default class SettingsService extends Service {
 									"Issue: ",
 									ctx.params.queryObject.issueName
 								);
-								if (
-									isNull(ctx.params.queryObject.volumeName)
-								) {
+								if (isNull(ctx.params.queryObject.volumeName)) {
 									elasticSearchQuery = {
 										match: {
 											"rawFileDetails.name": {
