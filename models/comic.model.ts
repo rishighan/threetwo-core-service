@@ -4,8 +4,8 @@ const paginate = require("mongoose-paginate-v2");
 
 const { Client } = require("@elastic/elasticsearch");
 
-const eSClient = new Client({
-	node: "http://tower.local:9200",
+export const eSClient = new Client({
+	node: "http://localhost:9200",
 	auth: {
 		username: "elastic",
 		password: "password",
@@ -58,6 +58,14 @@ const ComicSchema = mongoose.Schema({
 		},
 		calibreMetadata :{
 			coverWriteResult: String,
+		}
+	},
+	inferredMetadata: {
+		issue: {
+			name: String,
+			number: { type: Number, es_indexed: true },
+			year: String,
+			subtitle: String,
 		}
 	},
 	acquisition: {

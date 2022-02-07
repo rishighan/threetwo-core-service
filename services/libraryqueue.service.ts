@@ -47,15 +47,16 @@ import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { extractCoverFromFile2 } from "../utils/uncompression.utils";
+import { refineQuery } from "filename-parser";
 import { io } from "./api.service";
 const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
 
 console.log(`REDIS -> ${REDIS_URI}`);
-export default class LibraryQueueService extends Service {
+export default class QueueService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
 		this.parseServiceSchema({
-			name: "libraryqueue",
+			name: "queue",
 			mixins: [BullMQMixin(REDIS_URI), DbMixin("comics", Comic)],
 			settings: {},
 			hooks: {},
@@ -70,9 +71,13 @@ export default class LibraryQueueService extends Service {
 							job.data.fileObject
 						);
 
+						// infer any issue-related metadata from the filename
+						const { inferredIssueDetails } = refineQuery(result.name);
+						console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
+
 						// write to mongo
 						const dbImportResult = await this.broker.call(
-							"import.rawImportToDB",
+							"library.rawImportToDB",
 							{
 								importStatus: {
 									isImported: true,
@@ -82,6 +87,9 @@ export default class LibraryQueueService extends Service {
 									},
 								},
 								rawFileDetails: result,
+								inferredMetadata: {
+									issue: inferredIssueDetails,
+								},
 								sourcedMetadata: {
 									comicvine: {},
 								},
@@ -96,45 +104,11 @@ export default class LibraryQueueService extends Service {
 						});
 					},
 				},
-				"issue.findMatchesInLibrary": {
-					concurrency: 20,
-					async process(job: SandboxedJob) {
-						try {
-							console.log(
-								"Job recieved to find issue matches in library."
-							);
-							const matchesInLibrary = await this.broker.call(
-								"search.searchComic",
-								{
-									queryObject: job.data.queryObject,
-								}
-							);
-							if (
-								!isNil(matchesInLibrary) &&
-								!isUndefined(matchesInLibrary)
-							) {
-								console.log("Matches found in library:");
-								console.log(matchesInLibrary);
-
-								const foo = extend(
-									{ issue: job.data.queryObject.issueMetadata },
-									{ matches: matchesInLibrary }
-								);
-								return foo;
-							} else {
-								console.log(
-									"No match was found for this issue in the library."
-								);
-							}
-						} catch (error) {
-							throw error;
-						}
-					},
-				},
+				
 			},
 			actions: {
-				enqueue: {
-					rest: "POST /enqueue",
+				processImport: {
+					rest: "POST /processImport",
 					params: {},
 					async handler(
 						ctx: Context<{
@@ -144,28 +118,6 @@ export default class LibraryQueueService extends Service {
 						return await this.createJob("process.import", {
 							fileObject: ctx.params.fileObject,
 						});
-					},
-				},
-				issuesForSeries: {
-					rest: "POST /findIssuesForSeries",
-					params: {},
-					handler: async (
-						ctx: Context<{
-							queryObject: {
-								issueName: string;
-								volumeName: string;
-								issueNumber: string;
-								issueId: string;
-								issueMetadata: object;
-							};
-						}>
-					) => {
-						return await this.createJob(
-							"issue.findMatchesInLibrary",
-							{
-								queryObject: ctx.params.queryObject,
-							}
-						);
 					},
 				},
 			},
@@ -213,7 +165,7 @@ export default class LibraryQueueService extends Service {
 						"completed",
 						async (job, res) => {
 							client.emit("action", {
-								type: "CV_ISSUES_FOR_VOLUME_IN_LIBRARY_SUCCESS",
+								type: "CV_ISSUES_FOR_VOLUME_IN_LIBRARY_UPDATED",
 								result: res,
 							});
 							console.info(

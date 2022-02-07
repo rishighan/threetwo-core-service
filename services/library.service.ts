@@ -32,7 +32,7 @@ SOFTWARE.
  */
 
 "use strict";
-import { isDate, isNil, isUndefined, map } from "lodash";
+import { isNil, isNull, isUndefined, map } from "lodash";
 import {
 	Context,
 	Service,
@@ -44,7 +44,6 @@ import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { explodePath, walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
-import https from "https";
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -66,7 +65,7 @@ export default class ImportService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
 		this.parseServiceSchema({
-			name: "import",
+			name: "library",
 			mixins: [DbMixin("comics", Comic)],
 			hooks: {},
 			actions: {
@@ -129,7 +128,7 @@ export default class ImportService extends Service {
 								});
 								if (!comicExists) {
 									// 2. Send the extraction job to the queue
-									await broker.call("libraryqueue.enqueue", {
+									await broker.call("queue.processImport", {
 										fileObject: {
 											filePath: item.path,
 											fileSize: item.stats.size,
@@ -146,86 +145,7 @@ export default class ImportService extends Service {
 							});
 					},
 				},
-				nicefyPath: {
-					rest: "POST /nicefyPath",
-					params: {},
-					async handler(
-						ctx: Context<{
-							filePath: string;
-						}>
-					) {
-						return explodePath(ctx.params.filePath);
-					},
-				},
-				processAndImportToDB: {
-					rest: "POST /processAndImportToDB",
 
-					params: {},
-					async handler(
-						ctx: Context<{
-							walkedFolder: {
-								name: string;
-								path: string;
-								extension: string;
-								containedIn: string;
-								fileSize: number;
-								isFile: boolean;
-								isLink: boolean;
-							};
-						}>
-					) {
-						try {
-							const { walkedFolder } = ctx.params;
-							let comicExists = await Comic.exists({
-								"rawFileDetails.name": `${walkedFolder.name}`,
-							});
-							// rough flow of import process
-							// 1. Walk folder
-							// 2. For each folder, call extract function
-							// 3. For each successful extraction, run dbImport
-
-							if (!comicExists) {
-								// 1. Extract cover and cover metadata
-								let comicBookCoverMetadata:
-									| IExtractedComicBookCoverFile
-									| IExtractComicBookCoverErrorResponse
-									| IExtractedComicBookCoverFile[] = await extractCoverFromFile2(
-									walkedFolder[0]
-								);
-
-								// 2. Add to mongo
-								const dbImportResult = await this.broker.call(
-									"import.rawImportToDB",
-									{
-										importStatus: {
-											isImported: true,
-											tagged: false,
-											matchedResult: {
-												score: "0",
-											},
-										},
-										rawFileDetails: comicBookCoverMetadata,
-										sourcedMetadata: {
-											comicvine: {},
-										},
-									},
-									{}
-								);
-
-								return {
-									comicBookCoverMetadata,
-									dbImportResult,
-								};
-							} else {
-								console.info(
-									`Comic: \"${walkedFolder.name}\" already exists in the database`
-								);
-							}
-						} catch (error) {
-							console.error("Error importing comic books", error);
-						}
-					},
-				},
 				rawImportToDB: {
 					rest: "POST /rawImportToDB",
 					params: {},
@@ -250,13 +170,16 @@ export default class ImportService extends Service {
 								comicMetadata.sourcedMetadata.comicvine.volume
 							)
 						) {
-							volumeDetails =
-								await this.getComicVineVolumeMetadata(
-									comicMetadata.sourcedMetadata.comicvine
-										.volume.api_detail_url
-								);
+							volumeDetails = await this.broker.call(
+								"comicvine.getVolumes",
+								{
+									volumeURI:
+										comicMetadata.sourcedMetadata.comicvine
+											.volume.api_detail_url,
+								}
+							);
 							comicMetadata.sourcedMetadata.comicvine.volumeInformation =
-								volumeDetails;
+								volumeDetails.results;
 						}
 						return new Promise(async (resolve, reject) => {
 							Comic.create(ctx.params, (error, data) => {
@@ -291,35 +214,39 @@ export default class ImportService extends Service {
 						const comicObjectId = new ObjectId(
 							ctx.params.comicObjectId
 						);
-						const matchedResult = ctx.params.match;
-						let volumeDetailsPromise;
-						if (!isNil(matchedResult.volume)) {
-							volumeDetailsPromise =
-								this.getComicVineVolumeMetadata(
-									matchedResult.volume.api_detail_url
-								);
-						}
+
 						return new Promise(async (resolve, reject) => {
-							const volumeDetails = await volumeDetailsPromise;
-							matchedResult.volumeInformation = volumeDetails;
-							Comic.findByIdAndUpdate(
-								comicObjectId,
-								{
-									sourcedMetadata: {
-										comicvine: matchedResult,
-									},
-								},
-								{ new: true },
-								(err, result) => {
-									if (err) {
-										console.info(err);
-										reject(err);
-									} else {
-										// 3. Fetch and append volume information
-										resolve(result);
+							let volumeDetails = {};
+							const matchedResult = ctx.params.match;
+							if (!isNil(matchedResult.volume)) {
+								const volumeDetails = await this.broker.call(
+									"comicvine.getVolumes",
+									{
+										volumeURI:
+											matchedResult.volume.api_detail_url,
 									}
-								}
-							);
+								);
+								matchedResult.volumeInformation =
+									volumeDetails.results;
+								Comic.findByIdAndUpdate(
+									comicObjectId,
+									{
+										sourcedMetadata: {
+											comicvine: matchedResult,
+										},
+									},
+									{ new: true },
+									(err, result) => {
+										if (err) {
+											console.info(err);
+											reject(err);
+										} else {
+											// 3. Fetch and append volume information
+											resolve(result);
+										}
+									}
+								);
+							}
 						});
 					},
 				},
@@ -386,15 +313,17 @@ export default class ImportService extends Service {
 				getComicBooksByIds: {
 					rest: "POST /getComicBooksByIds",
 					params: { ids: "array" },
-					handler: async (ctx: Context<{ ids: [string]}>) => {
+					handler: async (ctx: Context<{ ids: [string] }>) => {
 						console.log(ctx.params.ids);
-						const queryIds = ctx.params.ids.map((id) => new ObjectId(id));
+						const queryIds = ctx.params.ids.map(
+							(id) => new ObjectId(id)
+						);
 						return await Comic.find({
-							'_id': {
+							_id: {
 								$in: queryIds,
-							}
-						})
-					}
+							},
+						});
+					},
 				},
 				getComicBookGroups: {
 					rest: "GET /getComicBookGroups",
@@ -449,61 +378,104 @@ export default class ImportService extends Service {
 						return Promise.all(volumesMetadata);
 					},
 				},
-				findIssuesForSeriesInLibrary: {
-					rest: "POST /findIssuesForSeriesInLibrary",
+
+				findIssuesForSeries: {
+					rest: "POST /findIssueForSeries",
 					params: {},
 					handler: async (
-						ctx: Context<{ comicObjectID: string }>
+						ctx: Context<{
+							queryObjects: [
+								{
+									issueId: string;
+									issueName: string;
+									volumeName: string;
+									issueNumber: string;
+								}
+							];
+						}>
 					) => {
-						// 1. Query mongo to get the comic document by its _id
-						const comicBookDetails: any = await this.broker.call(
-							"import.getComicBookById",
-							{ id: ctx.params.comicObjectID }
+						// 2a. Enqueue the Elasticsearch job
+						const { queryObjects } = ctx.params;
+						// construct the query for ElasticSearch
+						let elasticSearchQuery = {};
+						const elasticSearchQueries = queryObjects.map(
+							(queryObject) => {
+								console.log("Volume: ", queryObject.volumeName);
+								console.log("Issue: ", queryObject.issueName);
+								if (queryObject.issueName === null) {
+									queryObject.issueName = "";
+								}
+								if (queryObject.volumeName === null) {
+									queryObject.volumeName = "";
+								}
+								elasticSearchQuery = {
+									bool: {
+										must: [
+											// {
+											// 	match_phrase: {
+											// 		"rawFileDetails.name":
+											// 			queryObject.issueName,
+											// 	},
+											// },
+											{
+												match_phrase: {
+													"rawFileDetails.name":
+														queryObject.volumeName,
+												},
+											},
+											{
+												term: {
+													"inferredMetadata.issue.number":
+														parseInt(queryObject.issueNumber, 10),
+												},
+											},
+										],
+									},
+								};
+
+								return [
+									{
+										index: "comics",
+										search_type: "dfs_query_then_fetch",
+									},
+									// { issueId: queryObject.issueId },
+									{
+										query: elasticSearchQuery,
+										// script_fields: {
+										// 	issueId: {
+										// 		script: {
+										// 			lang: "painless",
+										// 			params: {
+										// 				match: {
+										// 					issueId:
+										// 						queryObject.issueId,
+										// 				},
+										// 			},
+										// 			inline: "params.match",
+										// 		},
+										// 	},
+										// 	fileName: {
+										// 		script: {
+										// 			lang: "painless",
+										// 			inline: "params['_source']['rawFileDetails']",
+										// 		},
+										// 	},
+										// },
+									},
+								];
+							}
+						);
+						console.log(
+							JSON.stringify(elasticSearchQueries, null, 2)
 						);
 
-						// 2. Query CV and get metadata for them
-						const foo =
-							await comicBookDetails.sourcedMetadata.comicvine.volumeInformation.issues.map(
-								async (issue: any, idx: any) => {
-									const metadata: any = await axios.request({
-										url: `${issue.api_detail_url}?api_key=${process.env.COMICVINE_API_KEY}`,
-										params: {
-											resources: "issues",
-											limit: "100",
-											format: "json",
-										},
-										headers: {
-											"User-Agent": "ThreeTwo",
-										},
-									});
-									const issueMetadata = metadata.data.results;
-
-									// 2a. Enqueue the Elasticsearch job
-									if (
-										!isUndefined(issueMetadata.volume.name) &&
-										!isUndefined(issueMetadata.issue_number)
-									) {
-										await ctx.broker.call(
-											"libraryqueue.issuesForSeries",
-											{
-												queryObject: {
-													issueId: issue.id,
-													issueName: issueMetadata.name,
-													volumeName:
-														issueMetadata.volume
-															.name,
-													issueNumber:
-														issueMetadata.issue_number,
-													issueMetadata,
-												},
-											}
-										);
-									}
-									// 3. Just return the issues
-									return issueMetadata;
-								}
-							);
-						return Promise.all(foo);
+						return await ctx.broker.call("search.searchComic", {
+							elasticSearchQueries,
+							queryObjects,
+						});
+						// await ctx.broker.call("queue.issuesForSeries", {
+						// 	elasticSearchQueries,
+						// });
 					},
 				},
 				flushDB: {
@@ -551,40 +523,7 @@ export default class ImportService extends Service {
 					},
 				},
 			},
-			methods: {
-				getComicVineVolumeMetadata: (apiDetailURL) =>
-					new Promise((resolve, reject) => {
-						const options = {
-							headers: {
-								"User-Agent": "ThreeTwo",
-							},
-						};
-						return https
-							.get(
-								`${apiDetailURL}?api_key=${process.env.COMICVINE_API_KEY}&format=json&limit=1&offset=0`,
-								options,
-								(resp) => {
-									let data = "";
-									resp.on("data", (chunk) => {
-										data += chunk;
-									});
-
-									resp.on("end", () => {
-										console.log(
-											`${apiDetailURL} returned data.`
-										);
-										const volumeInformation =
-											JSON.parse(data);
-										resolve(volumeInformation.results);
-									});
-								}
-							)
-							.on("error", (err) => {
-								console.info("Error: " + err.message);
-								reject(err);
-							});
-					}),
-			},
+			methods: {},
 		});
 	}
 }

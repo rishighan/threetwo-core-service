@@ -100,7 +100,7 @@ export default class ApiService extends Service {
 								// 1. Send task to queue
 								console.log(`Recieved ${action.type} event.`)
 								await this.broker.call(
-									"import.newImport",
+									"library.newImport",
 									action.data,
 									{}
 								);
@@ -142,10 +142,10 @@ export default class ApiService extends Service {
 									"File detected, starting import..."
 								);
 								const walkedFolder: IFolderData =
-									await broker.call("import.walkFolders", {
+									await broker.call("library.walkFolders", {
 										basePathToWalk: path,
 									});
-								await this.broker.call("libraryqueue.enqueue", {
+								await this.broker.call("library.processImport", {
 									fileObject: {
 										filePath: walkedFolder[0].filePath,
 										fileSize: walkedFolder[0].fileSize,

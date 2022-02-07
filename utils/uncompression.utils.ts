@@ -53,7 +53,7 @@ import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
 
 export const extractCoverFromFile2 = async (
 	fileObject: any
-): Promise<any> => {
+): Promise<IExtractedComicBookCoverFile> => {
 	try {
 		const { filePath, fileSize } = fileObject;
 		
@@ -116,7 +116,7 @@ export const extractCoverFromFile2 = async (
 				cover: {
 					filePath: path.relative(process.cwd(),renditionPath),
 				},
-				containedIn: path.dirname(fileNameWithExtension),
+				containedIn: path.resolve(fileNameWithExtension),
 				calibreMetadata: {
 					coverWriteResult: result,
 				},
