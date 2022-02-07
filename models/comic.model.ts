@@ -63,7 +63,7 @@ const ComicSchema = mongoose.Schema({
 	inferredMetadata: {
 		issue: {
 			name: String,
-			number: { type: Number, es_indexed: true },
+			number: { type: Number, es_indexed: true, required: false, default: 0 },
 			year: String,
 			subtitle: String,
 		}
@@ -83,6 +83,7 @@ const ComicSchema = mongoose.Schema({
 		},
 	},
 }, { timestamps: true});
+
 ComicSchema.plugin(mexp, {
 	client: eSClient,
 });

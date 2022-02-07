@@ -152,35 +152,6 @@ export default class QueueService extends Service {
 							);
 						}
 					);
-
-					await this.getQueue("issue.findMatchesInLibrary").on(
-						"failed",
-						async (job, error) => {
-							console.error(
-								`An error occured in 'issue.findMatchesInLibrary' queue on job id '${job.id}': ${error.message}`
-							);
-						}
-					);
-					await this.getQueue("issue.findMatchesInLibrary").on(
-						"completed",
-						async (job, res) => {
-							client.emit("action", {
-								type: "CV_ISSUES_FOR_VOLUME_IN_LIBRARY_UPDATED",
-								result: res,
-							});
-							console.info(
-								`Job with the id '${job.id}' completed.`
-							);
-						}
-					);
-					await this.getQueue("issue.findMatchesInLibrary").on(
-						"stalled",
-						async (job) => {
-							console.warn(
-								`The job with the id '${job} got stalled!`
-							);
-						}
-					);
 				});
 			},
 		});

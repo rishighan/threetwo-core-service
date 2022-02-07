@@ -50,7 +50,7 @@
     "chokidar": "^3.5.3",
     "delay": "^5.0.0",
     "dotenv": "^10.0.0",
-    "filename-parser": "^1.0.1",
+    "filename-parser": "^1.0.4",
     "fs-extra": "^10.0.0",
     "imghash": "^0.0.9",
     "ioredis": "^4.28.1",

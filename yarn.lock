@@ -2634,10 +2634,10 @@
   "resolved" "https://registry.npmjs.org/file-type/-/file-type-10.11.0.tgz"
   "version" "10.11.0"
 
-"filename-parser@^1.0.1":
-  "integrity" "sha512-MMzuklXc1r4N6uQXg8CQYxoiTX7w6QPeJE73L5lCTSoNR7CftCXHIA6tyINomkvWIUanrlqTB629DyTIqCucEA=="
-  "resolved" "https://registry.npmjs.org/filename-parser/-/filename-parser-1.0.1.tgz"
-  "version" "1.0.1"
+"filename-parser@^1.0.4":
+  "integrity" "sha512-r/cFGGlCFaz2taSlDzOtVWO66WvqPDBv6CtyqKw4GCP7+V3r5D5J0ci3fnYaDm5/GkqWL5aGA6JTbu8e+oKQMA=="
+  "resolved" "https://registry.npmjs.org/filename-parser/-/filename-parser-1.0.4.tgz"
+  "version" "1.0.4"
   dependencies:
     "compromise" "^13.11.4"
     "compromise-dates" "^2.2.1"

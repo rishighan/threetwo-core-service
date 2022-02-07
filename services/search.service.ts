@@ -59,31 +59,6 @@ export default class SettingsService extends Service {
 								})
 
 								return body.responses;
-
-								// return Comic.esSearch({
-								// 	query: elasticSearchQuery,
-								// }).then(function (results) {
-								// 	// results here
-								// 	const foo = results.body.hits.hits.map(
-								// 		(hit) => {
-								// 			const parsedFilename = refineQuery(
-								// 				hit._source.rawFileDetails.name
-								// 			);
-								// 			if (
-								// 				parsedFilename.searchParams
-								// 					.searchTerms.number ===
-								// 				parseInt(
-								// 					ctx.params.queryObject
-								// 						.issueNumber,
-								// 					10
-								// 				)
-								// 			) {
-								// 				return hit;
-								// 			}
-								// 		}
-								// 	);
-								// 	return filter(foo, null);
-								// });
 							},
 						},
 					},

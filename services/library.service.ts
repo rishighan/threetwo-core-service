@@ -152,11 +152,14 @@ export default class ImportService extends Service {
 					async handler(
 						ctx: Context<{
 							sourcedMetadata: {
-								comicvine: {
+								comicvine?: {
 									volume: { api_detail_url: string };
 									volumeInformation: {};
 								};
 							};
+							inferredMetadata: {
+								issue: Object,
+							},
 							rawFileDetails: {
 								name: string;
 							};
@@ -164,6 +167,8 @@ export default class ImportService extends Service {
 					) {
 						let volumeDetails;
 						const comicMetadata = ctx.params;
+						
+						// When an issue is added from the search CV feature
 						if (
 							comicMetadata.sourcedMetadata.comicvine &&
 							!isNil(
@@ -186,11 +191,13 @@ export default class ImportService extends Service {
 								if (data) {
 									resolve(data);
 								} else if (error) {
+									console.log("data", data);
+									console.log("error", error)
 									throw new Errors.MoleculerError(
 										"Failed to import comic book",
 										400,
 										"IMS_FAILED_COMIC_BOOK_IMPORT",
-										data
+										error
 									);
 								}
 							});
@@ -411,12 +418,6 @@ export default class ImportService extends Service {
 								elasticSearchQuery = {
 									bool: {
 										must: [
-											// {
-											// 	match_phrase: {
-											// 		"rawFileDetails.name":
-											// 			queryObject.issueName,
-											// 	},
-											// },
 											{
 												match_phrase: {
 													"rawFileDetails.name":

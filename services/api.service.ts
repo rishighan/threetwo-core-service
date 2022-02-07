@@ -145,7 +145,7 @@ export default class ApiService extends Service {
 									await broker.call("library.walkFolders", {
 										basePathToWalk: path,
 									});
-								await this.broker.call("library.processImport", {
+								await this.broker.call("queue.processImport", {
 									fileObject: {
 										filePath: walkedFolder[0].filePath,
 										fileSize: walkedFolder[0].fileSize,
