@@ -47,7 +47,7 @@ const ComicSchema = mongoose.Schema({
 	},
 	rawFileDetails: {
 		name: { type: String, es_indexed: true },
-		path: String,
+		filePath: String,
 		fileSize: Number,
 		extension: String,
 		containedIn: String,

@@ -1,4 +1,5 @@
 "use strict";
+import axios from "axios";
 import {
 	Context,
 	Service,
@@ -6,9 +7,8 @@ import {
 	ServiceSchema,
 	Errors,
 } from "moleculer";
-import {
-	resizeImage,
-} from "../utils/imagetransformation.utils";
+import path from "path";
+import { analyze, resizeImage } from "../utils/imagetransformation.utils";
 export default class ImageTransformation extends Service {
 	// @ts-ignore
 	public constructor(
@@ -51,6 +51,20 @@ export default class ImageTransformation extends Service {
 									ctx.params.newHeight
 								);
 								return { resizeOperationStatus: resizeResult };
+							},
+						},
+						analyze: {
+							rest: "POST /analyze",
+							params: {},
+							handler: async (
+								ctx: Context<{ imageFilePath: string }>
+							) => {
+								const url = new URL(ctx.params.imageFilePath);
+								const pathName = url.pathname;
+								const decodedImageFileURI = decodeURI(pathName);
+
+								
+								return await analyze(path.resolve("." + decodedImageFileURI));
 							},
 						},
 					},

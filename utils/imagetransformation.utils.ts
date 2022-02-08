@@ -3,6 +3,7 @@ import { ISharpResizedImageStats } from "threetwo-ui-typings";
 const imghash = require("imghash");
 const leven = require("leven");
 import { isNull, reject } from "lodash";
+import fs from "fs";
 
 export const extractMetadataFromImage = async (
 	imageFilePath: string
@@ -34,10 +35,16 @@ export const resizeImage = async (
 			return err;
 		}
 
-		console.log("Image file %s resized with the following parameters: %o", imageFile, info);
+		console.log("Image file resized with the following parameters: %o", info);
 		return info;
 	});
 };
+
+export const analyze = async (inputFilePath: string | Buffer) => {
+	const stats = await sharp(inputFilePath).stats();
+	// const { r, g, b } = dominant;
+	return stats;
+}
 
 export const calculateLevenshteinDistance = async (
 	imagePath1: string,

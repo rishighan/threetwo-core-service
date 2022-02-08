@@ -120,6 +120,14 @@ export default class QueueService extends Service {
 						});
 					},
 				},
+				unarchiveComicBook: {
+					rest: "POST /unarchiveComicBook",
+					params: {},
+					handler: async (ctx:Context<{}>) => {
+
+					},
+				},
+
 			},
 			methods: {},
 			async started(): Promise<any> {

@@ -52,7 +52,6 @@ import {
 import { unrarArchive } from "../utils/uncompression.utils";
 import { extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
-import axios from "axios";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
 const through2 = require("through2");
@@ -517,6 +516,7 @@ export default class ImportService extends Service {
 							options: IExtractionOptions;
 						}>
 					) {
+						console.log(ctx.params);
 						return await unrarArchive(
 							ctx.params.filePath,
 							ctx.params.options
