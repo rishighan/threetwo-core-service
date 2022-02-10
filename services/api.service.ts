@@ -121,7 +121,7 @@ export default class ApiService extends Service {
 							usePolling: true,
 							ignoreInitial: true,
 							atomic: true,
-							depth: 1,
+							depth: 10,
 							awaitWriteFinish: {
 								stabilityThreshold: 2000,
 								pollInterval: 100,

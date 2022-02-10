@@ -35,7 +35,10 @@ export const resizeImage = async (
 			return err;
 		}
 
-		console.log("Image file resized with the following parameters: %o", info);
+		console.log(
+			"Image file resized with the following parameters: %o",
+			info
+		);
 		return info;
 	});
 };
@@ -44,7 +47,63 @@ export const analyze = async (inputFilePath: string | Buffer) => {
 	const stats = await sharp(inputFilePath).stats();
 	// const { r, g, b } = dominant;
 	return stats;
-}
+};
+
+export const getColorHistogramData = async (
+	inputFilePath: string | Buffer,
+	isValueHistogram: Boolean
+) => {
+	const { data, info } = await sharp(inputFilePath)
+		// output the raw pixels
+		.raw()
+		.toBuffer({ resolveWithObject: true });
+	const src = new Uint32Array(data.buffer);
+	// const src = new Uint8ClampedArray(data.buffer);
+	console.log(src);
+
+	let histBrightness = new Array(256).fill(0);
+	let histR = new Array(256).fill(0);
+	let histG = new Array(256).fill(0);
+	let histB = new Array(256).fill(0);
+
+	for (let i = 0; i < src.length; i++) {
+		let r = src[i] & 0xff;
+		let g = (src[i] >> 8) & 0xff;
+		let b = (src[i] >> 16) & 0xff;
+		histBrightness[r]++;
+		histBrightness[g]++;
+		histBrightness[b]++;
+		histR[r]++;
+		histG[g]++;
+		histB[b]++;
+	}
+
+	let maxBrightness = 0;
+	if (isValueHistogram) {
+		for (let i = 1; i < 256; i++) {
+			if (maxBrightness < histBrightness[i]) {
+				maxBrightness = histBrightness[i];
+			}
+		}
+	} else {
+		for (let i = 0; i < 256; i++) {
+			if (maxBrightness < histR[i]) {
+				maxBrightness = histR[i];
+			} else if (maxBrightness < histG[i]) {
+				maxBrightness = histG[i];
+			} else if (maxBrightness < histB[i]) {
+				maxBrightness = histB[i];
+			}
+		}
+	}
+
+	return {
+		r: histR,
+		g: histG,
+		b: histB,
+		maxBrightness,
+	};
+};
 
 export const calculateLevenshteinDistance = async (
 	imagePath1: string,

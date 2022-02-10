@@ -157,8 +157,8 @@ export default class ImportService extends Service {
 								};
 							};
 							inferredMetadata: {
-								issue: Object,
-							},
+								issue: Object;
+							};
 							rawFileDetails: {
 								name: string;
 							};
@@ -166,7 +166,7 @@ export default class ImportService extends Service {
 					) {
 						let volumeDetails;
 						const comicMetadata = ctx.params;
-						
+
 						// When an issue is added from the search CV feature
 						if (
 							comicMetadata.sourcedMetadata.comicvine &&
@@ -191,7 +191,7 @@ export default class ImportService extends Service {
 									resolve(data);
 								} else if (error) {
 									console.log("data", data);
-									console.log("error", error)
+									console.log("error", error);
 									throw new Errors.MoleculerError(
 										"Failed to import comic book",
 										400,
@@ -400,7 +400,7 @@ export default class ImportService extends Service {
 							];
 						}>
 					) => {
-						// 2a. Enqueue the Elasticsearch job
+						// 2a. Elasticsearch query 
 						const { queryObjects } = ctx.params;
 						// construct the query for ElasticSearch
 						let elasticSearchQuery = {};
@@ -426,7 +426,10 @@ export default class ImportService extends Service {
 											{
 												term: {
 													"inferredMetadata.issue.number":
-														parseInt(queryObject.issueNumber, 10),
+														parseInt(
+															queryObject.issueNumber,
+															10
+														),
 												},
 											},
 										],
@@ -438,29 +441,8 @@ export default class ImportService extends Service {
 										index: "comics",
 										search_type: "dfs_query_then_fetch",
 									},
-									// { issueId: queryObject.issueId },
 									{
 										query: elasticSearchQuery,
-										// script_fields: {
-										// 	issueId: {
-										// 		script: {
-										// 			lang: "painless",
-										// 			params: {
-										// 				match: {
-										// 					issueId:
-										// 						queryObject.issueId,
-										// 				},
-										// 			},
-										// 			inline: "params.match",
-										// 		},
-										// 	},
-										// 	fileName: {
-										// 		script: {
-										// 			lang: "painless",
-										// 			inline: "params['_source']['rawFileDetails']",
-										// 		},
-										// 	},
-										// },
 									},
 								];
 							}
@@ -473,10 +455,14 @@ export default class ImportService extends Service {
 							elasticSearchQueries,
 							queryObjects,
 						});
-						// await ctx.broker.call("queue.issuesForSeries", {
-						// 	elasticSearchQueries,
-						// });
 					},
+				},
+				libraryStatistics: {
+					rest: "GET /libraryStatistics",
+					params: {},
+					handler: async (ctx: Context<{}>) => {
+						
+					}
 				},
 				flushDB: {
 					rest: "POST /flushDB",
