@@ -42,7 +42,7 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { explodePath, walkFolder } from "../utils/file.utils";
+import { explodePath, walkFolder, getSizeOfDirectory } from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -400,7 +400,7 @@ export default class ImportService extends Service {
 							];
 						}>
 					) => {
-						// 2a. Elasticsearch query 
+						// 2a. Elasticsearch query
 						const { queryObjects } = ctx.params;
 						// construct the query for ElasticSearch
 						let elasticSearchQuery = {};
@@ -461,8 +461,60 @@ export default class ImportService extends Service {
 					rest: "GET /libraryStatistics",
 					params: {},
 					handler: async (ctx: Context<{}>) => {
-						
-					}
+						const comicDirectorySize = await getSizeOfDirectory(COMICS_DIRECTORY, [".cbz", ".cbr", ".cb7"])
+						const totalCount = await Comic.countDocuments({});
+						const statistics = await Comic.aggregate([
+							{
+								$facet: {
+									fileTypes: [
+										{
+											$match: {
+												"rawFileDetails.extension": {
+													$in: [
+														".cbr",
+														".cbz",
+														".cb7",
+													],
+												},
+											},
+										},
+										{
+											$group: {
+												_id: "$rawFileDetails.extension",
+												data: { $push: "$$ROOT._id" },
+											},
+										},
+									],
+									issues: [
+										{
+											$match: {
+												"sourcedMetadata.comicvine": { "$gt": {} } 
+											}
+
+										},
+										{
+											$group: {
+												_id: "$sourcedMetadata.comicvine",
+												data: { $push: "$$ROOT._id" },
+											},
+										},
+									],
+									fileLessComics: [
+										{
+											$match: {
+												"rawFileDetails": { "$exists": false }
+											}
+										},
+									]
+								},
+							},
+						]);
+						return {
+							totalDocuments: totalCount,
+							comicDirectorySize,
+							statistics,
+						};
+					},
 				},
 				flushDB: {
 					rest: "POST /flushDB",

@@ -13,7 +13,10 @@ import { includes, remove, indexOf } from "lodash";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 
-export const walkFolder = async (folder: string, formats: string[]): Promise<IFolderData[]> => {
+export const walkFolder = async (
+	folder: string,
+	formats: string[]
+): Promise<IFolderData[]> => {
 	const result: IFolderData[] = [];
 	let walkResult: IFolderData = {
 		name: "",
@@ -63,6 +66,19 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 	};
 };
 
+export const getSizeOfDirectory = async (
+	path: string,
+	extensions: string[]
+) => {
+	const arrayOfFiles = await walkFolder(path, extensions);
+	let totalSize = 0;
+
+	arrayOfFiles.forEach((file) => {
+		totalSize += file.fileSize;
+	});
+	return totalSize;
+};
+
 export const isValidImageFileExtension = (fileName: string): boolean => {
 	return includes(ALLOWED_IMAGE_FILE_FORMATS, path.extname(fileName));
 };
@@ -70,7 +86,7 @@ export const isValidImageFileExtension = (fileName: string): boolean => {
 export const constructPaths = (
 	extractionOptions: IExtractionOptions,
 	walkedFolder: IFolderData
-) =>  ({
+) => ({
 	targetPath:
 		extractionOptions.targetExtractionFolder + "/" + walkedFolder.name,
 	inputFilePath:
