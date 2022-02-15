@@ -9,10 +9,8 @@ import {
 
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { refineQuery } from "filename-parser";
-import { each, filter, flatten, isEmpty, isNull } from "lodash";
+import { flatten } from "lodash";
 import { eSClient } from "../models/comic.model";
-import arrayToNDJSON from "array-to-ndjson";
 const s = eSClient.helpers.msearch();
 
 export default class SettingsService extends Service {

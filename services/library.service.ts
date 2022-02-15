@@ -42,7 +42,11 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { explodePath, walkFolder, getSizeOfDirectory } from "../utils/file.utils";
+import {
+	explodePath,
+	walkFolder,
+	getSizeOfDirectory,
+} from "../utils/file.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -50,7 +54,6 @@ import {
 	IExtractionOptions,
 } from "threetwo-ui-typings";
 import { unrarArchive } from "../utils/uncompression.utils";
-import { extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
@@ -340,12 +343,12 @@ export default class ImportService extends Service {
 						const volumes = await Comic.aggregate([
 							{
 								$group: {
-									_id: "$sourcedMetadata.comicvine.volume.id",
-									comicObjectId: { $first: "$_id" },
-									volumeURI: {
-										$last: "$sourcedMetadata.comicvine.volume.api_detail_url",
+									_id: "$sourcedMetadata.comicvine.volume",
+									comicBookObjectId: {
+										$last: "$_id",
 									},
 									count: { $sum: 1 },
+									data: { $push: "$$ROOT.sourcedMetadata.comicvine.volumeInformation" },
 								},
 							},
 							{
@@ -357,31 +360,7 @@ export default class ImportService extends Service {
 							{ $skip: 0 },
 							{ $limit: 5 },
 						]);
-						// 2. Map over the aggregation result and get volume metadata from CV
-						// 2a. Make a call to comicvine-service
-						volumesMetadata = map(volumes, async (volume) => {
-							console.log(volume);
-							if (!isNil(volume.volumeURI)) {
-								const volumeMetadata = await ctx.call(
-									"comicvine.getVolumes",
-									{
-										volumeURI: volume.volumeURI,
-										data: {
-											format: "json",
-											fieldList:
-												"id,name,deck,api_detail_url",
-											limit: "1",
-											offset: "0",
-										},
-									}
-								);
-								volumeMetadata["comicObjectId"] =
-									volume.comicObjectId;
-								return volumeMetadata;
-							}
-						});
-
-						return Promise.all(volumesMetadata);
+						return volumes;
 					},
 				},
 
@@ -461,7 +440,10 @@ export default class ImportService extends Service {
 					rest: "GET /libraryStatistics",
 					params: {},
 					handler: async (ctx: Context<{}>) => {
-						const comicDirectorySize = await getSizeOfDirectory(COMICS_DIRECTORY, [".cbz", ".cbr", ".cb7"])
+						const comicDirectorySize = await getSizeOfDirectory(
+							COMICS_DIRECTORY,
+							[".cbz", ".cbr", ".cb7"]
+						);
 						const totalCount = await Comic.countDocuments({});
 						const statistics = await Comic.aggregate([
 							{
@@ -488,9 +470,10 @@ export default class ImportService extends Service {
 									issues: [
 										{
 											$match: {
-												"sourcedMetadata.comicvine": { "$gt": {} } 
-											}
-
+												"sourcedMetadata.comicvine": {
+													$gt: {},
+												},
+											},
 										},
 										{
 											$group: {
@@ -502,9 +485,28 @@ export default class ImportService extends Service {
 									fileLessComics: [
 										{
 											$match: {
-												"rawFileDetails": { "$exists": false }
-											}
+												rawFileDetails: {
+													$exists: false,
+												},
+											},
 										},
+									],
+									publisherWithMostComicsInLibrary: [
+										{
+											$unwind:
+												"$sourcedMetadata.comicvine.volumeInformation.publisher",
+										},
+										{
+											$group: {
+												_id: "$sourcedMetadata.comicvine.volumeInformation.publisher.name",
+												count: { $sum: 1 },
+											},
+										},
+										{ $sort: { count: -1 } },
+										{ $limit: 1 },
+									],
+									mostPopulatCharacter: [
+
 									]
 								},
 							},
