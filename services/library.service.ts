@@ -54,7 +54,6 @@ import {
 	IExtractionOptions,
 } from "threetwo-ui-typings";
 import { unrarArchive } from "../utils/uncompression.utils";
-import { scrapeIssuesFromDOM } from "../utils/scraping.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
 const through2 = require("through2");
@@ -518,6 +517,7 @@ export default class ImportService extends Service {
 						};
 					},
 				},
+				
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},
@@ -539,13 +539,7 @@ export default class ImportService extends Service {
 							.catch((error) => error);
 					},
 				},
-				scrapeIssueNamesFromDOM: {
-					rest: "POST /scrapeIssueNamesFromDOM",
-					params: {},
-					async handler(ctx: Context<{ html: string }>) {
-						return scrapeIssuesFromDOM(ctx.params.html);
-					},
-				},
+
 				unrarArchive: {
 					rest: "POST /unrarArchive",
 					params: {},

@@ -100,13 +100,13 @@ export const extractCoverFromFile2 = async (
 				targetDirectory+
 				"/" +
 				fileNameWithoutExtension +
-				"_200px.jpg";
+				"_275px.jpg";
 
 			// 5. resize image
 			await resizeImage(
 				targetCoverImageFilePath,
 				path.resolve(renditionPath),
-				200
+				275
 			);
 			return {
 				name: fileNameWithoutExtension,
