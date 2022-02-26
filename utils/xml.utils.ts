@@ -35,9 +35,9 @@ export const convertXMLToJSON = (xmlPayload) => {
 		trim: true,
 		normalizeTags: true,
 	});
-	const xml = fs.readFileSync(__dirname + "/comicinfo.xml", "utf8");
+	
 	return parser
-		.parseStringPromise(xml)
+		.parseStringPromise(xmlPayload)
 		.then((result) => {
 			return result;
 		})

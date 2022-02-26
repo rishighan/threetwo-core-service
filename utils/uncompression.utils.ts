@@ -44,63 +44,65 @@ import {
 
 import { constructPaths, explodePath, walkFolder } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
-import { isNil } from "lodash";
+import { isNil, isUndefined } from "lodash";
+import { convertXMLToJSON } from "./xml.utils";
 const sevenZip = require("7zip-min");
 const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
-
 
 export const extractCoverFromFile2 = async (
 	fileObject: any
 ): Promise<IExtractedComicBookCoverFile> => {
 	try {
 		const { filePath, fileSize } = fileObject;
-		
+
 		const calibre = new Calibre();
 		console.info(`Initiating extraction process for path ${filePath}`);
 
 		// 1. Check for process.env.COMICS_DIRECTORY and process.env.USERDATA_DIRECTORY
 		if (!isNil(USERDATA_DIRECTORY)) {
 			// 2. Create the directory to which the cover image will be extracted
-			console.info("Attempting to create target directory for cover extraction...");
+			console.info(
+				"Attempting to create target directory for cover extraction..."
+			);
 			const directoryOptions = {
 				mode: 0o2775,
 			};
+			const extension = path.extname(filePath);
 			const fileNameWithExtension = path.basename(filePath);
-			const fileNameWithoutExtension = path.basename(filePath, path.extname(filePath));
+			const fileNameWithoutExtension = path.basename(
+				filePath,
+				path.extname(filePath)
+			);
 			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-			
+
 			await fse.ensureDir(targetDirectory, directoryOptions);
 			console.info(`%s was created.`, targetDirectory);
+
+			// 2.1 look for comicinfo.xml
+			extractFileFromArchive(filePath, targetDirectory, extension);
 
 			// 3. extract the cover
 			console.info(`Starting cover extraction...`);
 			let result: string;
 			const targetCoverImageFilePath = path.resolve(
-				targetDirectory +
-					"/" +
-					fileNameWithoutExtension +
-					"_cover.jpg"
+				targetDirectory + "/" + fileNameWithoutExtension + "_cover.jpg"
 			);
 			const ebookMetaPath = process.env.CALIBRE_EBOOK_META_PATH
 				? `${process.env.CALIBRE_EBOOK_META_PATH}`
 				: `ebook-meta`;
-			result = await calibre.run(
-				ebookMetaPath,
-				[filePath],
-				{
-					getCover: targetCoverImageFilePath,
-				}
+			result = await calibre.run(ebookMetaPath, [filePath], {
+				getCover: targetCoverImageFilePath,
+			});
+			console.info(
+				`ebook-meta ran with the following result: %o`,
+				result
 			);
-			console.info(`ebook-meta ran with the following result: %o`, result)
 
 			// 4. create rendition path
 			const renditionPath =
-				targetDirectory+
-				"/" +
-				fileNameWithoutExtension +
-				"_275px.jpg";
+				targetDirectory + "/" + fileNameWithoutExtension + "_275px.jpg";
 
 			// 5. resize image
 			await resizeImage(
@@ -112,9 +114,9 @@ export const extractCoverFromFile2 = async (
 				name: fileNameWithoutExtension,
 				filePath,
 				fileSize,
-				extension: path.extname(filePath),
+				extension,
 				cover: {
-					filePath: path.relative(process.cwd(),renditionPath),
+					filePath: path.relative(process.cwd(), renditionPath),
 				},
 				containedIn: path.resolve(fileNameWithExtension),
 				calibreMetadata: {
@@ -168,5 +170,71 @@ export const unrarArchive = async (
 		]);
 	} catch (error) {
 		console.info(`${error}`);
+	}
+};
+
+export const extractFileFromRar = async (
+	filePath: string,
+	fileToExtract: string
+) => {
+	try {
+		// Read the archive file into a typedArray
+		const fileBuffer = await fse
+			.readFile(filePath)
+			.catch((err) => console.error("Failed to read file", err));
+		const extractor = await unrar.createExtractorFromData({
+			data: fileBuffer,
+		});
+
+		const list = extractor.getFileList();
+		const listArcHeader = list.arcHeader; // archive header
+		const fileHeaders = [...list.fileHeaders]; // load the file headers
+
+		const extracted = extractor.extract({ files: ["ComicInfo.xml"] });
+		const files = [...extracted.files]; //load the files
+		console.log("asdas", files[0]);
+		if(!isUndefined(files[0])) {
+			const trin = String.fromCharCode.apply(null, files[0].extraction)
+		    const foo =	await convertXMLToJSON(trin);
+			console.log(foo);
+		}
+	} catch (error) {
+		throw new Error(error);
+	}
+};
+
+export const extractFileFromZip = async (
+	filePath: string,
+	outputDirectory: string
+) => {
+	const foo = sevenZip.cmd(
+		["e", path.resolve(filePath), outputDirectory, "*.xml"],
+		(err) => {
+			console.log(err);
+		}
+	);
+	return foo;
+};
+
+export const extractFileFromArchive = async (
+	filePath: string,
+	outputDirectory: string,
+	extension: string
+) => {
+	console.log(extension);
+	switch (extension) {
+		case ".cbz":
+			console.log("cbz");
+			extractFileFromZip(filePath, outputDirectory);
+			break;
+
+		case ".cbr":
+			console.log("cbr");
+			extractFileFromRar(filePath, outputDirectory);
+			break;
+
+		default:
+			console.log("error na rao");
+			break;
 	}
 };
