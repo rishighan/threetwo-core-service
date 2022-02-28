@@ -32,7 +32,8 @@ SOFTWARE.
  */
 
 const fse = require("fs-extra");
-import path from "path";
+import { promises as fs } from "fs";
+import path, { parse } from "path";
 
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -42,11 +43,17 @@ import {
 	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
 
-import { constructPaths, explodePath, walkFolder } from "../utils/file.utils";
+import {
+	explodePath,
+	getFileConstituents,
+	walkFolder,
+} from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
 import { isNil, isUndefined } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
-const sevenZip = require("7zip-min");
+import sevenBin from "7zip-bin";
+import { extract } from "node-7z";
+const pathTo7zip = sevenBin.path7za;
 const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
@@ -69,19 +76,16 @@ export const extractCoverFromFile2 = async (
 			const directoryOptions = {
 				mode: 0o2775,
 			};
-			const extension = path.extname(filePath);
-			const fileNameWithExtension = path.basename(filePath);
-			const fileNameWithoutExtension = path.basename(
-				filePath,
-				path.extname(filePath)
-			);
+			const {
+				extension,
+				fileNameWithExtension,
+				fileNameWithoutExtension,
+			} = getFileConstituents(filePath);
+
 			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 
 			await fse.ensureDir(targetDirectory, directoryOptions);
 			console.info(`%s was created.`, targetDirectory);
-
-			// 2.1 look for comicinfo.xml
-			extractFileFromArchive(filePath, targetDirectory, extension);
 
 			// 3. extract the cover
 			console.info(`Starting cover extraction...`);
@@ -173,7 +177,7 @@ export const unrarArchive = async (
 	}
 };
 
-export const extractFileFromRar = async (
+export const extractComicInfoXMLFromRar = async (
 	filePath: string,
 	fileToExtract: string
 ) => {
@@ -186,55 +190,73 @@ export const extractFileFromRar = async (
 			data: fileBuffer,
 		});
 
-		const list = extractor.getFileList();
-		const listArcHeader = list.arcHeader; // archive header
-		const fileHeaders = [...list.fileHeaders]; // load the file headers
-
 		const extracted = extractor.extract({ files: ["ComicInfo.xml"] });
 		const files = [...extracted.files]; //load the files
-		console.log("asdas", files[0]);
-		if(!isUndefined(files[0])) {
-			const trin = String.fromCharCode.apply(null, files[0].extraction)
-		    const foo =	await convertXMLToJSON(trin);
-			console.log(foo);
+		if (!isUndefined(files[0])) {
+			console.log(
+				`comicinfo.xml detected in ${filePath}, attempting extraction...`
+			);
+			const fileContents = String.fromCharCode.apply(
+				null,
+				files[0].extraction
+			);
+			const parsedJSON = await convertXMLToJSON(fileContents);
+			console.log(parsedJSON);
+			return parsedJSON.comicinfo;
 		}
 	} catch (error) {
 		throw new Error(error);
 	}
 };
 
-export const extractFileFromZip = async (
+export const extractComicInfoXMLFromZip = async (
 	filePath: string,
 	outputDirectory: string
 ) => {
-	const foo = sevenZip.cmd(
-		["e", path.resolve(filePath), outputDirectory, "*.xml"],
-		(err) => {
-			console.log(err);
+	const foo = extract(path.resolve(filePath), outputDirectory, {
+		$cherryPick: ["*.xml"],
+		$bin: pathTo7zip,
+	});
+	for await (const chunk of foo) {
+		if (chunk.status === "extracted") {
+			console.log(
+				`comicinfo.xml detected in ${filePath}, attempting extraction...`
+			);
+			const fileContents = await fs.readFile(
+				path.resolve(`${outputDirectory}/${chunk.file}`),
+				"utf8"
+			);
+			const parsedJSON = await convertXMLToJSON(
+				Buffer.from(fileContents)
+			);
+			console.log(parsedJSON);
+			return parsedJSON.comicinfo;
 		}
-	);
-	return foo;
+	}
 };
 
-export const extractFileFromArchive = async (
+export const extractComicInfoXMLFromArchive = async (
 	filePath: string,
 	outputDirectory: string,
 	extension: string
 ) => {
-	console.log(extension);
 	switch (extension) {
 		case ".cbz":
-			console.log("cbz");
-			extractFileFromZip(filePath, outputDirectory);
-			break;
+			console.log(
+				"Detected file type is cbz, looking for comicinfo.xml..."
+			);
+			return await extractComicInfoXMLFromZip(filePath, outputDirectory);
 
 		case ".cbr":
-			console.log("cbr");
-			extractFileFromRar(filePath, outputDirectory);
-			break;
+			console.log(
+				"Detected file type is cbr, looking for comicinfo.xml..."
+			);
+			return await extractComicInfoXMLFromRar(filePath, outputDirectory);
 
 		default:
-			console.log("error na rao");
+			console.log(
+				"Error inferring filetype for comicinfo.xml extraction."
+			);
 			break;
 	}
 };

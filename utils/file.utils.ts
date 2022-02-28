@@ -96,5 +96,19 @@ export const constructPaths = (
 		walkedFolder.extension,
 });
 
+export const getFileConstituents = (filePath: string) => {
+	const extension = path.extname(filePath);
+	const fileNameWithExtension = path.basename(filePath);
+	const fileNameWithoutExtension = path.basename(
+		filePath,
+		path.extname(filePath)
+	);
+	return {
+		extension,
+		fileNameWithoutExtension,
+		fileNameWithExtension,
+	};
+};
+
 const filterOutDotFiles = (entities) =>
 	entities.filter((ent) => !ent.name.startsWith("."));

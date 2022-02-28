@@ -46,9 +46,11 @@ import BullMQMixin from "moleculer-bull";
 import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { extractCoverFromFile2 } from "../utils/uncompression.utils";
+import { extractComicInfoXMLFromArchive, extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { refineQuery } from "filename-parser";
 import { io } from "./api.service";
+import { getFileConstituents } from "../utils/file.utils";
+import { USERDATA_DIRECTORY } from "../constants/directories";
 const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
 
 console.log(`REDIS -> ${REDIS_URI}`);
@@ -70,12 +72,23 @@ export default class QueueService extends Service {
 						const result = await extractCoverFromFile2(
 							job.data.fileObject
 						);
+						const { filePath } = job.data.fileObject;
+						// get the file constituents and check for comicinfo.xml
+						// If present, convert the xml into json
+						// Import it into mongo
+						const {
+							extension,
+							fileNameWithoutExtension,
+						} = getFileConstituents(filePath);
+						const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+						const info = await extractComicInfoXMLFromArchive(filePath, targetDirectory, extension); 
 
 						// infer any issue-related metadata from the filename
 						const { inferredIssueDetails } = refineQuery(result.name);
 						console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
 
 						// write to mongo
+						console.log("Writing to mongo...")	
 						const dbImportResult = await this.broker.call(
 							"library.rawImportToDB",
 							{
@@ -91,12 +104,12 @@ export default class QueueService extends Service {
 									issue: inferredIssueDetails,
 								},
 								sourcedMetadata: {
+									comicInfo: info,
 									comicvine: {},
 								},
 							},
 							{}
 						);
-
 						return Promise.resolve({
 							dbImportResult,
 							id: job.id,
@@ -156,8 +169,10 @@ export default class QueueService extends Service {
 						"stalled",
 						async (job) => {
 							console.warn(
-								`The job with the id '${job} got stalled!`
+								`The job with the id '${job.id} got stalled!`
 							);
+							console.log(`${JSON.stringify(job, null, 2)}`);
+							console.log(`is stalled.`)
 						}
 					);
 				});
