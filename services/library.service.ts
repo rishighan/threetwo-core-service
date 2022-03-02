@@ -239,8 +239,9 @@ export default class ImportService extends Service {
 								Comic.findByIdAndUpdate(
 									comicObjectId,
 									{
-										sourcedMetadata: {
-											comicvine: matchedResult,
+										$set: {
+											"sourcedMetadata.comicvine":
+												matchedResult,
 										},
 									},
 									{ new: true },
@@ -347,7 +348,9 @@ export default class ImportService extends Service {
 										$last: "$_id",
 									},
 									count: { $sum: 1 },
-									data: { $push: "$$ROOT.sourcedMetadata.comicvine.volumeInformation" },
+									data: {
+										$push: "$$ROOT.sourcedMetadata.comicvine.volumeInformation",
+									},
 								},
 							},
 							{
@@ -490,6 +493,16 @@ export default class ImportService extends Service {
 											},
 										},
 									],
+									issuesWithComicInfoXML: [
+										{
+											$match: {
+												"sourcedMetadata.comicInfo" : {
+													$exists: true,
+													$gt: {$size: 0}
+												}
+											}
+										}
+									],
 									publisherWithMostComicsInLibrary: [
 										{
 											$unwind:
@@ -504,9 +517,7 @@ export default class ImportService extends Service {
 										{ $sort: { count: -1 } },
 										{ $limit: 1 },
 									],
-									mostPopulatCharacter: [
-
-									]
+									mostPopulatCharacter: [],
 								},
 							},
 						]);
@@ -517,7 +528,7 @@ export default class ImportService extends Service {
 						};
 					},
 				},
-				
+
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},

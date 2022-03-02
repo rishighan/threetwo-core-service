@@ -190,7 +190,9 @@ export const extractComicInfoXMLFromRar = async (
 			data: fileBuffer,
 		});
 
-		const extracted = extractor.extract({ files: ["ComicInfo.xml"] });
+		const extracted = extractor.extract({
+			files: ({ name }) => name.toLowerCase() === 'comicinfo.xml',
+		  });
 		const files = [...extracted.files]; //load the files
 		if (!isUndefined(files[0])) {
 			console.log(

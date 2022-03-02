@@ -33,7 +33,7 @@ export default class SettingsService extends Service {
 							timeout: 400000,
 							async handler(
 								ctx: Context<{
-									queryObjects: [],
+									queryObjects: [];
 									elasticSearchQueries: [
 										{
 											elasticSearchQuery: object;
@@ -54,9 +54,37 @@ export default class SettingsService extends Service {
 
 								body.responses.forEach((match) => {
 									console.log(match.hits.hits);
-								})
+								});
 
 								return body.responses;
+							},
+						},
+						issue: {
+							rest: "POST /searchIssue",
+							params: {},
+							handler: async (
+								ctx: Context<{
+									queryObject: {
+										volumeName: string;
+										issueNumber: string;
+									};
+								}>
+							) => {
+								console.log(ctx.params);
+								const result = await eSClient.search({
+									index: "comics",
+									body: {
+										query: {
+											match: {
+												"rawFileDetails.name":
+													ctx.params.queryObject
+														.volumeName,
+											},
+										},
+									},
+								});
+								const { hits } = result.body;
+								return hits;
 							},
 						},
 					},
