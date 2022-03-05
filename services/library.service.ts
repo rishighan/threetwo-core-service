@@ -142,7 +142,7 @@ export default class ImportService extends Service {
 								}
 							})
 							.on("end", () => {
-								console.log("Import process complete.");
+								console.log("All files traversed.");
 							});
 					},
 				},
@@ -163,6 +163,9 @@ export default class ImportService extends Service {
 							};
 							rawFileDetails: {
 								name: string;
+							};
+							acquisition: {
+								wanted: boolean;
 							};
 						}>
 					) {
@@ -305,11 +308,16 @@ export default class ImportService extends Service {
 				getComicBooks: {
 					rest: "POST /getComicBooks",
 					params: {},
-					async handler(ctx: Context<{ paginationOptions: object }>) {
-						return await Comic.paginate(
-							{},
-							ctx.params.paginationOptions
-						);
+					async handler(
+						ctx: Context<{
+							paginationOptions: object;
+							predicate: object;
+						}>
+					) {
+						return await Comic.paginate(ctx.params.predicate, {
+							...ctx.params.paginationOptions,
+							allowDiskUse: true,
+						});
 					},
 				},
 				getComicBookById: {
@@ -338,26 +346,30 @@ export default class ImportService extends Service {
 					rest: "GET /getComicBookGroups",
 					params: {},
 					async handler(ctx: Context<{}>) {
-						let volumesMetadata = [];
 						// 1. get volumes with issues mapped where issue count > 2
 						const volumes = await Comic.aggregate([
 							{
+								$project: {
+									volumeInfo:
+										"$sourcedMetadata.comicvine.volumeInformation",
+								},
+							},
+							{
+								$unwind: "$volumeInfo",
+							},
+							{
 								$group: {
-									_id: "$sourcedMetadata.comicvine.volume",
-									comicBookObjectId: {
-										$last: "$_id",
-									},
-									count: { $sum: 1 },
-									data: {
-										$push: "$$ROOT.sourcedMetadata.comicvine.volumeInformation",
+									_id: "$_id",
+
+									volumes: {
+										$addToSet: "$volumeInfo",
 									},
 								},
 							},
 							{
-								$match: {
-									count: { $gte: 1 },
-								},
+								$unwind: "$volumes",
 							},
+
 							{ $sort: { updatedAt: -1 } },
 							{ $skip: 0 },
 							{ $limit: 5 },
@@ -496,12 +508,12 @@ export default class ImportService extends Service {
 									issuesWithComicInfoXML: [
 										{
 											$match: {
-												"sourcedMetadata.comicInfo" : {
+												"sourcedMetadata.comicInfo": {
 													$exists: true,
-													$gt: {$size: 0}
-												}
-											}
-										}
+													$gt: { $size: 0 },
+												},
+											},
+										},
 									],
 									publisherWithMostComicsInLibrary: [
 										{

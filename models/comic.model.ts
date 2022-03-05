@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 var mexp = require("mongoose-elasticsearch-xp").v7;
 const paginate = require("mongoose-paginate-v2");
-
 const { Client } = require("@elastic/elasticsearch");
 
 export const eSClient = new Client({

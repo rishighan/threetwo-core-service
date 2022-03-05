@@ -72,16 +72,6 @@ export default class QueueService extends Service {
 						const result = await extractCoverFromFile2(
 							job.data.fileObject
 						);
-						const { filePath } = job.data.fileObject;
-						// get the file constituents and check for comicinfo.xml
-						// If present, convert the xml into json
-						// Import it into mongo
-						const {
-							extension,
-							fileNameWithoutExtension,
-						} = getFileConstituents(filePath);
-						const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-						const info = await extractComicInfoXMLFromArchive(filePath, targetDirectory, extension); 
 
 						// infer any issue-related metadata from the filename
 						const { inferredIssueDetails } = refineQuery(result.name);
@@ -104,9 +94,14 @@ export default class QueueService extends Service {
 									issue: inferredIssueDetails,
 								},
 								sourcedMetadata: {
-									comicInfo: info,
+									comicInfo: {},
 									comicvine: {},
 								},
+								// since we already have at least 1 copy
+								// mark it as not wanted by default
+								acquisition: {
+									wanted: false,
+								}
 							},
 							{}
 						);

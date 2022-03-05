@@ -9,7 +9,7 @@ import {
 
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { flatten } from "lodash";
+import { flatten, isEmpty, isUndefined } from "lodash";
 import { eSClient } from "../models/comic.model";
 const s = eSClient.helpers.msearch();
 
@@ -64,25 +64,38 @@ export default class SettingsService extends Service {
 							params: {},
 							handler: async (
 								ctx: Context<{
-									queryObject: {
+									query: {
 										volumeName: string;
 										issueNumber: string;
 									};
 								}>
 							) => {
-								console.log(ctx.params);
-								const result = await eSClient.search({
-									index: "comics",
-									body: {
-										query: {
-											match: {
-												"rawFileDetails.name":
-													ctx.params.queryObject
-														.volumeName,
-											},
+								console.log(ctx.params.query);
+								let eSQuery = {};
+								if (isEmpty(ctx.params.query)) {
+									Object.assign(eSQuery, {
+										match_all: {},
+									});
+								} else {
+									Object.assign(eSQuery, {
+										match: {
+											"rawFileDetails.name":
+												ctx.params.query.volumeName,
 										},
+									});
+								}
+								console.log("eSQuery", eSQuery);
+								const result = await eSClient.search(
+									{
+										index: "comics",
+										body: {
+											query: eSQuery,
+										},
+										size: 50,
 									},
-								});
+									{ hydrate: true }
+								);
+								console.log(result.body)
 								const { hits } = result.body;
 								return hits;
 							},
