@@ -102,8 +102,7 @@ export default class QueueService extends Service {
 								acquisition: {
 									wanted: false,
 								}
-							},
-							{}
+							}
 						);
 						return Promise.resolve({
 							dbImportResult,

@@ -2408,7 +2408,7 @@
   "resolved" "https://registry.npmjs.org/efrt-unpack/-/efrt-unpack-2.2.0.tgz"
   "version" "2.2.0"
 
-"elasticsearch@^12.1.3 || ^13.0.0 || ^14.0.0 || ^16.0.0":
+"elasticsearch@^12.1.3 || ^13.0.0 || ^14.0.0 || ^16.0.0", "elasticsearch@16.7.2":
   "integrity" "sha512-1ZLKZlG2ABfYVBX2d7/JgxOsKJrM5Yu62GvshWu7ZSvhxPomCN4Gas90DS51yYI56JolY0XGhyiRlUhLhIL05Q=="
   "resolved" "https://registry.npmjs.org/elasticsearch/-/elasticsearch-16.7.2.tgz"
   "version" "16.7.2"
@@ -4602,6 +4602,11 @@
   dependencies:
     "lodash._basetostring" "~4.12.0"
 
+"lodash.clonedeep@4.5.0":
+  "integrity" "sha1-4j8/nE+Pvd6HJSnBBxhXoIblzO8="
+  "resolved" "https://registry.npmjs.org/lodash.clonedeep/-/lodash.clonedeep-4.5.0.tgz"
+  "version" "4.5.0"
+
 "lodash.defaults@^4.2.0":
   "integrity" "sha1-0JF4cW/+pN3p5ft7N/bwgCJ0WAw="
   "resolved" "https://registry.npmjs.org/lodash.defaults/-/lodash.defaults-4.2.0.tgz"
@@ -5017,6 +5022,14 @@
     "safe-buffer" "^5.1.2"
   optionalDependencies:
     "saslprep" "^1.0.0"
+
+"mongoosastic-ts@^5.0.7":
+  "integrity" "sha512-os/wLY7jYt/oLDuZCXaXKU7D2acC89imk+jVa9HCPbDlDMC6A6RMW5x0GlGyXtoMtNTeFBtc5V8vuy1GgEQk1Q=="
+  "resolved" "https://registry.npmjs.org/mongoosastic-ts/-/mongoosastic-ts-5.0.7.tgz"
+  "version" "5.0.7"
+  dependencies:
+    "elasticsearch" "16.7.2"
+    "lodash.clonedeep" "4.5.0"
 
 "mongoose-elasticsearch-xp@^5.8.0":
   "integrity" "sha512-snb8OdeIuX64vvlyQ/Hwu2vxQDLElixmxkSn3dOeuZ3TepPN2l4PQvfBLHmPT3e86HH93jHeMNU/PJtNOc4FOw=="

@@ -190,10 +190,11 @@ export default class ImportService extends Service {
 							comicMetadata.sourcedMetadata.comicvine.volumeInformation =
 								volumeDetails.results;
 						}
-						return new Promise(async (resolve, reject) => {
-							Comic.create(ctx.params, (error, data) => {
+						return await Comic.create(
+							ctx.params,
+							(error, data) => {
 								if (data) {
-									resolve(data);
+									return data;
 								} else if (error) {
 									console.log("data", data);
 									console.log("error", error);
@@ -204,8 +205,9 @@ export default class ImportService extends Service {
 										error
 									);
 								}
-							});
-						});
+							}
+						);
+						
 					},
 				},
 				applyComicVineMetadata: {
@@ -484,14 +486,15 @@ export default class ImportService extends Service {
 									issues: [
 										{
 											$match: {
-												"sourcedMetadata.comicvine": {
-													$gt: {},
-												},
+												"sourcedMetadata.comicvine.volumeInformation":
+													{
+														$gt: {},
+													},
 											},
 										},
 										{
 											$group: {
-												_id: "$sourcedMetadata.comicvine",
+												_id: "$sourcedMetadata.comicvine.volumeInformation",
 												data: { $push: "$$ROOT._id" },
 											},
 										},

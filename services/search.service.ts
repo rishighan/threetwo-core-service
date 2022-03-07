@@ -9,7 +9,7 @@ import {
 
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { flatten, isEmpty, isUndefined } from "lodash";
+import { flatten, isEmpty, isUndefined, map } from "lodash";
 import { eSClient } from "../models/comic.model";
 const s = eSClient.helpers.msearch();
 
@@ -52,11 +52,11 @@ export default class SettingsService extends Service {
 									body: queries,
 								});
 
-								body.responses.forEach((match) => {
+								body.results.forEach((match) => {
 									console.log(match.hits.hits);
 								});
 
-								return body.responses;
+								return body.results;
 							},
 						},
 						issue: {
@@ -68,11 +68,16 @@ export default class SettingsService extends Service {
 										volumeName: string;
 										issueNumber: string;
 									};
+									pagination: {
+										size: number;
+										from: number,
+									};
 								}>
 							) => {
-								console.log(ctx.params.query);
+								console.log(ctx.params);
+								const { query, pagination } = ctx.params;
 								let eSQuery = {};
-								if (isEmpty(ctx.params.query)) {
+								if (isEmpty(query)) {
 									Object.assign(eSQuery, {
 										match_all: {},
 									});
@@ -80,24 +85,23 @@ export default class SettingsService extends Service {
 									Object.assign(eSQuery, {
 										match: {
 											"rawFileDetails.name":
-												ctx.params.query.volumeName,
+												query.volumeName,
 										},
 									});
 								}
-								console.log("eSQuery", eSQuery);
+								console.log(query);
 								const result = await eSClient.search(
 									{
 										index: "comics",
 										body: {
 											query: eSQuery,
 										},
-										size: 50,
+										...pagination,
 									},
 									{ hydrate: true }
 								);
-								console.log(result.body)
-								const { hits } = result.body;
-								return hits;
+								
+								return result;
 							},
 						},
 					},

@@ -2,12 +2,36 @@ const mongoose = require("mongoose");
 var mexp = require("mongoose-elasticsearch-xp").v7;
 const paginate = require("mongoose-paginate-v2");
 const { Client } = require("@elastic/elasticsearch");
+import ComicVineMetadataSchema from "./comicvine.metadata.model";
+import { mongoosastic } from "mongoosastic-ts";
+import {
+	MongoosasticDocument,
+	MongoosasticModel,
+	MongoosasticPluginOpts,
+} from "mongoosastic-ts/dist/types";
 
 export const eSClient = new Client({
 	node: "http://localhost:9200",
 	auth: {
 		username: "elastic",
 		password: "password",
+	},
+});
+
+const RawFileDetailsSchema = mongoose.Schema({
+	_id: false,
+	name: String,
+	filePath: String,
+	fileSize: Number,
+	extension: String,
+	containedIn: String,
+	pageCount: Number,
+	cover: {
+		filePath: String,
+		stats: Object,
+	},
+	calibreMetadata: {
+		coverWriteResult: String,
 	},
 });
 
@@ -25,36 +49,25 @@ const ComicSchema = mongoose.Schema(
 		},
 		sourcedMetadata: {
 			comicInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
-			comicvine: { type: mongoose.Schema.Types.Mixed, default: {} },
+			comicvine: {
+				type: ComicVineMetadataSchema,
+				es_indexed: true,
+				default: {},
+			},
 			shortboxed: {},
 			gcd: {},
 		},
-		rawFileDetails: {
-			name: { type: String, es_indexed: true },
-			filePath: String,
-			fileSize: Number,
-			extension: String,
-			containedIn: String,
-			pageCount: Number,
-			cover: {
-				filePath: String,
-				stats: Object,
-			},
-			calibreMetadata: {
-				coverWriteResult: String,
-			},
-		},
+		rawFileDetails: { type: RawFileDetailsSchema, es_indexed: true },
 		inferredMetadata: {
 			issue: {
-				name: String,
+				name: { type: String, es_indexed: true },
 				number: {
 					type: Number,
-					es_indexed: true,
 					required: false,
 					default: 0,
 				},
 				year: String,
-				subtitle: String,
+				subtitle: { type: String, es_indexed: true },
 			},
 		},
 		acquisition: {
@@ -75,9 +88,22 @@ const ComicSchema = mongoose.Schema(
 	{ timestamps: true, minimize: false }
 );
 
-ComicSchema.plugin(mexp, {
-	client: eSClient,
+ComicSchema.plugin(mongoosastic, {
+	esClient: eSClient,
 });
 ComicSchema.plugin(paginate);
-const Comic = mongoose.model("Comic", ComicSchema);
+
+const Comic = mongoose.model("Comic", ComicSchema),
+	stream = Comic.synchronize();
+let count = 0;
+
+stream.on("data", function (err, doc) {
+	count++;
+});
+stream.on("close", function () {
+	console.log("indexed " + count + " documents!");
+});
+stream.on("error", function (err) {
+	console.log(err);
+});
 export default Comic;

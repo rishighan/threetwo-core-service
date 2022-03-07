@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Things = mongoose.Schema({
+	_id: false,
 	api_detail_url: String,
 	id: Number,
 	name: String,
@@ -7,13 +8,15 @@ const Things = mongoose.Schema({
 	count: String,
 });
 const Issue = mongoose.Schema({
+	_id: false,
 	api_detail_url: String,
 	id: Number,
 	name: String,
 	issue_number: String,
 });
 const VolumeInformation = mongoose.Schema({
-	aliases: Array,
+	_id: false,
+	aliases: [],
 	api_detail_url: String,
 	characters: [Things],
 	concepts: [Things],
@@ -60,7 +63,8 @@ const VolumeInformation = mongoose.Schema({
 	start_year: String,
 });
 
-const ComicVineMetadata = mongoose.Schema({
+const ComicVineMetadataSchema = mongoose.Schema({
+	_id: false,
 	aliases: [String],
 	api_detail_url: String,
 	cover_date: String,
@@ -75,4 +79,4 @@ const ComicVineMetadata = mongoose.Schema({
 	volumeInformation: VolumeInformation,
 });
 
-export default ComicVineMetadata;
+export default ComicVineMetadataSchema;
