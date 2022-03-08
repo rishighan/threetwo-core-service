@@ -82,9 +82,9 @@ export default class SettingsService extends Service {
 									});
 								} else {
 									Object.assign(eSQuery, {
-										match: {
-											"rawFileDetails.name":
-												query.volumeName,
+										multi_match: {
+											fields: ["rawFileDetails.name", "sourcedMetadata.comicvine.name", "sourcedMetadata.comicvine.volumeInformation.name"],
+											query: query.volumeName,
 										},
 									});
 								}
