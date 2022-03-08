@@ -124,7 +124,8 @@ export default class ImportService extends Service {
 								let comicExists = await Comic.exists({
 									"rawFileDetails.name": `${path.basename(
 										item.path,
-										path.extname(item.path)
+										path.extname(item.path),
+										
 									)}`,
 								});
 								if (!comicExists) {
@@ -171,7 +172,7 @@ export default class ImportService extends Service {
 					) {
 						let volumeDetails;
 						const comicMetadata = ctx.params;
-
+						console.log(comicMetadata);
 						// When an issue is added from the search CV feature
 						if (
 							comicMetadata.sourcedMetadata.comicvine &&

@@ -189,23 +189,33 @@ export const extractComicInfoXMLFromRar = async (
 		const extractor = await unrar.createExtractorFromData({
 			data: fileBuffer,
 		});
+		console.info('Unrar initiating.');
 
-		const extracted = extractor.extract({
-			files: ({ name }) => name.toLowerCase() === 'comicinfo.xml',
-		  });
-		const files = [...extracted.files]; //load the files
-		if (!isUndefined(files[0])) {
-			console.log(
-				`comicinfo.xml detected in ${filePath}, attempting extraction...`
-			);
-			const fileContents = String.fromCharCode.apply(
-				null,
-				files[0].extraction
-			);
-			const parsedJSON = await convertXMLToJSON(fileContents);
-			console.log(parsedJSON);
-			return parsedJSON.comicinfo;
-		}
+ 
+
+  const files = extractor.extract({});
+  const extractedFiles = [...files.files];
+  console.log(extractedFiles[0]);
+  for (const file of extractedFiles) {
+    console.info(`Attempting to write ${file.fileHeader.name}`);
+  }
+
+		// const extracted = extractor.extract({
+		// 	files: ({ name }) => name.toLowerCase() === 'comicinfo.xml',
+		//   });
+		// const files = [...extracted.files]; //load the files
+		// if (!isUndefined(files[0])) {
+		// 	console.log(
+		// 		`comicinfo.xml detected in ${filePath}, attempting extraction...`
+		// 	);
+		// 	const fileContents = String.fromCharCode.apply(
+		// 		null,
+		// 		files[0].extraction
+		// 	);
+		// 	const parsedJSON = await convertXMLToJSON(fileContents);
+		// 	console.log(parsedJSON);
+		// 	return parsedJSON.comicinfo;
+		// }
 	} catch (error) {
 		throw new Error(error);
 	}
@@ -237,7 +247,7 @@ export const extractComicInfoXMLFromZip = async (
 	}
 };
 
-export const extractComicInfoXMLFromArchive = async (
+export const extractFromArchive = async (
 	filePath: string,
 	outputDirectory: string,
 	extension: string

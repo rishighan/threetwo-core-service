@@ -39,7 +39,6 @@ const VolumeInformation = mongoose.Schema({
 		original_url: String,
 		image_tags: String,
 	},
-
 	issues: [
 		{
 			api_detail_url: String,
@@ -72,6 +71,19 @@ const ComicVineMetadataSchema = mongoose.Schema({
 	date_last_updated: String,
 	deck: String,
 	description: String,
+	image: {
+		icon_url: String,
+		medium_url: String,
+		screen_url: String,
+		screen_large_url: String,
+		small_url: String,
+		super_url: String,
+		thumb_url: String,
+		tiny_url: String,
+		original_url: String,
+		image_tags: String,
+	},
+
 	has_staff_review: Boolean,
 	id: Number,
 	name: String,

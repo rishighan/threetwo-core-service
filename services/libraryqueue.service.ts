@@ -46,7 +46,7 @@ import BullMQMixin from "moleculer-bull";
 import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { extractComicInfoXMLFromArchive, extractCoverFromFile2 } from "../utils/uncompression.utils";
+import { extractFromArchive, extractCoverFromFile2 } from "../utils/uncompression.utils";
 import { refineQuery } from "filename-parser";
 import { io } from "./api.service";
 import { getFileConstituents } from "../utils/file.utils";
@@ -76,7 +76,13 @@ export default class QueueService extends Service {
 						// infer any issue-related metadata from the filename
 						const { inferredIssueDetails } = refineQuery(result.name);
 						console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
-
+						// const {
+						// 	extension,
+						// 	fileNameWithExtension,
+						// 	fileNameWithoutExtension,
+						// } = getFileConstituents(job.data.fileObject.filePath);
+						// const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+						// const foo = await extractFromArchive(job.data.fileObject.filePath, targetDirectory, extension );
 						// write to mongo
 						console.log("Writing to mongo...")	
 						const dbImportResult = await this.broker.call(

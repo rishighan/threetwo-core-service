@@ -51,12 +51,11 @@ export default class SettingsService extends Service {
 								const { body } = await eSClient.msearch({
 									body: queries,
 								});
-
-								body.results.forEach((match) => {
-									console.log(match.hits.hits);
+								body.responses.forEach((match) => {
+									console.log(match.hits);
 								});
 
-								return body.results;
+								return body.responses;
 							},
 						},
 						issue: {
