@@ -53,7 +53,6 @@ import {
 	IExtractedComicBookCoverFile,
 	IExtractionOptions,
 } from "threetwo-ui-typings";
-import { unrarArchive } from "../utils/uncompression.utils";
 const ObjectId = require("mongoose").Types.ObjectId;
 import fsExtra from "fs-extra";
 const through2 = require("through2");
@@ -578,10 +577,6 @@ export default class ImportService extends Service {
 						}>
 					) {
 						console.log(ctx.params);
-						return await unrarArchive(
-							ctx.params.filePath,
-							ctx.params.options
-						);
 					},
 				},
 			},

@@ -31,10 +31,10 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-const fse = require("fs-extra");
 import { promises as fs } from "fs";
+const fse = require("fs-extra");
+const Unrar = require("unrar");
 import path, { parse } from "path";
-
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -49,12 +49,11 @@ import {
 	walkFolder,
 } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
-import { isNil, isUndefined } from "lodash";
+import { each, filter, isNil, isUndefined, remove } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
 import sevenBin from "7zip-bin";
-import { extract } from "node-7z";
+import { extract, list } from "node-7z";
 const pathTo7zip = sevenBin.path7za;
-const unrar = require("node-unrar-js");
 const { Calibre } = require("node-calibre");
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
 
@@ -133,72 +132,52 @@ export const extractCoverFromFile2 = async (
 	}
 };
 
-export const unrarArchive = async (
-	filePath: string,
-	options: IExtractionOptions
-) => {
-	// create directory
-	const directoryOptions = {
-		mode: 0o2775,
-	};
-
-	const fileBuffer = await fse
-		.readFile(filePath)
-		.catch((err) => console.error("Failed to read file", err));
-	try {
-		console.info("Unrar initiating.");
-		await fse.ensureDir(options.targetExtractionFolder, directoryOptions);
-		console.info(`${options.targetExtractionFolder} was created.`);
-
-		const extractor = await unrar.createExtractorFromData({
-			data: fileBuffer,
-		});
-		const files = extractor.extract({});
-		const extractedFiles = [...files.files];
-		for (const file of extractedFiles) {
-			console.info(`Attempting to write ${file.fileHeader.name}`);
-			const fileBuffer = file.extraction;
-			const fileName = explodePath(file.fileHeader.name).fileName;
-			// resize image
-			await resizeImage(
-				fileBuffer,
-				path.resolve(options.targetExtractionFolder + "/" + fileName),
-				200
-			);
-		}
-		// walk the newly created folder and return results
-		return await walkFolder(options.targetExtractionFolder, [
-			".jpg",
-			".png",
-			".jpeg",
-		]);
-	} catch (error) {
-		console.info(`${error}`);
-	}
-};
-
 export const extractComicInfoXMLFromRar = async (
 	filePath: string,
 	fileToExtract: string
 ) => {
 	try {
-		// Read the archive file into a typedArray
-		const fileBuffer = await fse
-			.readFile(filePath)
-			.catch((err) => console.error("Failed to read file", err));
-		const extractor = await unrar.createExtractorFromData({
-			data: fileBuffer,
+		// Create the target directory
+		const directoryOptions = {
+			mode: 0o2775,
+		};
+		const { fileNameWithoutExtension } = getFileConstituents(filePath);
+		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+		await fse.ensureDir(targetDirectory, directoryOptions);
+		console.info(`%s was created.`, targetDirectory);
+
+		const archive = new Unrar(path.resolve(filePath));
+		// or
+		// var archive = new Unrar({
+		//   path:      protectedArchivePath,
+		//   arguments: ['-pPassword'],
+		//   bin: pathToUnrarBin // Default: unrar
+		// });
+		const loo = [];
+		archive.list(function (err, entries) {
+			remove(entries, ({ type }) => type === "Directory");
+			const comicInfoXML = remove(entries, ({ name }) => name.toLowerCase() === "comicinfo.xml");
+			const foo = entries.sort((a, b) => {
+				if (!isUndefined(a) && !isUndefined(b)) {
+					return a.name
+						.toLowerCase()
+						.localeCompare(b.name.toLowerCase());
+				}
+			});
+			loo.push(foo)
+			console.log(loo[0][0]);
+			var stream = archive.stream(loo[0][0].name); // name of entry
+			stream.on('error', console.error);
+			stream.pipe(require('fs').createWriteStream(`${targetDirectory}/0.jpg`));
+			if(!isUndefined(comicInfoXML[0]) ) {
+				console.log(comicInfoXML);
+				const comicinfoStream = archive.stream(comicInfoXML[0]["name"]);
+			comicinfoStream.on('error', console.error);
+			comicinfoStream.pipe(require('fs').createWriteStream(`${targetDirectory}/dhanda.xml`));
+
+			}
+			
 		});
-		console.info('Unrar initiating.');
-
- 
-
-  const files = extractor.extract({});
-  const extractedFiles = [...files.files];
-  console.log(extractedFiles[0]);
-  for (const file of extractedFiles) {
-    console.info(`Attempting to write ${file.fileHeader.name}`);
-  }
 
 		// const extracted = extractor.extract({
 		// 	files: ({ name }) => name.toLowerCase() === 'comicinfo.xml',
@@ -225,25 +204,88 @@ export const extractComicInfoXMLFromZip = async (
 	filePath: string,
 	outputDirectory: string
 ) => {
-	const foo = extract(path.resolve(filePath), outputDirectory, {
-		$cherryPick: ["*.xml"],
-		$bin: pathTo7zip,
-	});
-	for await (const chunk of foo) {
-		if (chunk.status === "extracted") {
-			console.log(
-				`comicinfo.xml detected in ${filePath}, attempting extraction...`
-			);
-			const fileContents = await fs.readFile(
-				path.resolve(`${outputDirectory}/${chunk.file}`),
-				"utf8"
-			);
-			const parsedJSON = await convertXMLToJSON(
-				Buffer.from(fileContents)
-			);
-			console.log(parsedJSON);
-			return parsedJSON.comicinfo;
-		}
+	try {
+		const listStream = list(path.resolve(filePath), {
+			$cherryPick: ["*.png", "*.jpg", , "*.jpeg", "*.webp", "*.xml"],
+			$bin: pathTo7zip,
+		});
+		const fileList = [];
+		listStream
+			.on("data", (chunk) => fileList.push(chunk))
+			.on("end", async () => {
+				// Look for ComicInfo.xml
+				const comicInfoXML = remove(fileList, (item) =>
+					!isUndefined(item)
+						? path.basename(item.file).toLowerCase() ===
+						  "comicinfo.xml"
+						: undefined
+				);
+				// Sort the file list array naturally
+				const sortedFileList = fileList.sort((a, b) =>
+					a.file.toLowerCase().localeCompare(b.file.toLowerCase())
+				);
+
+				// Create the target directory
+				const directoryOptions = {
+					mode: 0o2775,
+				};
+				const { fileNameWithoutExtension } =
+					getFileConstituents(filePath);
+				const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+				await fse.ensureDir(targetDirectory, directoryOptions);
+				console.info(`%s was created.`, targetDirectory);
+
+				// files to write
+				const filesToWrite = [];
+				if (
+					!isUndefined(sortedFileList[0]) &&
+					!isUndefined(sortedFileList[0].file)
+				) {
+					filesToWrite.push(sortedFileList[0].file);
+				}
+
+				// if ComicInfo.xml present, include it in the file list to be written to disk
+				if (!isUndefined(comicInfoXML[0])) {
+					console.log(`ComicInfo.xml detected in ${filePath}`);
+					filesToWrite.push(comicInfoXML[0].file);
+				}
+
+				// Remove nulls, undefined and empty elements from the file list
+				const filteredFilesToWrite = filesToWrite.filter(
+					(item) => !isUndefined(item)
+				);
+				const extractStream = extract(
+					`${path.resolve(filePath)}`,
+					targetDirectory,
+					{
+						$cherryPick: filteredFilesToWrite,
+						$bin: pathTo7zip,
+					}
+				);
+				extractStream.on("data", (data) => {
+					//do something with the image
+					console.log("ZIP:", data);
+				});
+			});
+
+		// for await (const chunk of foo) {
+		// 	if (chunk.status === "extracted") {
+		// 		console.log(
+		// 			`comicinfo.xml detected in ${filePath}, attempting extraction...`
+		// 		);
+		// 		const fileContents = await fs.readFile(
+		// 			path.resolve(`${outputDirectory}/${chunk.file}`),
+		// 			"utf8"
+		// 		);
+		// 		const parsedJSON = await convertXMLToJSON(
+		// 			Buffer.from(fileContents)
+		// 		);
+		// 		console.log(parsedJSON);
+		// 		return parsedJSON.comicinfo;
+		// 	}
+		// }
+	} catch (error) {
+		throw new Error(error);
 	}
 };
 

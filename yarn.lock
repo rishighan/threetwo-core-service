@@ -1102,6 +1102,10 @@
     "@typescript-eslint/types" "4.33.0"
     "eslint-visitor-keys" "^2.0.0"
 
+"@zhangfuxing/unrar@github:rishighan/unrar":
+  "resolved" "git+ssh://git@github.com/rishighan/unrar.git#e278e29d82d00827a016d34320373cbca1d099f1"
+  "version" "0.6.3"
+
 "7zip-bin@^5.1.1":
   "integrity" "sha512-sAP4LldeWNz0lNzmTird3uWfFDWWTeg6V/MsmyyLR9X1idwKBWIgt/ZvinqQldJm3LecKEs1emkbquO6PCiLVQ=="
   "resolved" "https://registry.npmjs.org/7zip-bin/-/7zip-bin-5.1.1.tgz"
@@ -5209,10 +5213,10 @@
   "resolved" "https://registry.npmjs.org/node-releases/-/node-releases-2.0.1.tgz"
   "version" "2.0.1"
 
-"node-unrar-js@^1.0.2":
-  "integrity" "sha512-erEhBIhOxKYxxnIhB2CiIU1RQjPN7jjNKbpthWig0VTz3L6AwyORilvTdVzYOkxyTWGY9ZLqHB+EyqmnvvdI5g=="
-  "resolved" "https://registry.npmjs.org/node-unrar-js/-/node-unrar-js-1.0.3.tgz"
-  "version" "1.0.3"
+"node-unrar-js@^1.0.5":
+  "integrity" "sha512-e2FfnO1rsbXIYPTHkzA/FV8+xDeuEIyRd5X8VQmWJMC5zeZFV9PX1TROTv2bmukX1kBJ2U8Lzu7LZiwUXByaOQ=="
+  "resolved" "https://registry.npmjs.org/node-unrar-js/-/node-unrar-js-1.0.5.tgz"
+  "version" "1.0.5"
 
 "nopt@*", "nopt@^5.0.0":
   "version" "5.0.0"

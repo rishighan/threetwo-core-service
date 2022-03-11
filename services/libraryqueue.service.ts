@@ -69,49 +69,51 @@ export default class QueueService extends Service {
 						console.info("New job received!", job.data);
 						console.info(`Processing queue...`);
 						// extract the cover
-						const result = await extractCoverFromFile2(
-							job.data.fileObject
-						);
+						// const result = await extractCoverFromFile2(
+						// 	job.data.fileObject
+						// );
+
+							const {
+							extension,
+							fileNameWithExtension,
+							fileNameWithoutExtension,
+						} = getFileConstituents(job.data.fileObject.filePath);
+						const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+						const foo = await extractFromArchive(job.data.fileObject.filePath, targetDirectory, extension );
 
 						// infer any issue-related metadata from the filename
-						const { inferredIssueDetails } = refineQuery(result.name);
-						console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
-						// const {
-						// 	extension,
-						// 	fileNameWithExtension,
-						// 	fileNameWithoutExtension,
-						// } = getFileConstituents(job.data.fileObject.filePath);
-						// const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-						// const foo = await extractFromArchive(job.data.fileObject.filePath, targetDirectory, extension );
-						// write to mongo
-						console.log("Writing to mongo...")	
-						const dbImportResult = await this.broker.call(
-							"library.rawImportToDB",
-							{
-								importStatus: {
-									isImported: true,
-									tagged: false,
-									matchedResult: {
-										score: "0",
-									},
-								},
-								rawFileDetails: result,
-								inferredMetadata: {
-									issue: inferredIssueDetails,
-								},
-								sourcedMetadata: {
-									comicInfo: {},
-									comicvine: {},
-								},
-								// since we already have at least 1 copy
-								// mark it as not wanted by default
-								acquisition: {
-									wanted: false,
-								}
-							}
-						);
+						// const { inferredIssueDetails } = refineQuery(result.name);
+						// console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
+						
+						// // // write to mongo
+						// console.log("Writing to mongo...")	
+						// const dbImportResult = await this.broker.call(
+						// 	"library.rawImportToDB",
+						// 	{
+						// 		importStatus: {
+						// 			isImported: true,
+						// 			tagged: false,
+						// 			matchedResult: {
+						// 				score: "0",
+						// 			},
+						// 		},
+						// 		rawFileDetails: result,
+						// 		inferredMetadata: {
+						// 			issue: inferredIssueDetails,
+						// 		},
+						// 		sourcedMetadata: {
+						// 			comicInfo: {},
+						// 			comicvine: {},
+						// 		},
+						// 		// since we already have at least 1 copy
+						// 		// mark it as not wanted by default
+						// 		acquisition: {
+						// 			wanted: false,
+						// 		}
+						// 	}
+						// );
 						return Promise.resolve({
-							dbImportResult,
+							// dbImportResult,
 							id: job.id,
 							worker: process.pid,
 						});
@@ -151,6 +153,7 @@ export default class QueueService extends Service {
 							console.error(
 								`An error occured in 'process.import' queue on job id '${job.id}': ${error.message}`
 							);
+							console.error(job.data);
 						}
 					);
 					await this.getQueue("process.import").on(

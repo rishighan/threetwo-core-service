@@ -66,6 +66,8 @@ const ComicVineMetadataSchema = mongoose.Schema({
 	_id: false,
 	aliases: [String],
 	api_detail_url: String,
+	has_staff_review: { type: mongoose.Schema.Types.Mixed },
+
 	cover_date: String,
 	date_added: String,
 	date_last_updated: String,
@@ -84,7 +86,6 @@ const ComicVineMetadataSchema = mongoose.Schema({
 		image_tags: String,
 	},
 
-	has_staff_review: Boolean,
 	id: Number,
 	name: String,
 	resource_type: String,
