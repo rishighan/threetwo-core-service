@@ -42,7 +42,7 @@ import {
 	IFolderData,
 	ISharpResizedImageStats,
 } from "threetwo-ui-typings";
-
+import sharp from "sharp";
 import {
 	explodePath,
 	getFileConstituents,
@@ -153,30 +153,50 @@ export const extractComicInfoXMLFromRar = async (
 		//   arguments: ['-pPassword'],
 		//   bin: pathToUnrarBin // Default: unrar
 		// });
-		const loo = [];
 		archive.list(function (err, entries) {
 			remove(entries, ({ type }) => type === "Directory");
-			const comicInfoXML = remove(entries, ({ name }) => name.toLowerCase() === "comicinfo.xml");
-			const foo = entries.sort((a, b) => {
+			const comicInfoXML = remove(
+				entries,
+				({ name }) => name.toLowerCase() === "comicinfo.xml"
+			);
+			const files = entries.sort((a, b) => {
 				if (!isUndefined(a) && !isUndefined(b)) {
 					return a.name
 						.toLowerCase()
 						.localeCompare(b.name.toLowerCase());
 				}
 			});
-			loo.push(foo)
-			console.log(loo[0][0]);
-			var stream = archive.stream(loo[0][0].name); // name of entry
-			stream.on('error', console.error);
-			stream.pipe(require('fs').createWriteStream(`${targetDirectory}/0.jpg`));
-			if(!isUndefined(comicInfoXML[0]) ) {
+			const sharpStream = sharp().resize(200, 200);
+			const coverImageStream = archive
+				.stream(files[0].name)
+				.on("error", console.error)
+				// .pipe(
+				// 	require("fs").createWriteStream(`${targetDirectory}/0.jpg`)
+				// );
+				.pipe(sharpStream)
+				.toFile(`${targetDirectory}/0.jpg`, (err, info) => {
+					if (err) {
+						console.log("Failed to resize image:");
+						console.log(err);
+						return err;
+					}
+
+					console.log(
+						"Image file resized with the following parameters: %o",
+						info
+					);
+					return info;
+				});
+			if (!isUndefined(comicInfoXML[0])) {
 				console.log(comicInfoXML);
 				const comicinfoStream = archive.stream(comicInfoXML[0]["name"]);
-			comicinfoStream.on('error', console.error);
-			comicinfoStream.pipe(require('fs').createWriteStream(`${targetDirectory}/dhanda.xml`));
-
+				comicinfoStream.on("error", console.error);
+				comicinfoStream.pipe(
+					require("fs").createWriteStream(
+						`${targetDirectory}/dhanda.xml`
+					)
+				);
 			}
-			
 		});
 
 		// const extracted = extractor.extract({
