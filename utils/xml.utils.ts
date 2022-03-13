@@ -27,7 +27,6 @@ SOFTWARE.
  */
 
 import xml2js from "xml2js";
-import fs from "fs";
 
 export const convertXMLToJSON = (xmlPayload) => {
 	const parser = new xml2js.Parser({

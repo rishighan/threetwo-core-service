@@ -1102,10 +1102,6 @@
     "@typescript-eslint/types" "4.33.0"
     "eslint-visitor-keys" "^2.0.0"
 
-"@zhangfuxing/unrar@github:rishighan/unrar":
-  "resolved" "git+ssh://git@github.com/rishighan/unrar.git#e278e29d82d00827a016d34320373cbca1d099f1"
-  "version" "0.6.3"
-
 "7zip-bin@^5.1.1":
   "integrity" "sha512-sAP4LldeWNz0lNzmTird3uWfFDWWTeg6V/MsmyyLR9X1idwKBWIgt/ZvinqQldJm3LecKEs1emkbquO6PCiLVQ=="
   "resolved" "https://registry.npmjs.org/7zip-bin/-/7zip-bin-5.1.1.tgz"

@@ -31,10 +31,11 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { promises as fs } from "fs";
+import { createWriteStream, createReadStream, promises as fs } from "fs";
 const fse = require("fs-extra");
 const Unrar = require("unrar");
 import path, { parse } from "path";
+
 import {
 	IExtractComicBookCoverErrorResponse,
 	IExtractedComicBookCoverFile,
@@ -49,7 +50,7 @@ import {
 	walkFolder,
 } from "../utils/file.utils";
 import { resizeImage } from "./imagetransformation.utils";
-import { each, filter, isNil, isUndefined, remove } from "lodash";
+import { isNil, isUndefined, remove } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
 import sevenBin from "7zip-bin";
 import { extract, list } from "node-7z";
@@ -146,14 +147,11 @@ export const extractComicInfoXMLFromRar = async (
 		await fse.ensureDir(targetDirectory, directoryOptions);
 		console.info(`%s was created.`, targetDirectory);
 
-		const archive = new Unrar(path.resolve(filePath));
-		// or
-		// var archive = new Unrar({
-		//   path:      protectedArchivePath,
-		//   arguments: ['-pPassword'],
-		//   bin: pathToUnrarBin // Default: unrar
-		// });
-		archive.list(function (err, entries) {
+		const archive = new Unrar({
+			path: path.resolve(filePath),
+			bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+		});
+		archive.list(async (err, entries) => {
 			remove(entries, ({ type }) => type === "Directory");
 			const comicInfoXML = remove(
 				entries,
@@ -166,55 +164,43 @@ export const extractComicInfoXMLFromRar = async (
 						.localeCompare(b.name.toLowerCase());
 				}
 			});
-			const sharpStream = sharp().resize(200, 200);
+			// Cover image extraction and resizing
+			const sharpStream = sharp().resize(275);
+			let comicInfoString = "";
 			const coverImageStream = archive
 				.stream(files[0].name)
 				.on("error", console.error)
-				// .pipe(
-				// 	require("fs").createWriteStream(`${targetDirectory}/0.jpg`)
-				// );
 				.pipe(sharpStream)
-				.toFile(`${targetDirectory}/0.jpg`, (err, info) => {
+				.toFile(`${targetDirectory}/${files[0].name}`, (err, info) => {
 					if (err) {
 						console.log("Failed to resize image:");
 						console.log(err);
 						return err;
 					}
-
 					console.log(
 						"Image file resized with the following parameters: %o",
 						info
 					);
 					return info;
 				});
+			// ComicInfo.xml extraction and parsing to JSON
 			if (!isUndefined(comicInfoXML[0])) {
-				console.log(comicInfoXML);
 				const comicinfoStream = archive.stream(comicInfoXML[0]["name"]);
 				comicinfoStream.on("error", console.error);
 				comicinfoStream.pipe(
-					require("fs").createWriteStream(
-						`${targetDirectory}/dhanda.xml`
+					createWriteStream(
+						`${targetDirectory}/${comicInfoXML[0]["name"]}`
 					)
 				);
+				comicinfoStream.on("data", (data) => {
+					comicInfoString += data;
+				});
+				comicinfoStream.on("end", async (data) => {
+					const foo = await convertXMLToJSON(comicInfoString);
+					console.log(foo);
+				});
 			}
 		});
-
-		// const extracted = extractor.extract({
-		// 	files: ({ name }) => name.toLowerCase() === 'comicinfo.xml',
-		//   });
-		// const files = [...extracted.files]; //load the files
-		// if (!isUndefined(files[0])) {
-		// 	console.log(
-		// 		`comicinfo.xml detected in ${filePath}, attempting extraction...`
-		// 	);
-		// 	const fileContents = String.fromCharCode.apply(
-		// 		null,
-		// 		files[0].extraction
-		// 	);
-		// 	const parsedJSON = await convertXMLToJSON(fileContents);
-		// 	console.log(parsedJSON);
-		// 	return parsedJSON.comicinfo;
-		// }
 	} catch (error) {
 		throw new Error(error);
 	}
@@ -225,68 +211,72 @@ export const extractComicInfoXMLFromZip = async (
 	outputDirectory: string
 ) => {
 	try {
+		const fileList = [];
 		const listStream = list(path.resolve(filePath), {
-			$cherryPick: ["*.png", "*.jpg", , "*.jpeg", "*.webp", "*.xml"],
 			$bin: pathTo7zip,
 		});
-		const fileList = [];
-		listStream
-			.on("data", (chunk) => fileList.push(chunk))
-			.on("end", async () => {
-				// Look for ComicInfo.xml
-				const comicInfoXML = remove(fileList, (item) =>
-					!isUndefined(item)
-						? path.basename(item.file).toLowerCase() ===
-						  "comicinfo.xml"
-						: undefined
-				);
-				// Sort the file list array naturally
-				const sortedFileList = fileList.sort((a, b) =>
-					a.file.toLowerCase().localeCompare(b.file.toLowerCase())
-				);
+		listStream.on("data", (chunk) => fileList.push(chunk));
+		listStream.on("end", async () => {
+			// Remove dotfiles and directories
+			remove(
+				fileList,
+				(item) =>
+					item.attributes === "D...." ||
+					!isNil(item.file.match(/(?:^|[\\\/])(\.(?!\.)[^\\\/]+)$/g))
+			);
+			// Look for ComicInfo.xml, if present,
+			// a. remove it from the fileList
+			const comicInfoXML = remove(fileList, (item) =>
+				!isUndefined(item)
+					? path.basename(item.file).toLowerCase() === "comicinfo.xml"
+					: undefined
+			);
+			// Sort the file list array naturally
+			const sortedFileList = fileList.sort((a, b) =>
+				a.file.toLowerCase().localeCompare(b.file.toLowerCase())
+			);
 
-				// Create the target directory
-				const directoryOptions = {
-					mode: 0o2775,
-				};
-				const { fileNameWithoutExtension } =
-					getFileConstituents(filePath);
-				const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-				await fse.ensureDir(targetDirectory, directoryOptions);
-				console.info(`%s was created.`, targetDirectory);
+			// Create the target directory
+			const directoryOptions = {
+				mode: 0o2775,
+			};
+			const { fileNameWithoutExtension } = getFileConstituents(filePath);
+			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+			await fse.ensureDir(targetDirectory, directoryOptions);
+			console.info(`%s was created.`, targetDirectory);
 
-				// files to write
-				const filesToWrite = [];
-				if (
-					!isUndefined(sortedFileList[0]) &&
-					!isUndefined(sortedFileList[0].file)
-				) {
-					filesToWrite.push(sortedFileList[0].file);
+			// Prep the shortlist
+			const filesToWrite = [];
+			if (
+				!isUndefined(sortedFileList[0]) &&
+				!isUndefined(sortedFileList[0].file)
+			) {
+				filesToWrite.push(sortedFileList[0].file);
+			}
+			// b. if ComicInfo.xml present, include it in the file list to be written to disk
+			if (!isUndefined(comicInfoXML[0])) {
+				console.log(`ComicInfo.xml detected in ${filePath}`);
+				filesToWrite.push(comicInfoXML[0].file);
+			}
+
+			// Remove nulls, undefined and empty elements from the file list
+			const filteredFilesToWrite = filesToWrite.filter(
+				(item) => !isUndefined(item)
+			);
+			console.log(filesToWrite);
+			const extractStream = extract(
+				`${path.resolve(filePath)}`,
+				targetDirectory,
+				{
+					$cherryPick: [...filteredFilesToWrite],
+					$bin: pathTo7zip,
 				}
-
-				// if ComicInfo.xml present, include it in the file list to be written to disk
-				if (!isUndefined(comicInfoXML[0])) {
-					console.log(`ComicInfo.xml detected in ${filePath}`);
-					filesToWrite.push(comicInfoXML[0].file);
-				}
-
-				// Remove nulls, undefined and empty elements from the file list
-				const filteredFilesToWrite = filesToWrite.filter(
-					(item) => !isUndefined(item)
-				);
-				const extractStream = extract(
-					`${path.resolve(filePath)}`,
-					targetDirectory,
-					{
-						$cherryPick: filteredFilesToWrite,
-						$bin: pathTo7zip,
-					}
-				);
-				extractStream.on("data", (data) => {
-					//do something with the image
-					console.log("ZIP:", data);
-				});
+			);
+			extractStream.on("data", (data) => {
+				//do something with the image
+				// console.log("ZIP:", data);
 			});
+		});
 
 		// for await (const chunk of foo) {
 		// 	if (chunk.status === "extracted") {
