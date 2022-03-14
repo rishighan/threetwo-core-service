@@ -137,20 +137,24 @@ export const extractComicInfoXMLFromRar = async (
 	filePath: string,
 	fileToExtract: string
 ) => {
-	try {
-		// Create the target directory
-		const directoryOptions = {
-			mode: 0o2775,
-		};
-		const { fileNameWithoutExtension } = getFileConstituents(filePath);
-		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-		await fse.ensureDir(targetDirectory, directoryOptions);
-		console.info(`%s was created.`, targetDirectory);
+	const result = {
+		filePath,
+	};
+	// Create the target directory
+	const directoryOptions = {
+		mode: 0o2775,
+	};
+	const { fileNameWithoutExtension, extension, fileNameWithExtension } =
+		getFileConstituents(filePath);
+	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+	await fse.ensureDir(targetDirectory, directoryOptions);
+	console.info(`%s was created.`, targetDirectory);
 
-		const archive = new Unrar({
-			path: path.resolve(filePath),
-			bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
-		});
+	const archive = new Unrar({
+		path: path.resolve(filePath),
+		bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+	});
+	return new Promise((resolve, reject) => {
 		archive.list(async (err, entries) => {
 			remove(entries, ({ type }) => type === "Directory");
 			const comicInfoXML = remove(
@@ -175,13 +179,25 @@ export const extractComicInfoXMLFromRar = async (
 					if (err) {
 						console.log("Failed to resize image:");
 						console.log(err);
-						return err;
+						reject(err);
 					}
 					console.log(
 						"Image file resized with the following parameters: %o",
 						info
 					);
-					return info;
+					// orchestrate result
+					Object.assign(result, {
+						name: fileNameWithoutExtension,
+						extension,
+						containedIn: path.resolve(fileNameWithExtension),
+						cover: {
+							filePath: path.relative(
+								process.cwd(),
+								`${targetDirectory}/${files[0].name}`
+							),
+						},
+					});
+					resolve(result);
 				});
 			// ComicInfo.xml extraction and parsing to JSON
 			if (!isUndefined(comicInfoXML[0])) {
@@ -200,12 +216,11 @@ export const extractComicInfoXMLFromRar = async (
 						comicInfoString
 					);
 					console.log(comicInfoJSON);
+					Object.assign(result, { comicInfo: comicInfoJSON });
 				});
 			}
 		});
-	} catch (error) {
-		throw new Error(error);
-	}
+	});
 };
 
 export const extractComicInfoXMLFromZip = async (
@@ -277,13 +292,15 @@ export const extractComicInfoXMLFromZip = async (
 				);
 				comicInfoExtractionStream.on("end", async (data) => {
 					console.log(`${comicInfoXML[0].file} was extracted.`);
-					const xml = await fs.readFile(`${targetDirectory}/${comicInfoXML[0].file}`);
-					const comicInfoJSON = await convertXMLToJSON(xml.toString());
+					const xml = await fs.readFile(
+						`${targetDirectory}/${comicInfoXML[0].file}`
+					);
+					const comicInfoJSON = await convertXMLToJSON(
+						xml.toString()
+					);
 					console.log(comicInfoJSON);
 				});
 			}
-
-		
 		});
 	} catch (error) {
 		throw new Error(error);

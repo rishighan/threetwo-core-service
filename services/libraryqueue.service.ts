@@ -80,6 +80,7 @@ export default class QueueService extends Service {
 						} = getFileConstituents(job.data.fileObject.filePath);
 						const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 						const foo = await extractFromArchive(job.data.fileObject.filePath, targetDirectory, extension );
+						console.log("JAADASD!@#!@#@!", foo);
 
 						// infer any issue-related metadata from the filename
 						// const { inferredIssueDetails } = refineQuery(result.name);
