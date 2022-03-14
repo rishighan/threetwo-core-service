@@ -167,7 +167,7 @@ export const extractComicInfoXMLFromRar = async (
 			// Cover image extraction and resizing
 			const sharpStream = sharp().resize(275);
 			let comicInfoString = "";
-			const coverImageStream = archive
+			archive
 				.stream(files[0].name)
 				.on("error", console.error)
 				.pipe(sharpStream)
@@ -195,9 +195,11 @@ export const extractComicInfoXMLFromRar = async (
 				comicinfoStream.on("data", (data) => {
 					comicInfoString += data;
 				});
-				comicinfoStream.on("end", async (data) => {
-					const foo = await convertXMLToJSON(comicInfoString);
-					console.log(foo);
+				comicinfoStream.on("end", async () => {
+					const comicInfoJSON = await convertXMLToJSON(
+						comicInfoString
+					);
+					console.log(comicInfoJSON);
 				});
 			}
 		});
@@ -245,55 +247,44 @@ export const extractComicInfoXMLFromZip = async (
 			await fse.ensureDir(targetDirectory, directoryOptions);
 			console.info(`%s was created.`, targetDirectory);
 
-			// Prep the shortlist
-			const filesToWrite = [];
 			if (
 				!isUndefined(sortedFileList[0]) &&
 				!isUndefined(sortedFileList[0].file)
 			) {
-				filesToWrite.push(sortedFileList[0].file);
+				const coverFileExtractionStream = extract(
+					`${path.resolve(filePath)}`,
+					targetDirectory,
+					{
+						$cherryPick: [sortedFileList[0].file],
+						$bin: pathTo7zip,
+					}
+				);
+				coverFileExtractionStream.on("data", (data) => {
+					//do something with the image
+					// console.log("ZIP:", data);
+				});
 			}
 			// b. if ComicInfo.xml present, include it in the file list to be written to disk
 			if (!isUndefined(comicInfoXML[0])) {
 				console.log(`ComicInfo.xml detected in ${filePath}`);
-				filesToWrite.push(comicInfoXML[0].file);
+				const comicInfoExtractionStream = extract(
+					`${path.resolve(filePath)}`,
+					targetDirectory,
+					{
+						$cherryPick: [comicInfoXML[0].file],
+						$bin: pathTo7zip,
+					}
+				);
+				comicInfoExtractionStream.on("end", async (data) => {
+					console.log(`${comicInfoXML[0].file} was extracted.`);
+					const xml = await fs.readFile(`${targetDirectory}/${comicInfoXML[0].file}`);
+					const comicInfoJSON = await convertXMLToJSON(xml.toString());
+					console.log(comicInfoJSON);
+				});
 			}
 
-			// Remove nulls, undefined and empty elements from the file list
-			const filteredFilesToWrite = filesToWrite.filter(
-				(item) => !isUndefined(item)
-			);
-			console.log(filesToWrite);
-			const extractStream = extract(
-				`${path.resolve(filePath)}`,
-				targetDirectory,
-				{
-					$cherryPick: [...filteredFilesToWrite],
-					$bin: pathTo7zip,
-				}
-			);
-			extractStream.on("data", (data) => {
-				//do something with the image
-				// console.log("ZIP:", data);
-			});
+		
 		});
-
-		// for await (const chunk of foo) {
-		// 	if (chunk.status === "extracted") {
-		// 		console.log(
-		// 			`comicinfo.xml detected in ${filePath}, attempting extraction...`
-		// 		);
-		// 		const fileContents = await fs.readFile(
-		// 			path.resolve(`${outputDirectory}/${chunk.file}`),
-		// 			"utf8"
-		// 		);
-		// 		const parsedJSON = await convertXMLToJSON(
-		// 			Buffer.from(fileContents)
-		// 		);
-		// 		console.log(parsedJSON);
-		// 		return parsedJSON.comicinfo;
-		// 	}
-		// }
 	} catch (error) {
 		throw new Error(error);
 	}
