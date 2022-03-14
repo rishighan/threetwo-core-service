@@ -189,7 +189,7 @@ export const extractComicInfoXMLFromRar = async (
 					Object.assign(result, {
 						name: fileNameWithoutExtension,
 						extension,
-						containedIn: path.resolve(fileNameWithExtension),
+						containedIn: targetDirectory,
 						cover: {
 							filePath: path.relative(
 								process.cwd(),
@@ -227,7 +227,10 @@ export const extractComicInfoXMLFromZip = async (
 	filePath: string,
 	outputDirectory: string
 ) => {
-	try {
+	const result = {
+		filePath,
+	};
+	return new Promise((resolve, reject) => {
 		const fileList = [];
 		const listStream = list(path.resolve(filePath), {
 			$bin: pathTo7zip,
@@ -257,7 +260,11 @@ export const extractComicInfoXMLFromZip = async (
 			const directoryOptions = {
 				mode: 0o2775,
 			};
-			const { fileNameWithoutExtension } = getFileConstituents(filePath);
+			const {
+				fileNameWithoutExtension,
+				extension,
+				fileNameWithExtension,
+			} = getFileConstituents(filePath);
 			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 			await fse.ensureDir(targetDirectory, directoryOptions);
 			console.info(`%s was created.`, targetDirectory);
@@ -274,9 +281,20 @@ export const extractComicInfoXMLFromZip = async (
 						$bin: pathTo7zip,
 					}
 				);
-				coverFileExtractionStream.on("data", (data) => {
-					//do something with the image
-					// console.log("ZIP:", data);
+				coverFileExtractionStream.on("error", (error) => reject(error));
+				coverFileExtractionStream.on("end", (data) => {
+					Object.assign(result, {
+						name: fileNameWithoutExtension,
+						extension,
+						containedIn: targetDirectory,
+						cover: {
+							filePath: path.relative(
+								process.cwd(),
+								`${targetDirectory}/${sortedFileList[0].file}`
+							),
+						},
+					});
+					resolve(result);
 				});
 			}
 			// b. if ComicInfo.xml present, include it in the file list to be written to disk
@@ -290,6 +308,7 @@ export const extractComicInfoXMLFromZip = async (
 						$bin: pathTo7zip,
 					}
 				);
+				comicInfoExtractionStream.on("error", (error) => reject(error));
 				comicInfoExtractionStream.on("end", async (data) => {
 					console.log(`${comicInfoXML[0].file} was extracted.`);
 					const xml = await fs.readFile(
@@ -298,13 +317,12 @@ export const extractComicInfoXMLFromZip = async (
 					const comicInfoJSON = await convertXMLToJSON(
 						xml.toString()
 					);
-					console.log(comicInfoJSON);
+					Object.assign(result, { comicInfo: comicInfoJSON });
+					resolve(result);
 				});
 			}
 		});
-	} catch (error) {
-		throw new Error(error);
-	}
+	});
 };
 
 export const extractFromArchive = async (
