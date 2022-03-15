@@ -46,11 +46,12 @@ import BullMQMixin from "moleculer-bull";
 import { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { extractFromArchive, extractCoverFromFile2 } from "../utils/uncompression.utils";
+import { extractFromArchive } from "../utils/uncompression.utils";
 import { refineQuery } from "filename-parser";
 import { io } from "./api.service";
 import { getFileConstituents } from "../utils/file.utils";
 import { USERDATA_DIRECTORY } from "../constants/directories";
+import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
 
 console.log(`REDIS -> ${REDIS_URI}`);
@@ -69,58 +70,75 @@ export default class QueueService extends Service {
 						console.info("New job received!", job.data);
 						console.info(`Processing queue...`);
 						// extract the cover
-						// const result = await extractCoverFromFile2(
-						// 	job.data.fileObject
-						// );
 
-							const {
+						const result = await extractFromArchive(
+							job.data.fileObject.filePath
+						);
+						Object.assign(result, {
+							fileSize: job.data.fileObject.fileSize,
+						});
+						console.log("KEYSS TO THE KINGDOM:", result)
+						const {
+							name,
+							filePath,
+							fileSize,
 							extension,
-							fileNameWithExtension,
-							fileNameWithoutExtension,
-						} = getFileConstituents(job.data.fileObject.filePath);
-						const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-						const foo = await extractFromArchive(job.data.fileObject.filePath, targetDirectory, extension );
-						console.log("JAADASD!@#!@#@!", foo);
+							cover,
+							containedIn,
+							comicInfoJSON,
+						} = result;
 
-						// infer any issue-related metadata from the filename
-						// const { inferredIssueDetails } = refineQuery(result.name);
-						// console.log("Issue metadata inferred: ", JSON.stringify(inferredIssueDetails, null, 2));
-						
-						// // // write to mongo
-						// console.log("Writing to mongo...")	
-						// const dbImportResult = await this.broker.call(
-						// 	"library.rawImportToDB",
-						// 	{
-						// 		importStatus: {
-						// 			isImported: true,
-						// 			tagged: false,
-						// 			matchedResult: {
-						// 				score: "0",
-						// 			},
-						// 		},
-						// 		rawFileDetails: result,
-						// 		inferredMetadata: {
-						// 			issue: inferredIssueDetails,
-						// 		},
-						// 		sourcedMetadata: {
-						// 			comicInfo: {},
-						// 			comicvine: {},
-						// 		},
-						// 		// since we already have at least 1 copy
-						// 		// mark it as not wanted by default
-						// 		acquisition: {
-						// 			wanted: false,
-						// 		}
-						// 	}
-						// );
+						// Infer any issue-related metadata from the filename
+						const { inferredIssueDetails } = refineQuery(
+							result.name
+						);
+
+						console.log(
+							"Issue metadata inferred: ",
+							JSON.stringify(inferredIssueDetails, null, 2)
+						);
+
+						// write to mongo
+						console.log("Writing to mongo...");
+						const dbImportResult = await this.broker.call(
+							"library.rawImportToDB",
+							{
+								importStatus: {
+									isImported: true,
+									tagged: false,
+									matchedResult: {
+										score: "0",
+									},
+								},
+								rawFileDetails: {
+									name,
+									filePath,
+									fileSize,
+									extension,
+									containedIn,
+									cover,
+								},
+								inferredMetadata: {
+									issue: inferredIssueDetails,
+								},
+								sourcedMetadata: {
+									comicInfo: comicInfoJSON,
+									comicvine: {},
+								},
+								// since we already have at least 1 copy
+								// mark it as not wanted by default
+								acquisition: {
+									wanted: false,
+								},
+							}
+						);
 						return Promise.resolve({
-							// dbImportResult,
+							dbImportResult,
 							id: job.id,
 							worker: process.pid,
 						});
 					},
 				},
-				
 			},
 			actions: {
 				processImport: {
@@ -139,11 +157,8 @@ export default class QueueService extends Service {
 				unarchiveComicBook: {
 					rest: "POST /unarchiveComicBook",
 					params: {},
-					handler: async (ctx:Context<{}>) => {
-
-					},
+					handler: async (ctx: Context<{}>) => {},
 				},
-
 			},
 			methods: {},
 			async started(): Promise<any> {
@@ -176,7 +191,7 @@ export default class QueueService extends Service {
 								`The job with the id '${job.id} got stalled!`
 							);
 							console.log(`${JSON.stringify(job, null, 2)}`);
-							console.log(`is stalled.`)
+							console.log(`is stalled.`);
 						}
 					);
 				});

@@ -31,130 +31,45 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createWriteStream, createReadStream, promises as fs } from "fs";
+import {
+	createWriteStream,
+	createReadStream,
+	promises as fs,
+	readFileSync,
+} from "fs";
 const fse = require("fs-extra");
 const Unrar = require("unrar");
 import path, { parse } from "path";
-
-import {
-	IExtractComicBookCoverErrorResponse,
-	IExtractedComicBookCoverFile,
-	IExtractionOptions,
-	IFolderData,
-	ISharpResizedImageStats,
-} from "threetwo-ui-typings";
+import { list, extract, onlyArchive } from "node-7z-forall";
+import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 import sharp from "sharp";
-import {
-	explodePath,
-	getFileConstituents,
-	walkFolder,
-} from "../utils/file.utils";
-import { resizeImage } from "./imagetransformation.utils";
+import { getFileConstituents } from "../utils/file.utils";
 import { isNil, isUndefined, remove } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
-import sevenBin from "7zip-bin";
-import { extract, list } from "node-7z";
-const pathTo7zip = sevenBin.path7za;
-const { Calibre } = require("node-calibre");
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
 
-export const extractCoverFromFile2 = async (
-	fileObject: any
-): Promise<IExtractedComicBookCoverFile> => {
-	try {
-		const { filePath, fileSize } = fileObject;
-
-		const calibre = new Calibre();
-		console.info(`Initiating extraction process for path ${filePath}`);
-
-		// 1. Check for process.env.COMICS_DIRECTORY and process.env.USERDATA_DIRECTORY
-		if (!isNil(USERDATA_DIRECTORY)) {
-			// 2. Create the directory to which the cover image will be extracted
-			console.info(
-				"Attempting to create target directory for cover extraction..."
-			);
-			const directoryOptions = {
-				mode: 0o2775,
-			};
-			const {
-				extension,
-				fileNameWithExtension,
-				fileNameWithoutExtension,
-			} = getFileConstituents(filePath);
-
-			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-
-			await fse.ensureDir(targetDirectory, directoryOptions);
-			console.info(`%s was created.`, targetDirectory);
-
-			// 3. extract the cover
-			console.info(`Starting cover extraction...`);
-			let result: string;
-			const targetCoverImageFilePath = path.resolve(
-				targetDirectory + "/" + fileNameWithoutExtension + "_cover.jpg"
-			);
-			const ebookMetaPath = process.env.CALIBRE_EBOOK_META_PATH
-				? `${process.env.CALIBRE_EBOOK_META_PATH}`
-				: `ebook-meta`;
-			result = await calibre.run(ebookMetaPath, [filePath], {
-				getCover: targetCoverImageFilePath,
-			});
-			console.info(
-				`ebook-meta ran with the following result: %o`,
-				result
-			);
-
-			// 4. create rendition path
-			const renditionPath =
-				targetDirectory + "/" + fileNameWithoutExtension + "_275px.jpg";
-
-			// 5. resize image
-			await resizeImage(
-				targetCoverImageFilePath,
-				path.resolve(renditionPath),
-				275
-			);
-			return {
-				name: fileNameWithoutExtension,
-				filePath,
-				fileSize,
-				extension,
-				cover: {
-					filePath: path.relative(process.cwd(), renditionPath),
-				},
-				containedIn: path.resolve(fileNameWithExtension),
-				calibreMetadata: {
-					coverWriteResult: result,
-				},
-			};
-		}
-	} catch (error) {
-		console.error(error);
-	}
-};
-
 export const extractComicInfoXMLFromRar = async (
-	filePath: string,
-	fileToExtract: string
-) => {
+	filePath: string
+): Promise<Partial<IExtractedComicBookCoverFile>> => {
 	const result = {
 		filePath,
 	};
+
 	// Create the target directory
 	const directoryOptions = {
 		mode: 0o2775,
 	};
-	const { fileNameWithoutExtension, extension, fileNameWithExtension } =
+	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 	await fse.ensureDir(targetDirectory, directoryOptions);
 	console.info(`%s was created.`, targetDirectory);
-
-	const archive = new Unrar({
-		path: path.resolve(filePath),
-		bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
-	});
 	return new Promise((resolve, reject) => {
+		const archive = new Unrar({
+			path: path.resolve(filePath),
+			bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+		});
+
 		archive.list(async (err, entries) => {
 			remove(entries, ({ type }) => type === "Directory");
 			const comicInfoXML = remove(
@@ -168,121 +83,105 @@ export const extractComicInfoXMLFromRar = async (
 						.localeCompare(b.name.toLowerCase());
 				}
 			});
-			// Cover image extraction and resizing
-			const sharpStream = sharp().resize(275);
-			let comicInfoString = "";
-			archive
-				.stream(files[0].name)
-				.on("error", console.error)
-				.pipe(sharpStream)
-				.toFile(`${targetDirectory}/${files[0].name}`, (err, info) => {
-					if (err) {
-						console.log("Failed to resize image:");
-						console.log(err);
-						reject(err);
-					}
-					console.log(
-						"Image file resized with the following parameters: %o",
-						info
-					);
-					// orchestrate result
-					Object.assign(result, {
-						name: fileNameWithoutExtension,
-						extension,
-						containedIn: targetDirectory,
-						cover: {
-							filePath: path.relative(
-								process.cwd(),
-								`${targetDirectory}/${files[0].name}`
-							),
-						},
-					});
-					resolve(result);
-				});
-			// ComicInfo.xml extraction and parsing to JSON
-			if (!isUndefined(comicInfoXML[0])) {
-				const comicinfoStream = archive.stream(comicInfoXML[0]["name"]);
-				comicinfoStream.on("error", console.error);
-				comicinfoStream.pipe(
-					createWriteStream(
-						`${targetDirectory}/${comicInfoXML[0]["name"]}`
-					)
+			const filesToWriteToDisk = [files[0].name, comicInfoXML[0]["name"]];
+			remove(filesToWriteToDisk, (file) => !isNil(file.name));
+
+			if (!isUndefined(comicInfoXML[0]["name"])) {
+				let comicinfostring = "";
+				const writeStream = createWriteStream(
+					`${targetDirectory}/${comicInfoXML[0]["name"]}`
 				);
-				comicinfoStream.on("data", (data) => {
-					comicInfoString += data;
-				});
-				comicinfoStream.on("end", async () => {
-					const comicInfoJSON = await convertXMLToJSON(
-						comicInfoString
+
+				await archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
+				writeStream.on("finish", async () => {
+					const readStream = createReadStream(
+						`${targetDirectory}/${comicInfoXML[0]["name"]}`
 					);
-					console.log(comicInfoJSON);
-					Object.assign(result, { comicInfo: comicInfoJSON });
+					readStream.on("data", (data) => {
+						comicinfostring += data;
+					});
+					readStream.on("error", (error) => reject(error));
+					readStream.on("end", async () => {
+						const comicInfoJSON = await convertXMLToJSON(
+							comicinfostring.toString()
+						);
+						Object.assign(result, {
+							comicInfoJSON: comicInfoJSON.comicinfo,
+						});
+					});
 				});
 			}
+
+			const sharpStream = sharp().resize(275);
+			const coverExtractionStream = archive.stream(files[0].name);
+			await coverExtractionStream
+				.pipe(sharpStream)
+				.toFile(`${targetDirectory}/${files[0].name}`);
+			// orchestrate result
+			Object.assign(result, {
+				name: fileNameWithoutExtension,
+				extension,
+				containedIn: targetDirectory,
+				cover: {
+					filePath: path.relative(
+						process.cwd(),
+						`${targetDirectory}/${files[0].name}`
+					),
+				},
+			});
+			resolve(result);
 		});
 	});
 };
 
 export const extractComicInfoXMLFromZip = async (
-	filePath: string,
-	outputDirectory: string
-) => {
+	filePath: string
+): Promise<Partial<IExtractedComicBookCoverFile>> => {
 	const result = {
 		filePath,
 	};
-	return new Promise((resolve, reject) => {
-		const fileList = [];
-		const listStream = list(path.resolve(filePath), {
-			$bin: pathTo7zip,
-		});
-		listStream.on("data", (chunk) => fileList.push(chunk));
-		listStream.on("end", async () => {
-			// Remove dotfiles and directories
-			remove(
-				fileList,
-				(item) =>
-					item.attributes === "D...." ||
-					!isNil(item.file.match(/(?:^|[\\\/])(\.(?!\.)[^\\\/]+)$/g))
+	// Create the target directory
+	const directoryOptions = {
+		mode: 0o2775,
+	};
+	const { fileNameWithoutExtension, extension } =
+		getFileConstituents(filePath);
+	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+	await fse.ensureDir(targetDirectory, directoryOptions);
+	console.info(`%s was created.`, targetDirectory);
+	let sortedFiles = [];
+	const filesToWriteToDisk = [];
+	return await list(filePath)
+		.progress((files) => {
+			// Do stuff with files...
+			sortedFiles = files.sort((a, b) => {
+				if (!isUndefined(a) && !isUndefined(b)) {
+					return a.name
+						.toLowerCase()
+						.localeCompare(b.name.toLowerCase());
+				}
+			});
+			const comicInfoXML = remove(
+				sortedFiles,
+				(file) => file.name.toLowerCase() === "comicinfo.xml"
 			);
-			// Look for ComicInfo.xml, if present,
-			// a. remove it from the fileList
-			const comicInfoXML = remove(fileList, (item) =>
-				!isUndefined(item)
-					? path.basename(item.file).toLowerCase() === "comicinfo.xml"
-					: undefined
-			);
-			// Sort the file list array naturally
-			const sortedFileList = fileList.sort((a, b) =>
-				a.file.toLowerCase().localeCompare(b.file.toLowerCase())
-			);
-
-			// Create the target directory
-			const directoryOptions = {
-				mode: 0o2775,
-			};
-			const {
-				fileNameWithoutExtension,
-				extension,
-				fileNameWithExtension,
-			} = getFileConstituents(filePath);
-			const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-			await fse.ensureDir(targetDirectory, directoryOptions);
-			console.info(`%s was created.`, targetDirectory);
-
-			if (
-				!isUndefined(sortedFileList[0]) &&
-				!isUndefined(sortedFileList[0].file)
-			) {
-				const coverFileExtractionStream = extract(
-					`${path.resolve(filePath)}`,
-					targetDirectory,
-					{
-						$cherryPick: [sortedFileList[0].file],
-						$bin: pathTo7zip,
-					}
-				);
-				coverFileExtractionStream.on("error", (error) => reject(error));
-				coverFileExtractionStream.on("end", (data) => {
+			if (!isUndefined(comicInfoXML)) {
+				filesToWriteToDisk.push(comicInfoXML[0].name);
+			}
+			filesToWriteToDisk.push(sortedFiles[0].name);
+		})
+		.then((d) => {
+			return extract(path.resolve(filePath), targetDirectory, {
+				r: true,
+				raw: [...filesToWriteToDisk],
+			})
+				.progress((files) => {
+					console.log(files);
+				})
+				.then(() => {
+					const coverFile = filesToWriteToDisk.find(
+						(file) => file.toLowerCase() !== "comicinfo.xml"
+					);
 					Object.assign(result, {
 						name: fileNameWithoutExtension,
 						extension,
@@ -290,58 +189,57 @@ export const extractComicInfoXMLFromZip = async (
 						cover: {
 							filePath: path.relative(
 								process.cwd(),
-								`${targetDirectory}/${sortedFileList[0].file}`
+								`${targetDirectory}/${coverFile}`
 							),
 						},
 					});
-					resolve(result);
-				});
-			}
-			// b. if ComicInfo.xml present, include it in the file list to be written to disk
-			if (!isUndefined(comicInfoXML[0])) {
-				console.log(`ComicInfo.xml detected in ${filePath}`);
-				const comicInfoExtractionStream = extract(
-					`${path.resolve(filePath)}`,
-					targetDirectory,
-					{
-						$cherryPick: [comicInfoXML[0].file],
-						$bin: pathTo7zip,
-					}
-				);
-				comicInfoExtractionStream.on("error", (error) => reject(error));
-				comicInfoExtractionStream.on("end", async (data) => {
-					console.log(`${comicInfoXML[0].file} was extracted.`);
-					const xml = await fs.readFile(
-						`${targetDirectory}/${comicInfoXML[0].file}`
+					// ComicInfoXML detection, parsing and conversion to JSON
+					let comicinfostring = "";
+					const comicInfoFile = filesToWriteToDisk.find(
+						(file) => file.toLowerCase() === "comicinfo.xml"
 					);
-					const comicInfoJSON = await convertXMLToJSON(
-						xml.toString()
-					);
-					Object.assign(result, { comicInfo: comicInfoJSON });
-					resolve(result);
+					return new Promise((resolve, reject) => {
+						const comicInfoXMLStream = createReadStream(
+							`${targetDirectory}/${comicInfoFile}`
+						);
+						comicInfoXMLStream.on("data", (data) => {
+							comicinfostring += data;
+						});
+						comicInfoXMLStream.on("error", (error) =>
+							console.log(error)
+						);
+						comicInfoXMLStream.on("end", async () => {
+							const comicInfoJSON = await convertXMLToJSON(
+								comicinfostring.toString()
+							);
+							Object.assign(result, {
+								comicInfoJSON: comicInfoJSON.comicinfo,
+							});
+
+							resolve(result);
+						});
+					});
+				})
+				.catch((error) => {
+					console.log(error);
 				});
-			}
 		});
-	});
 };
 
-export const extractFromArchive = async (
-	filePath: string,
-	outputDirectory: string,
-	extension: string
-) => {
+export const extractFromArchive = async (filePath: string) => {
+	const { extension } = getFileConstituents(filePath);
 	switch (extension) {
 		case ".cbz":
 			console.log(
 				"Detected file type is cbz, looking for comicinfo.xml..."
 			);
-			return await extractComicInfoXMLFromZip(filePath, outputDirectory);
+			return await extractComicInfoXMLFromZip(filePath);
 
 		case ".cbr":
 			console.log(
 				"Detected file type is cbr, looking for comicinfo.xml..."
 			);
-			return await extractComicInfoXMLFromRar(filePath, outputDirectory);
+			return await extractComicInfoXMLFromRar(filePath);
 
 		default:
 			console.log(

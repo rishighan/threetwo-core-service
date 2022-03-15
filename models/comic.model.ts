@@ -57,7 +57,11 @@ const ComicSchema = mongoose.Schema(
 			shortboxed: {},
 			gcd: {},
 		},
-		rawFileDetails: { type: RawFileDetailsSchema, es_indexed: true, default: {} },
+		rawFileDetails: {
+			type: RawFileDetailsSchema,
+			es_indexed: true,
+			default: {},
+		},
 		inferredMetadata: {
 			issue: {
 				name: { type: String, es_indexed: true },
