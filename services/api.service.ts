@@ -104,6 +104,10 @@ export default class ApiService extends Service {
 									{}
 								);
 								break;
+							case "LS_PAUSE_IMPORT_QUEUE":
+								console.log("lol")
+								await this.broker.call("queue.pauseImportQueue", action.data);
+								break;
 						}
 					});
 					// Add a disconnect listener

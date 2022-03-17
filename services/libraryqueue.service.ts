@@ -153,6 +153,13 @@ export default class QueueService extends Service {
 						});
 					},
 				},
+				pauseImportQueue: {
+					rest: "POST /pauseImportQueue",
+					params: {},
+					handler: async (ctx: Context<{}>) => {
+						return await this.getQueue("process.import").resume();
+					}
+				},
 				unarchiveComicBook: {
 					rest: "POST /unarchiveComicBook",
 					params: {},
