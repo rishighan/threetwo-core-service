@@ -77,7 +77,7 @@
     "node-7z-forall": "^2.1.5",
     "node-calibre": "^2.1.1",
     "node-unrar-js": "^1.0.5",
-    "sharp": "^0.28.3",
+    "sharp": "^0.30.3",
     "socket.io": "^4.4.0",
     "threetwo-ui-typings": "^1.0.13",
     "through2": "^4.0.2",

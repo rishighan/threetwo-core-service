@@ -36,6 +36,7 @@ import {
 	createReadStream,
 	promises as fs,
 	readFileSync,
+	existsSync,
 } from "fs";
 const fse = require("fs-extra");
 const Unrar = require("unrar");
@@ -44,13 +45,25 @@ import { list, extract, onlyArchive } from "node-7z-forall";
 import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 import sharp from "sharp";
 import { getFileConstituents } from "../utils/file.utils";
-import { isNil, isUndefined, remove } from "lodash";
+import { flatten, isEmpty, isNil, isUndefined, remove } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
-
+import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
+interface RarFile {
+	name: string;
+	type: string;
+	size?: string;
+	packedSize?: string;
+	ratio?: string;
+	mtime: string;
+	attributes: string;
+	crc32: string;
+	hostOS: string;
+	compression: string;
+}
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
-): Promise<Partial<IExtractedComicBookCoverFile>> => {
+): Promise<any> => {
 	const result = {
 		filePath,
 	};
@@ -64,82 +77,104 @@ export const extractComicInfoXMLFromRar = async (
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 	await fse.ensureDir(targetDirectory, directoryOptions);
 	console.info(`%s was created.`, targetDirectory);
-	return new Promise((resolve, reject) => {
-		const archive = new Unrar({
-			path: path.resolve(filePath),
-			bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+	const archive = new Unrar({
+		path: path.resolve(filePath),
+		bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+	});
+	const filesInArchive: [RarFile] = await new Promise((resolve, reject) => {
+		return archive.list((err, entries) => {
+			resolve(entries);
 		});
+	});
 
-		archive.list(async (err, entries) => {
-			remove(entries, ({ type }) => type === "Directory");
-			const comicInfoXML = remove(
-				entries,
-				({ name }) => name.toLowerCase() === "comicinfo.xml"
+	remove(filesInArchive, ({ type }) => type === "Directory");
+	const comicInfoXML = remove(
+		filesInArchive,
+		({ name }) => path.basename(name).toLowerCase() === "comicinfo.xml"
+	);
+	remove(
+		filesInArchive,
+		({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name))
+	);
+	const files = filesInArchive.sort((a, b) => {
+		if (!isUndefined(a) && !isUndefined(b)) {
+			return path
+				.basename(a.name)
+				.toLowerCase()
+				.localeCompare(path.basename(b.name).toLowerCase());
+		}
+	});
+	const comicInfoXMLFilePromise = new Promise((resolve, reject) => {
+		let comicinfostring = "";
+		if (!isUndefined(comicInfoXML[0])) {
+			const writeStream = createWriteStream(
+				`${targetDirectory}/${comicInfoXML[0].name}`
 			);
-			const files = entries.sort((a, b) => {
-				if (!isUndefined(a) && !isUndefined(b)) {
-					return a.name
-						.toLowerCase()
-						.localeCompare(b.name.toLowerCase());
-				}
-			});
-			const filesToWriteToDisk = [files[0].name, comicInfoXML[0]["name"]];
-			remove(filesToWriteToDisk, (file) => !isNil(file.name));
 
-			if (!isUndefined(comicInfoXML[0]["name"])) {
-				let comicinfostring = "";
-				const writeStream = createWriteStream(
-					`${targetDirectory}/${comicInfoXML[0]["name"]}`
+			archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
+			writeStream.on("finish", async () => {
+				const readStream = createReadStream(
+					`${targetDirectory}/${comicInfoXML[0].name}`
 				);
-
-				await archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
-				writeStream.on("finish", async () => {
-					const readStream = createReadStream(
-						`${targetDirectory}/${comicInfoXML[0]["name"]}`
-					);
-					readStream.on("data", (data) => {
-						comicinfostring += data;
-					});
-					readStream.on("error", (error) => reject(error));
-					readStream.on("end", async () => {
+				readStream.on("data", (data) => {
+					comicinfostring += data;
+				});
+				readStream.on("error", (error) => reject(error));
+				readStream.on("end", async () => {
+					if (
+						existsSync(
+							`${targetDirectory}/${path.basename(
+								comicInfoXML[0].name
+							)}`
+						)
+					) {
 						const comicInfoJSON = await convertXMLToJSON(
 							comicinfostring.toString()
 						);
-						Object.assign(result, {
-							comicInfoJSON: comicInfoJSON.comicinfo,
-						});
-					});
+
+						resolve({ comicInfoJSON: comicInfoJSON.comicinfo });
+					}
+				});
+			});
+		} else {
+			resolve({ comicInfoJSON: null });
+		}
+	});
+
+	const coverFilePromise = new Promise((resolve, reject) => {
+		const coverFile = path.basename(files[0].name);
+		const sharpStream = sharp().resize(275);
+		const coverExtractionStream = archive.stream(files[0].name);
+		const resizeStream = coverExtractionStream.pipe(sharpStream);
+
+		resizeStream.toFile(`${targetDirectory}/${coverFile}`, (err, info) => {
+			if (err) {
+				reject(err);
+			}
+			if (existsSync(`${targetDirectory}/${coverFile}`)) {
+				// orchestrate result
+				console.log("ASDAsd");
+				resolve({
+					name: fileNameWithoutExtension,
+					extension,
+					containedIn: targetDirectory,
+					cover: {
+						filePath: path.relative(
+							process.cwd(),
+							`${targetDirectory}/${coverFile}`
+						),
+					},
 				});
 			}
-
-			const sharpStream = sharp().resize(275);
-			const coverExtractionStream = archive.stream(files[0].name);
-			await coverExtractionStream
-				.pipe(sharpStream)
-				.toFile(`${targetDirectory}/${files[0].name}`);
-			// orchestrate result
-			Object.assign(result, {
-				name: fileNameWithoutExtension,
-				extension,
-				containedIn: targetDirectory,
-				cover: {
-					filePath: path.relative(
-						process.cwd(),
-						`${targetDirectory}/${files[0].name}`
-					),
-				},
-			});
-			resolve(result);
 		});
 	});
+
+	return Promise.all([comicInfoXMLFilePromise, coverFilePromise]);
 };
 
 export const extractComicInfoXMLFromZip = async (
 	filePath: string
-): Promise<Partial<IExtractedComicBookCoverFile>> => {
-	const result = {
-		filePath,
-	};
+): Promise<any> => {
 	// Create the target directory
 	const directoryOptions = {
 		mode: 0o2775,
@@ -149,81 +184,108 @@ export const extractComicInfoXMLFromZip = async (
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 	await fse.ensureDir(targetDirectory, directoryOptions);
 	console.info(`%s was created.`, targetDirectory);
-	let sortedFiles = [];
-	const filesToWriteToDisk = [];
-	return await list(filePath)
-		.progress((files) => {
-			// Do stuff with files...
-			sortedFiles = files.sort((a, b) => {
-				if (!isUndefined(a) && !isUndefined(b)) {
-					return a.name
-						.toLowerCase()
-						.localeCompare(b.name.toLowerCase());
-				}
-			});
-			const comicInfoXML = remove(
-				sortedFiles,
-				(file) => file.name.toLowerCase() === "comicinfo.xml"
+	let filesFromArchive = [];
+	let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
+	const extractionTargets = [];
+
+	await list(filePath).progress((files) => {
+		filesFromArchive.push(...files);
+		return filesFromArchive;
+	});
+	remove(
+		filesFromArchive,
+		({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name))
+	);
+	remove(
+		filesFromArchive,
+		(file) => file.attr === "D...." && file.size === 0
+	);
+	const comicInfoXMLFileObject = remove(
+		filesFromArchive,
+		(file) => path.basename(file.name.toLowerCase()) === "comicinfo.xml"
+	);
+	if (!isEmpty(comicInfoXMLFileObject)) {
+		filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
+		extractionTargets.push(filesToWriteToDisk.comicInfoXML);
+	}
+
+	filesToWriteToDisk.coverFile = filesFromArchive[0].name;
+	extractionTargets.push(filesToWriteToDisk.coverFile);
+	await extract(path.resolve(filePath), targetDirectory, {
+		r: true,
+		raw: [...extractionTargets],
+	});
+
+	// ComicInfoXML detection, parsing and conversion to JSON
+	// Write ComicInfo.xml to disk
+	let comicinfostring = "";
+
+	const comicInfoXMLPromise = new Promise((resolve, reject) => {
+		if (
+			!isNil(filesToWriteToDisk.comicInfoXML) &&
+			existsSync(
+				`${targetDirectory}/${path.basename(
+					filesToWriteToDisk.comicInfoXML
+				)}`
+			)
+		) {
+			let comicinfoString = "";
+			const comicInfoXMLStream = createReadStream(
+				`${targetDirectory}/${path.basename(
+					filesToWriteToDisk.comicInfoXML
+				)}`
 			);
-			if (!isUndefined(comicInfoXML)) {
-				filesToWriteToDisk.push(comicInfoXML[0].name);
-			}
-			filesToWriteToDisk.push(sortedFiles[0].name);
-		})
-		.then((d) => {
-			return extract(path.resolve(filePath), targetDirectory, {
-				r: true,
-				raw: [...filesToWriteToDisk],
-			})
-				.progress((files) => {
-					console.log(files);
-				})
-				.then(() => {
-					const coverFile = filesToWriteToDisk.find(
-						(file) => file.toLowerCase() !== "comicinfo.xml"
-					);
-					Object.assign(result, {
+			comicInfoXMLStream.on("data", (data) => (comicinfoString += data));
+			comicInfoXMLStream.on("end", async () => {
+				const comicInfoJSON = await convertXMLToJSON(
+					comicinfoString.toString()
+				);
+				resolve({
+					comicInfoJSON: comicInfoJSON.comicinfo,
+				});
+			});
+		} else {
+			resolve({
+				comicInfoJSON: null,
+			});
+		}
+	});
+	// Write the cover to disk
+	const coverFilePromise = new Promise((resolve, reject) => {
+		const sharpStream = sharp().resize(275);
+		const coverStream = createReadStream(
+			`${targetDirectory}/${path.basename(filesToWriteToDisk.coverFile)}`
+		);
+		coverStream
+			.pipe(sharpStream)
+			.toFile(
+				`${targetDirectory}/${path.basename(
+					filesToWriteToDisk.coverFile
+				)}`,
+				(err, info) => {
+					if (err) {
+						reject(err);
+					}
+					// Update metadata
+					resolve({
+						filePath,
 						name: fileNameWithoutExtension,
 						extension,
 						containedIn: targetDirectory,
 						cover: {
 							filePath: path.relative(
 								process.cwd(),
-								`${targetDirectory}/${coverFile}`
+								`${targetDirectory}/${path.basename(
+									filesToWriteToDisk.coverFile
+								)}`
 							),
 						},
 					});
-					// ComicInfoXML detection, parsing and conversion to JSON
-					let comicinfostring = "";
-					const comicInfoFile = filesToWriteToDisk.find(
-						(file) => file.toLowerCase() === "comicinfo.xml"
-					);
-					return new Promise((resolve, reject) => {
-						const comicInfoXMLStream = createReadStream(
-							`${targetDirectory}/${comicInfoFile}`
-						);
-						comicInfoXMLStream.on("data", (data) => {
-							comicinfostring += data;
-						});
-						comicInfoXMLStream.on("error", (error) =>
-							console.log(error)
-						);
-						comicInfoXMLStream.on("end", async () => {
-							const comicInfoJSON = await convertXMLToJSON(
-								comicinfostring.toString()
-							);
-							Object.assign(result, {
-								comicInfoJSON: comicInfoJSON.comicinfo,
-							});
+				}
+			);
+	});
 
-							resolve(result);
-						});
-					});
-				})
-				.catch((error) => {
-					console.log(error);
-				});
-		});
+	return Promise.all([comicInfoXMLPromise, coverFilePromise]);
 };
 
 export const extractFromArchive = async (filePath: string) => {
@@ -233,13 +295,16 @@ export const extractFromArchive = async (filePath: string) => {
 			console.log(
 				"Detected file type is cbz, looking for comicinfo.xml..."
 			);
-			return await extractComicInfoXMLFromZip(filePath);
+			const result = await extractComicInfoXMLFromZip(filePath);
+			return Object.assign({}, ...result);
 
 		case ".cbr":
 			console.log(
 				"Detected file type is cbr, looking for comicinfo.xml..."
 			);
-			return await extractComicInfoXMLFromRar(filePath);
+			const CbrResult = await extractComicInfoXMLFromRar(filePath);
+			console.log(CbrResult);
+			return Object.assign({}, ...CbrResult);
 
 		default:
 			console.log(

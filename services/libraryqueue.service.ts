@@ -77,7 +77,6 @@ export default class QueueService extends Service {
 						Object.assign(result, {
 							fileSize: job.data.fileObject.fileSize,
 						});
-						console.log("KEYSS TO THE KINGDOM:", result)
 						const {
 							name,
 							filePath,

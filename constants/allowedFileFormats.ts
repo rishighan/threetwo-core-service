@@ -1,0 +1,1 @@
+export const IMPORT_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".bmp", ".png", ".gif"]
