@@ -153,12 +153,28 @@ export default class QueueService extends Service {
 						});
 					},
 				},
-				pauseImportQueue: {
+				toggleImportQueue: {
 					rest: "POST /pauseImportQueue",
 					params: {},
-					handler: async (ctx: Context<{}>) => {
-						return await this.getQueue("process.import").resume();
-					}
+					handler: async (ctx: Context<{ action: string }>) => {
+						console.log(ctx.params);
+						switch (ctx.params.action) {
+							case "pause":
+								const foo = await this.getQueue(
+									"process.import"
+								).pause();
+								console.log(foo);
+								break;
+							case "resume":
+								const soo = await this.getQueue(
+									"process.import"
+								).resume();
+								console.log(soo);
+								break;
+							default:
+								console.log("Unrecognized queue action.");
+						}
+					},
 				},
 				unarchiveComicBook: {
 					rest: "POST /unarchiveComicBook",

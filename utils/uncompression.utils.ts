@@ -155,6 +155,7 @@ export const extractComicInfoXMLFromRar = async (
 				// orchestrate result
 				console.log("ASDAsd");
 				resolve({
+					filePath,
 					name: fileNameWithoutExtension,
 					extension,
 					containedIn: targetDirectory,

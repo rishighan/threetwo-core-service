@@ -104,9 +104,9 @@ export default class ApiService extends Service {
 									{}
 								);
 								break;
-							case "LS_PAUSE_IMPORT_QUEUE":
+							case "LS_TOGGLE_IMPORT_QUEUE":
 								console.log("lol")
-								await this.broker.call("queue.pauseImportQueue", action.data);
+								await this.broker.call("queue.toggleImportQueue", action.data, {});
 								break;
 						}
 					});
