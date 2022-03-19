@@ -153,7 +153,6 @@ export const extractComicInfoXMLFromRar = async (
 			}
 			if (existsSync(`${targetDirectory}/${coverFile}`)) {
 				// orchestrate result
-				console.log("ASDAsd");
 				resolve({
 					filePath,
 					name: fileNameWithoutExtension,
@@ -220,7 +219,6 @@ export const extractComicInfoXMLFromZip = async (
 	// ComicInfoXML detection, parsing and conversion to JSON
 	// Write ComicInfo.xml to disk
 	let comicinfostring = "";
-
 	const comicInfoXMLPromise = new Promise((resolve, reject) => {
 		if (
 			!isNil(filesToWriteToDisk.comicInfoXML) &&
@@ -296,16 +294,15 @@ export const extractFromArchive = async (filePath: string) => {
 			console.log(
 				"Detected file type is cbz, looking for comicinfo.xml..."
 			);
-			const result = await extractComicInfoXMLFromZip(filePath);
-			return Object.assign({}, ...result);
+			const cbzResult = await extractComicInfoXMLFromZip(filePath);
+			return Object.assign({}, ...cbzResult);
 
 		case ".cbr":
 			console.log(
 				"Detected file type is cbr, looking for comicinfo.xml..."
 			);
-			const CbrResult = await extractComicInfoXMLFromRar(filePath);
-			console.log(CbrResult);
-			return Object.assign({}, ...CbrResult);
+			const cbrResult = await extractComicInfoXMLFromRar(filePath);
+			return Object.assign({}, ...cbrResult);
 
 		default:
 			console.log(

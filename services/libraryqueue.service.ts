@@ -163,14 +163,14 @@ export default class QueueService extends Service {
 								const foo = await this.getQueue(
 									"process.import"
 								).pause();
-								console.log(foo);
-								break;
+								console.log("paused", foo);
+								return foo;
 							case "resume":
 								const soo = await this.getQueue(
 									"process.import"
 								).resume();
-								console.log(soo);
-								break;
+								console.log("resumed", soo);
+								return soo;
 							default:
 								console.log("Unrecognized queue action.");
 						}
