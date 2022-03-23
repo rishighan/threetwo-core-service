@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-var mexp = require("mongoose-elasticsearch-xp").v7;
 const paginate = require("mongoose-paginate-v2");
 const { Client } = require("@elastic/elasticsearch");
 import ComicVineMetadataSchema from "./comicvine.metadata.model";
@@ -98,17 +97,17 @@ ComicSchema.plugin(mongoosastic, {
 });
 ComicSchema.plugin(paginate);
 
-const Comic = mongoose.model("Comic", ComicSchema),
-	stream = Comic.synchronize();
-let count = 0;
+const Comic = mongoose.model("Comic", ComicSchema);
+// 	stream = Comic.synchronize();
+// let count = 0;
 
-stream.on("data", function (err, doc) {
-	count++;
-});
-stream.on("close", function () {
-	console.log("indexed " + count + " documents!");
-});
-stream.on("error", function (err) {
-	console.log(err);
-});
+// stream.on("data", function (err, doc) {
+// 	count++;
+// });
+// stream.on("close", function () {
+// 	console.log("indexed " + count + " documents!");
+// });
+// stream.on("error", function (err) {
+// 	console.log(err);
+// });
 export default Comic;

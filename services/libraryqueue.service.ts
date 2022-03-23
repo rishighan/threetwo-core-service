@@ -49,10 +49,9 @@ import Comic from "../models/comic.model";
 import { extractFromArchive } from "../utils/uncompression.utils";
 import { refineQuery } from "filename-parser";
 import { io } from "./api.service";
-import { getFileConstituents } from "../utils/file.utils";
 import { USERDATA_DIRECTORY } from "../constants/directories";
 import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
-const REDIS_URI = process.env.REDIS_URI || `redis://0.0.0.0:6379`;
+const REDIS_URI = process.env.REDIS_URI || `redis://localhost:6379`;
 
 console.log(`REDIS -> ${REDIS_URI}`);
 export default class QueueService extends Service {
@@ -214,6 +213,18 @@ export default class QueueService extends Service {
 							);
 							console.log(`${JSON.stringify(job, null, 2)}`);
 							console.log(`is stalled.`);
+						}
+					);
+
+					await this.getQueue("process.import").on(
+						"drained",
+						async (data) => {
+							client.emit("action", {
+								type: "LS_QUEUE_DRAINED",
+								result: data,
+							});
+							console.log(data);
+							return data;
 						}
 					);
 				});

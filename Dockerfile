@@ -1,36 +1,37 @@
-FROM jeanblanchard/alpine-glibc
+FROM alpine:3.14
 
 # Show all node logs
 ENV NPM_CONFIG_LOGLEVEL warn
 ENV NODE_ENV=production
-ENV CALIBRE_INSTALLER_SOURCE_CODE_URL https://raw.githubusercontent.com/kovidgoyal/calibre/master/setup/linux-installer.py
 WORKDIR /threetwo-import-service
 
-RUN apk update && \
-    apk add --no-cache --upgrade \
+
+RUN apk add --update \
+    --repository http://dl-3.alpinelinux.org/alpine/edge/testing \
+    vips-tools \
     wget \
     imagemagick \
     python3 \
+    unrar \
     nodejs \
     npm \
     xvfb \
-    xz && \
-    wget -O- ${CALIBRE_INSTALLER_SOURCE_CODE_URL} | python3 -c "import sys; main=lambda:sys.stderr.write('Download failed\n'); exec(sys.stdin.read()); main(install_dir='/opt', isolated=True)" && \
-    rm -rf /tmp/calibre-installer-cache
+    xz
+
 
 COPY package.json package-lock.json ./
 COPY moleculer.config.ts ./
 COPY tsconfig.json ./
 
+RUN npm i
 # Install Dependncies
 RUN npm install -g typescript ts-node
-RUN npm ci --silent
 
 COPY . .
 
 # Build and cleanup
 RUN npm run build \
- && npm prune
+    && npm prune
 
 
 EXPOSE 3000

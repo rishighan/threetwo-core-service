@@ -61,6 +61,8 @@ interface RarFile {
 	hostOS: string;
 	compression: string;
 }
+
+
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
