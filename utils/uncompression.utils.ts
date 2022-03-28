@@ -62,7 +62,7 @@ interface RarFile {
 	compression: string;
 }
 
-
+const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar/"
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
@@ -81,7 +81,7 @@ export const extractComicInfoXMLFromRar = async (
 	console.info(`%s was created.`, targetDirectory);
 	const archive = new Unrar({
 		path: path.resolve(filePath),
-		bin: `/usr/local/bin/unrar`, // this will change depending on Docker base OS
+		bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
 	});
 	const filesInArchive: [RarFile] = await new Promise((resolve, reject) => {
 		return archive.list((err, entries) => {
