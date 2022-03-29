@@ -8,9 +8,9 @@ import {
 	MongoosasticModel,
 	MongoosasticPluginOpts,
 } from "mongoosastic-ts/dist/types";
-
+const ELASTICSEARCH_HOST = process.env.ELASTICSEARCH_URI || "http://localhost:9200";
 export const eSClient = new Client({
-	node: "http://localhost:9200",
+	node: ELASTICSEARCH_HOST,
 	auth: {
 		username: "elastic",
 		password: "password",
