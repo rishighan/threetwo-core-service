@@ -106,7 +106,7 @@ export default class ApiService extends Service {
 								break;
 							case "LS_TOGGLE_IMPORT_QUEUE":
 								console.log("lol")
-								await this.broker.call("queue.toggleImportQueue", action.data, {});
+								await this.broker.call("importqueue.toggleImportQueue", action.data, {});
 								break;
 						}
 					});
@@ -148,7 +148,7 @@ export default class ApiService extends Service {
 									await broker.call("library.walkFolders", {
 										basePathToWalk: path,
 									});
-								await this.broker.call("queue.processImport", {
+								await this.broker.call("importqueue.processImport", {
 									fileObject: {
 										filePath: walkedFolder[0].filePath,
 										fileSize: walkedFolder[0].fileSize,

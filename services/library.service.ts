@@ -129,7 +129,7 @@ export default class ImportService extends Service {
 								});
 								if (!comicExists) {
 									// 2. Send the extraction job to the queue
-									await broker.call("queue.processImport", {
+									await broker.call("importqueue.processImport", {
 										fileObject: {
 											filePath: item.path,
 											fileSize: item.stats.size,

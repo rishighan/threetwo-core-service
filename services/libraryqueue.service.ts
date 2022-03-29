@@ -33,7 +33,6 @@ SOFTWARE.
 
 "use strict";
 
-import { extend, isNil, isUndefined } from "lodash";
 import {
 	Context,
 	Service,
@@ -55,10 +54,13 @@ const REDIS_URI = process.env.REDIS_URI || `redis://localhost:6379`;
 
 console.log(`REDIS -> ${REDIS_URI}`);
 export default class QueueService extends Service {
-	public constructor(public broker: ServiceBroker) {
+	public constructor(
+		public broker: ServiceBroker,
+		schema: ServiceSchema<{}> = { name: "importqueue" }
+	) {
 		super(broker);
 		this.parseServiceSchema({
-			name: "queue",
+			name: "importqueue",
 			mixins: [BullMQMixin(REDIS_URI), DbMixin("comics", Comic)],
 			settings: {},
 			hooks: {},
