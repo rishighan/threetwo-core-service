@@ -1,9 +1,10 @@
 FROM alpine:3.14
+LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
 
 # Show all node logs
 ENV NPM_CONFIG_LOGLEVEL warn
 ENV NODE_ENV=production
-WORKDIR /threetwo-import-service
+WORKDIR /core-services
 
 
 RUN apk add --update \
