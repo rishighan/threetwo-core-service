@@ -56,11 +56,11 @@ export default class ApiService extends Service {
 					},
 					{
 						path: "/userdata",
-						use: [ApiGateway.serveStatic("userdata")],
+						use: [ApiGateway.serveStatic("/userdata")],
 					},
 					{
 						path: "/comics",
-						use: [ApiGateway.serveStatic("comics")],
+						use: [ApiGateway.serveStatic("/comics")],
 					},
 					{
 						path: "/logs",
