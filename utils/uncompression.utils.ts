@@ -62,7 +62,7 @@ interface RarFile {
 	compression: string;
 }
 
-const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar/"
+const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/opt/homebrew/bin/unrar"
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
@@ -290,6 +290,7 @@ export const extractComicInfoXMLFromZip = async (
 };
 
 export const extractFromArchive = async (filePath: string) => {
+	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`)
 	const { extension } = getFileConstituents(filePath);
 	switch (extension) {
 		case ".cbz":

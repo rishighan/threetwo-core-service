@@ -225,7 +225,7 @@ export default class QueueService extends Service {
 								type: "LS_QUEUE_DRAINED",
 								result: data,
 							});
-							console.log(data);
+							console.log("Drained", data);
 							return data;
 						}
 					);
