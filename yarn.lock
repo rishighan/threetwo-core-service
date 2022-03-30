@@ -1088,11 +1088,6 @@
     "@typescript-eslint/types" "4.33.0"
     "eslint-visitor-keys" "^2.0.0"
 
-"7zip-bin@^5.1.1":
-  "integrity" "sha512-sAP4LldeWNz0lNzmTird3uWfFDWWTeg6V/MsmyyLR9X1idwKBWIgt/ZvinqQldJm3LecKEs1emkbquO6PCiLVQ=="
-  "resolved" "https://registry.npmjs.org/7zip-bin/-/7zip-bin-5.1.1.tgz"
-  "version" "5.1.1"
-
 "abab@^2.0.0", "abab@^2.0.3", "abab@^2.0.5":
   "integrity" "sha512-9IK9EadsbHo6jLWIpxpR6pL0sazTXV6+SQv25ZB+F7Bj9mJNaOc4nCRabwd5M/JwmUa8idz6Eci6eKfJryPs6Q=="
   "resolved" "https://registry.npmjs.org/abab/-/abab-2.0.5.tgz"
@@ -5145,9 +5140,8 @@
   "resolved" "https://registry.npmjs.org/next-tick/-/next-tick-1.0.0.tgz"
   "version" "1.0.0"
 
-"node-7z-forall@^2.1.5":
-  "integrity" "sha512-rn5voRDiSMPTIwnCW89lJpnJ2KdMeHSQU/Yraq7WMyVAqSwfJ9FirJhNIO5HVnUBPAh5VI+L76T6T8KjvnNaoQ=="
-  "resolved" "https://registry.npmjs.org/node-7z-forall/-/node-7z-forall-2.1.5.tgz"
+"node-7z-forall@github:rishighan/node-7z-forall":
+  "resolved" "git+ssh://git@github.com/rishighan/node-7z-forall.git#43e7db0ad72439262b59aff4d887ea6fbaeb0352"
   "version" "2.1.5"
   dependencies:
     "all-unpacker" "^0.1.14"
