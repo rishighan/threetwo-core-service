@@ -14,6 +14,7 @@ RUN apk add --update \
     imagemagick \
     python3 \
     unrar \
+    make \
     nodejs \
     npm \
     xvfb \
