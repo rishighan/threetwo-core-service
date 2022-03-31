@@ -41,7 +41,7 @@ import {
 const fse = require("fs-extra");
 const Unrar = require("unrar");
 import path, { parse } from "path";
-import { list, extract, onlyArchive } from "node-7z-forall";
+import { list, extract, onlyArchive } from "node-7z-threetwo";
 import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 import sharp from "sharp";
 import { getFileConstituents } from "../utils/file.utils";
