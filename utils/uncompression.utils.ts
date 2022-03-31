@@ -41,7 +41,7 @@ import {
 const fse = require("fs-extra");
 const Unrar = require("unrar");
 import path, { parse } from "path";
-import { list, extract, onlyArchive } from "node-7z-threetwo";
+import * as p7zip from "p7zip";
 import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 import sharp from "sharp";
 import { getFileConstituents } from "../utils/file.utils";
@@ -62,7 +62,7 @@ interface RarFile {
 	compression: string;
 }
 
-const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/opt/homebrew/bin/unrar"
+const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/opt/homebrew/bin/unrar";
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
@@ -186,38 +186,50 @@ export const extractComicInfoXMLFromZip = async (
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
 	await fse.ensureDir(targetDirectory, directoryOptions);
 	console.info(`%s was created.`, targetDirectory);
-	let filesFromArchive = [];
 	let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
 	const extractionTargets = [];
 
-	await list(filePath).progress((files) => {
-		filesFromArchive.push(...files);
-		return filesFromArchive;
-	});
+	// read the archive
+	let filesFromArchive = await p7zip.read(path.resolve(filePath));
+
+	// only allow allowed image formats
 	remove(
-		filesFromArchive,
+		filesFromArchive.files,
 		({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name))
 	);
-	remove(
-		filesFromArchive,
-		(file) => file.attr === "D...." && file.size === 0
-	);
+
+	// detect comicinfo.xml
 	const comicInfoXMLFileObject = remove(
-		filesFromArchive,
+		filesFromArchive.files,
 		(file) => path.basename(file.name.toLowerCase()) === "comicinfo.xml"
 	);
+
+	// Natural sort
+	const files = filesFromArchive.files.sort((a, b) => {
+		if (!isUndefined(a) && !isUndefined(b)) {
+			return path
+				.basename(a.name)
+				.toLowerCase()
+				.localeCompare(path.basename(b.name).toLowerCase());
+		}
+	});
+	// Push the first file (cover) to our extraction target
+	extractionTargets.push(files[0].name);
+	filesToWriteToDisk.coverFile = files[0].name;
 	if (!isEmpty(comicInfoXMLFileObject)) {
 		filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 		extractionTargets.push(filesToWriteToDisk.comicInfoXML);
 	}
 
-	filesToWriteToDisk.coverFile = filesFromArchive[0].name;
-	extractionTargets.push(filesToWriteToDisk.coverFile);
-	await extract(path.resolve(filePath), targetDirectory, {
-		r: true,
-		raw: [...extractionTargets],
-	});
+	await p7zip.extract(
+		filePath,
+		targetDirectory,
+		extractionTargets,
+		"",
+		false
+	);
 
+	console.log("ENDHAAA", extractionTargets);
 	// ComicInfoXML detection, parsing and conversion to JSON
 	// Write ComicInfo.xml to disk
 	let comicinfostring = "";
@@ -290,7 +302,7 @@ export const extractComicInfoXMLFromZip = async (
 };
 
 export const extractFromArchive = async (filePath: string) => {
-	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`)
+	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`);
 	const { extension } = getFileConstituents(filePath);
 	switch (extension) {
 		case ".cbz":
