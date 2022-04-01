@@ -5674,10 +5674,10 @@
   dependencies:
     "p-timeout" "^3.0.0"
 
-"p7zip@^5.0.2":
-  "integrity" "sha512-rIjUMpJuCfz25k7E8r5CHlR9zfm1RKScQp3p//bXWDkWJKrpCsN18wHkNESBim1iumtqDGKfadFIaRG2tRaIUg=="
-  "resolved" "https://registry.npmjs.org/p7zip/-/p7zip-5.0.2.tgz"
-  "version" "5.0.2"
+"p7zip-threetwo@^1.0.4":
+  "integrity" "sha512-eFzv9Cr8+gQN9IhJa0oujGElVnFAlZ6Pqpe+VWzddYz1GW9AAFY5qjdOf1KxRCCyskInOIWNUE35ambfwB4ZPg=="
+  "resolved" "https://registry.npmjs.org/p7zip-threetwo/-/p7zip-threetwo-1.0.4.tgz"
+  "version" "1.0.4"
   dependencies:
     "decompress" "^4.2.1"
 

@@ -8,13 +8,13 @@ WORKDIR /core-services
 
 
 RUN apk add --update \
-    --repository http://dl-3.alpinelinux.org/alpine/edge/testing \
+    --repository http://nl.alpinelinux.org/alpine/v3.14/main \
     vips-tools \
     wget \
     imagemagick \
     python3 \
     unrar \
-    make \
+    p7zip \
     nodejs \
     npm \
     xvfb \
