@@ -2,6 +2,7 @@ const Walk = require("@root/walk");
 
 import path from "path";
 import fs from "fs";
+const { readdir, stat } = require("fs/promises");
 import {
 	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
@@ -67,16 +68,16 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 };
 
 export const getSizeOfDirectory = async (
-	path: string,
+	directoryPath: string,
 	extensions: string[]
 ) => {
-	const arrayOfFiles = await walkFolder(path, extensions);
-	let totalSize = 0;
+	const files = await readdir(directoryPath);
+	const stats = files.map((file) => stat(path.join(directoryPath, file)));
 
-	arrayOfFiles.forEach((file) => {
-		totalSize += file.fileSize;
-	});
-	return totalSize;
+	return (await Promise.all(stats)).reduce(
+		(accumulator, { size }) => accumulator + size,
+		0
+	);
 };
 
 export const isValidImageFileExtension = (fileName: string): boolean => {
