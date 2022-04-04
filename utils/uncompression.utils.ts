@@ -229,7 +229,6 @@ export const extractComicInfoXMLFromZip = async (
 		false
 	);
 
-	console.log("ENDHAAA", extractionTargets);
 	// ComicInfoXML detection, parsing and conversion to JSON
 	// Write ComicInfo.xml to disk
 	let comicinfostring = "";
@@ -306,6 +305,7 @@ export const extractFromArchive = async (filePath: string) => {
 	const { extension } = getFileConstituents(filePath);
 	switch (extension) {
 		case ".cbz":
+		case ".cb7":
 			console.log(
 				"Detected file type is cbz, looking for comicinfo.xml..."
 			);
