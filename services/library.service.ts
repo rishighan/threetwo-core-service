@@ -547,25 +547,25 @@ export default class ImportService extends Service {
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},
-					async handler(ctx: Context<{}>) {
+					handler: async (ctx: Context<{}>) => {
 						return await Comic.collection
 							.drop()
-							.then((data) => {
+							.then(async (data) => {
 								console.info(data);
-								const foo = fsExtra.emptyDirSync(
+								const coversFolderDeleteResult = fsExtra.emptyDirSync(
 									path.resolve(`${USERDATA_DIRECTORY}/covers`)
 								);
-								const foo2 = fsExtra.emptyDirSync(
+								const  expandedFolderDeleteResult = fsExtra.emptyDirSync(
 									path.resolve(
 										`${USERDATA_DIRECTORY}/expanded`
 									)
 								);
-								return { data, foo, foo2 };
+								const eSIndicesDeleteResult = await ctx.broker.call("search.deleteElasticSearchIndices", {});
+								return { data, coversFolderDeleteResult, expandedFolderDeleteResult, eSIndicesDeleteResult };
 							})
 							.catch((error) => error);
 					},
 				},
-
 				unrarArchive: {
 					rest: "POST /unrarArchive",
 					params: {},

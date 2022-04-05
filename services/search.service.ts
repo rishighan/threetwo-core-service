@@ -69,38 +69,55 @@ export default class SettingsService extends Service {
 									};
 									pagination: {
 										size: number;
-										from: number,
+										from: number;
 									};
 								}>
 							) => {
-								console.log(ctx.params);
-								const { query, pagination } = ctx.params;
-								let eSQuery = {};
-								if (isEmpty(query)) {
-									Object.assign(eSQuery, {
-										match_all: {},
-									});
-								} else {
-									Object.assign(eSQuery, {
-										multi_match: {
-											fields: ["rawFileDetails.name", "sourcedMetadata.comicvine.name", "sourcedMetadata.comicvine.volumeInformation.name"],
-											query: query.volumeName,
+								try {
+									console.log(ctx.params);
+									const { query, pagination } = ctx.params;
+									let eSQuery = {};
+									if (isEmpty(query)) {
+										Object.assign(eSQuery, {
+											match_all: {},
+										});
+									} else {
+										Object.assign(eSQuery, {
+											multi_match: {
+												fields: [
+													"rawFileDetails.name",
+													"sourcedMetadata.comicvine.name",
+													"sourcedMetadata.comicvine.volumeInformation.name",
+												],
+												query: query.volumeName,
+											},
+										});
+									}
+									console.log(query);
+									const result = await eSClient.search(
+										{
+											index: "comics",
+											body: {
+												query: eSQuery,
+											},
+											...pagination,
 										},
-									});
+										{ hydrate: true }
+									);
+
+									return result;
+								} catch (error) {
+									return new Errors.MoleculerClientError("Failed to return data", 404, "ElasticSearch error", error);
 								}
-								console.log(query);
-								const result = await eSClient.search(
-									{
-										index: "comics",
-										body: {
-											query: eSQuery,
-										},
-										...pagination,
-									},
-									{ hydrate: true }
-								);
-								
-								return result;
+							},
+						},
+						deleteElasticSearchIndices: {
+							rest: "GET /deleteElasticSearchIndices",
+							params: {},
+							handler: async (ctx: Context<{}>) => {
+								return await eSClient.indices.delete({
+									index: "comics",
+								});
 							},
 						},
 					},
