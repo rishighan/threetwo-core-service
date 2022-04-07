@@ -44,7 +44,7 @@ import path, { parse } from "path";
 import * as p7zip from "p7zip-threetwo";
 import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
 import sharp from "sharp";
-import { getFileConstituents } from "../utils/file.utils";
+import { getFileConstituents, checkFileExists } from "../utils/file.utils";
 import { flatten, isEmpty, isNil, isUndefined, remove } from "lodash";
 import { convertXMLToJSON } from "./xml.utils";
 import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
@@ -153,7 +153,8 @@ export const extractComicInfoXMLFromRar = async (
 			if (err) {
 				reject(err);
 			}
-			if (existsSync(`${targetDirectory}/${coverFile}`)) {
+			checkFileExists(`${targetDirectory}/${coverFile}`).then((bool) => {
+				console.log(`${coverFile} exists: ${bool}`);
 				// orchestrate result
 				resolve({
 					filePath,
@@ -167,7 +168,7 @@ export const extractComicInfoXMLFromRar = async (
 						),
 					},
 				});
-			}
+			});
 		});
 	});
 

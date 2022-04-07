@@ -67,6 +67,15 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 	};
 };
 
+// returns a promise which resolves true if file exists:
+export const checkFileExists = (filepath) => {
+	return new Promise((resolve, reject) => {
+	  fs.access(filepath, fs.constants.F_OK, error => {
+		resolve(!error);
+	  });
+	});
+  }
+
 export const getSizeOfDirectory = async (
 	directoryPath: string,
 	extensions: string[]
