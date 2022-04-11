@@ -71,29 +71,56 @@ export default class SettingsService extends Service {
 										size: number;
 										from: number;
 									};
+									type: string;
 								}>
 							) => {
 								try {
 									console.log(ctx.params);
 									const { query, pagination } = ctx.params;
 									let eSQuery = {};
-									if (isEmpty(query)) {
-										Object.assign(eSQuery, {
-											match_all: {},
-										});
-									} else {
-										Object.assign(eSQuery, {
-											multi_match: {
-												fields: [
-													"rawFileDetails.name",
-													"sourcedMetadata.comicvine.name",
-													"sourcedMetadata.comicvine.volumeInformation.name",
-												],
-												query: query.volumeName,
-											},
-										});
+									switch (ctx.params.type) {
+										case "all":
+											Object.assign(eSQuery, {
+												match_all: {},
+											});
+											break;
+
+										case "volumeName":
+											Object.assign(eSQuery, {
+												multi_match: {
+													fields: [
+														"rawFileDetails.name",
+														"sourcedMetadata.comicvine.name",
+														"sourcedMetadata.comicvine.volumeInformation.name",
+													],
+													query: query.volumeName,
+												},
+											});
+											break;
+										case "wanted":
+											Object.assign(eSQuery, {
+												bool: {
+													must: {
+														term: {
+															"acquisition.wanted":
+																true,
+														},
+													},
+												},
+											});
+											break;
+										case "volumes":
+											Object.assign(eSQuery, {
+												exists: {
+													field: "sourcedMetadata.comicvine.volumeInformation"
+												}
+											});
+											break;
 									}
-									console.log(query);
+									console.log("Searching ElasticSearch index with this query -> ");
+									console.log(
+										JSON.stringify(eSQuery, null, 2)
+									);
 									const result = await eSClient.search(
 										{
 											index: "comics",
@@ -107,7 +134,12 @@ export default class SettingsService extends Service {
 
 									return result;
 								} catch (error) {
-									return new Errors.MoleculerClientError("Failed to return data", 404, "ElasticSearch error", error);
+									return new Errors.MoleculerClientError(
+										"Failed to return data",
+										404,
+										"ElasticSearch error",
+										error
+									);
 								}
 							},
 						},
