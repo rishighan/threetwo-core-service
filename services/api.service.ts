@@ -6,6 +6,7 @@ import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
 import { SocketIOMixin } from "../mixins/socket.io.mixin";
 export const io = SocketIOMixin();
+
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
@@ -56,7 +57,9 @@ export default class ApiService extends Service {
 					},
 					{
 						path: "/userdata",
-						use: [ApiGateway.serveStatic(path.resolve("/userdata"))],
+						use: [
+							ApiGateway.serveStatic(path.resolve("/userdata")),
+						],
 					},
 					{
 						path: "/comics",
@@ -97,7 +100,7 @@ export default class ApiService extends Service {
 						switch (action.type) {
 							case "LS_IMPORT":
 								// 1. Send task to queue
-								console.log(`Recieved ${action.type} event.`)
+								console.log(`Recieved ${action.type} event.`);
 								await this.broker.call(
 									"library.newImport",
 									action.data,
@@ -105,8 +108,11 @@ export default class ApiService extends Service {
 								);
 								break;
 							case "LS_TOGGLE_IMPORT_QUEUE":
-								console.log("lol")
-								await this.broker.call("importqueue.toggleImportQueue", action.data, {});
+								await this.broker.call(
+									"importqueue.toggleImportQueue",
+									action.data,
+									{}
+								);
 								break;
 						}
 					});
@@ -148,12 +154,15 @@ export default class ApiService extends Service {
 									await broker.call("library.walkFolders", {
 										basePathToWalk: path,
 									});
-								await this.broker.call("importqueue.processImport", {
-									fileObject: {
-										filePath: walkedFolder[0].filePath,
-										fileSize: walkedFolder[0].fileSize,
-									},
-								});
+								await this.broker.call(
+									"importqueue.processImport",
+									{
+										fileObject: {
+											filePath: walkedFolder[0].filePath,
+											fileSize: walkedFolder[0].fileSize,
+										},
+									}
+								);
 							} else {
 								setTimeout(
 									checkFileCopyComplete,
@@ -169,7 +178,7 @@ export default class ApiService extends Service {
 							console.log("Watcher detected new files.");
 							console.log(
 								`File ${path} has been added with stats: ${JSON.stringify(
-									stats
+									stats, null, 2
 								)}`
 							);
 
@@ -200,7 +209,7 @@ export default class ApiService extends Service {
 						})
 						.on("change", (path, stats) =>
 							console.log(
-								`File ${path} has been changed. Stats: ${stats}`
+								`File ${path} has been changed. Stats: ${JSON.stringify(stats, null, 2)}`
 							)
 						)
 						.on("unlink", (path) =>

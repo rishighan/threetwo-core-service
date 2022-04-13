@@ -20,7 +20,6 @@ RUN apk add --update \
     xvfb \
     xz
 
-
 COPY package.json package-lock.json ./
 COPY moleculer.config.ts ./
 COPY tsconfig.json ./
