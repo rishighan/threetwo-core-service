@@ -123,7 +123,7 @@ export default class ApiService extends Service {
 
 					// Filewatcher
 					const fileWatcher = chokidar.watch(
-						path.resolve("./comics"),
+						path.resolve("/comics"),
 						{
 							ignored: (filePath) => path.extname(filePath) === '.dctmp',
 							persistent: true,
