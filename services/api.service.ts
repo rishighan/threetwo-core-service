@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
 import { SocketIOMixin } from "../mixins/socket.io.mixin";
+import { debounce } from "lodash";
 export const io = SocketIOMixin();
 
 export default class ApiService extends Service {
@@ -123,9 +124,10 @@ export default class ApiService extends Service {
 
 					// Filewatcher
 					const fileWatcher = chokidar.watch(
-						path.resolve("/comics"),
+						path.resolve("./comics"),
 						{
-							ignored: (filePath) => path.extname(filePath) === '.dctmp',
+							ignored: (filePath) =>
+								path.extname(filePath) === ".dctmp",
 							persistent: true,
 							usePolling: true,
 							interval: 5000,
@@ -175,49 +177,77 @@ export default class ApiService extends Service {
 						});
 					};
 					fileWatcher
-						.once("add", async (path, stats) => {
-							console.log("Watcher detected new files.");
-							console.log(
-								`File ${path} has been added with stats: ${JSON.stringify(
-									stats, null, 2
-								)}`
-							);
-
-							console.log("File copy started...");
-							fs.stat(path, (err, stat) => {
-								if (err) {
-									console.log(
-										"Error watching file for copy completion. ERR: " +
-											err.message
-									);
-									console.log(
-										"Error file not processed. PATH: " +
-											path
-									);
-									throw err;
-								}
-								setTimeout(
-									checkFileCopyComplete,
-									fileCopyDelaySeconds * 1000,
-									path,
-									stat
+						.once(
+							"add",
+							debounce((path, stats) => {
+								console.log("Watcher detected new files.");
+								console.log(
+									`File ${path} has been added with stats: ${JSON.stringify(
+										stats,
+										null,
+										2
+									)}`
 								);
-								client.emit("action", {
-									type: "LS_COMIC_ADDED",
-									result: path,
+
+								console.log("File copy started...");
+								fs.stat(path, (err, stat) => {
+									if (err) {
+										console.log(
+											"Error watching file for copy completion. ERR: " +
+												err.message
+										);
+										console.log(
+											"Error file not processed. PATH: " +
+												path
+										);
+										throw err;
+									}
+									setTimeout(
+										checkFileCopyComplete,
+										fileCopyDelaySeconds * 1000,
+										path,
+										stat
+									);
+									client.emit("action", {
+										type: "LS_COMIC_ADDED",
+										result: path,
+									});
 								});
-							});
-						})
-						.once("change", (path, stats) =>
-							console.log(
-								`File ${path} has been changed. Stats: ${JSON.stringify(stats, null, 2)}`
+							}, 500)
+						)
+						.once(
+							"change",
+							debounce(
+								(path, stats) =>
+									console.log(
+										`File ${path} has been changed. Stats: ${JSON.stringify(
+											stats,
+											null,
+											2
+										)}`
+									),
+								500
 							)
 						)
-						.once("unlink", (path) =>
-							console.log(`File ${path} has been removed`)
+						.once(
+							"unlink",
+							debounce(
+								(path) =>
+									console.log(
+										`File ${path} has been removed`
+									),
+								500
+							)
 						)
-						.once("addDir", (path) =>
-							console.log(`Directory ${path} has been added`)
+						.once(
+							"addDir",
+							debounce(
+								(path) =>
+									console.log(
+										`Directory ${path} has been added`
+									),
+								500
+							)
 						);
 				});
 			},
