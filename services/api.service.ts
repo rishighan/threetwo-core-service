@@ -128,9 +128,10 @@ export default class ApiService extends Service {
 							ignored: /(^|[\/\\])\../, // ignore dotfiles
 							persistent: true,
 							usePolling: true,
+							interval: 500,
 							ignoreInitial: true,
+							followSymlinks: true,
 							atomic: true,
-							depth: 10,
 							awaitWriteFinish: {
 								stabilityThreshold: 2000,
 								pollInterval: 100,
@@ -183,7 +184,7 @@ export default class ApiService extends Service {
 							);
 
 							console.log("File copy started...");
-							fs.stat(path, function (err, stat) {
+							fs.stat(path, (err, stat) => {
 								if (err) {
 									console.log(
 										"Error watching file for copy completion. ERR: " +
