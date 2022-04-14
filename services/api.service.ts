@@ -125,10 +125,10 @@ export default class ApiService extends Service {
 					const fileWatcher = chokidar.watch(
 						path.resolve("./comics"),
 						{
-							ignored: /(^|[\/\\])\../, // ignore dotfiles
+							ignored: (filePath) => path.extname(filePath) === '.dctmp',
 							persistent: true,
 							usePolling: true,
-							interval: 500,
+							interval: 5000,
 							ignoreInitial: true,
 							followSymlinks: true,
 							atomic: true,
@@ -175,7 +175,7 @@ export default class ApiService extends Service {
 						});
 					};
 					fileWatcher
-						.on("add", async (path, stats) => {
+						.once("add", async (path, stats) => {
 							console.log("Watcher detected new files.");
 							console.log(
 								`File ${path} has been added with stats: ${JSON.stringify(
@@ -208,15 +208,15 @@ export default class ApiService extends Service {
 								});
 							});
 						})
-						.on("change", (path, stats) =>
+						.once("change", (path, stats) =>
 							console.log(
 								`File ${path} has been changed. Stats: ${JSON.stringify(stats, null, 2)}`
 							)
 						)
-						.on("unlink", (path) =>
+						.once("unlink", (path) =>
 							console.log(`File ${path} has been removed`)
 						)
-						.on("addDir", (path) =>
+						.once("addDir", (path) =>
 							console.log(`Directory ${path} has been added`)
 						);
 				});
