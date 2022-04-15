@@ -75,13 +75,10 @@ export default class QueueService extends Service {
 						const result = await extractFromArchive(
 							job.data.fileObject.filePath
 						);
-						Object.assign(result, {
-							fileSize: job.data.fileObject.fileSize,
-						});
+						
 						const {
 							name,
 							filePath,
-							fileSize,
 							extension,
 							cover,
 							containedIn,
@@ -113,7 +110,7 @@ export default class QueueService extends Service {
 								rawFileDetails: {
 									name,
 									filePath,
-									fileSize,
+									fileSize: job.data.fileObject.fileSize,
 									extension,
 									containedIn,
 									cover,
@@ -218,17 +215,6 @@ export default class QueueService extends Service {
 						}
 					);
 
-					await this.getQueue("process.import").on(
-						"drained",
-						async (data) => {
-							client.emit("action", {
-								type: "LS_QUEUE_DRAINED",
-								result: data,
-							});
-							console.log("Drained", data);
-							return data;
-						}
-					);
 				});
 			},
 		});

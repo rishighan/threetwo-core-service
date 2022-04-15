@@ -140,16 +140,14 @@ export default class ApiService extends Service {
 							},
 						}
 					);
-					const fileCopyDelaySeconds = 30;
-					const checkFileCopyComplete = (path, previousPath) => {
+					const fileCopyDelaySeconds = 3;
+					const checkEnd = (path, prev) => {
 						fs.stat(path, async (err, stat) => {
-							if (err) {
-								throw err;
-							}
-							if (
-								stat.mtime.getTime() ===
-								previousPath.mtime.getTime()
-							) {
+							// Replace error checking with something appropriate for your app.
+							if (err) throw err;
+							if (stat.mtime.getTime() === prev.mtime.getTime()) {
+								console.log("finished");
+								// Move on: call whatever needs to be called to process the file.
 								console.log(
 									"File detected, starting import..."
 								);
@@ -161,21 +159,21 @@ export default class ApiService extends Service {
 									"importqueue.processImport",
 									{
 										fileObject: {
-											filePath: walkedFolder[0].filePath,
+											filePath: path,
 											fileSize: walkedFolder[0].fileSize,
 										},
 									}
 								);
-							} else {
+							} else
 								setTimeout(
-									checkFileCopyComplete,
-									fileCopyDelaySeconds * 1000,
+									checkEnd,
+									fileCopyDelaySeconds,
 									path,
 									stat
 								);
-							}
 						});
 					};
+
 					fileWatcher
 						.once("add", (path, stats) => {
 							console.log("Watcher detected new files.");
@@ -187,29 +185,17 @@ export default class ApiService extends Service {
 								)}`
 							);
 
-							console.log("File copy started...");
-							fs.stat(path, (err, stat) => {
-								if (err) {
-									console.log(
-										"Error watching file for copy completion. ERR: " +
-											err.message
-									);
-									console.log(
-										"Error file not processed. PATH: " +
-											path
-									);
-									throw err;
-								}
+							console.log("File", path, "has been added");
+
+							fs.stat(path, function (err, stat) {
+								// Replace error checking with something appropriate for your app.
+								if (err) throw err;
 								setTimeout(
-									checkFileCopyComplete,
-									fileCopyDelaySeconds * 1000,
+									checkEnd,
+									fileCopyDelaySeconds,
 									path,
 									stat
 								);
-								client.emit("action", {
-									type: "LS_COMIC_ADDED",
-									result: path,
-								});
 							});
 						})
 						// .once(
