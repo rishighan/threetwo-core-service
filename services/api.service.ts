@@ -177,77 +177,64 @@ export default class ApiService extends Service {
 						});
 					};
 					fileWatcher
-						.once(
-							"add",
-							debounce((path, stats) => {
-								console.log("Watcher detected new files.");
-								console.log(
-									`File ${path} has been added with stats: ${JSON.stringify(
-										stats,
-										null,
-										2
-									)}`
-								);
+						.once("add", (path, stats) => {
+							console.log("Watcher detected new files.");
+							console.log(
+								`File ${path} has been added with stats: ${JSON.stringify(
+									stats,
+									null,
+									2
+								)}`
+							);
 
-								console.log("File copy started...");
-								fs.stat(path, (err, stat) => {
-									if (err) {
-										console.log(
-											"Error watching file for copy completion. ERR: " +
-												err.message
-										);
-										console.log(
-											"Error file not processed. PATH: " +
-												path
-										);
-										throw err;
-									}
-									setTimeout(
-										checkFileCopyComplete,
-										fileCopyDelaySeconds * 1000,
-										path,
-										stat
-									);
-									client.emit("action", {
-										type: "LS_COMIC_ADDED",
-										result: path,
-									});
-								});
-							}, 500)
-						)
-						.once(
-							"change",
-							debounce(
-								(path, stats) =>
+							console.log("File copy started...");
+							fs.stat(path, (err, stat) => {
+								if (err) {
 									console.log(
-										`File ${path} has been changed. Stats: ${JSON.stringify(
-											stats,
-											null,
-											2
-										)}`
-									),
-								500
-							)
-						)
+										"Error watching file for copy completion. ERR: " +
+											err.message
+									);
+									console.log(
+										"Error file not processed. PATH: " +
+											path
+									);
+									throw err;
+								}
+								setTimeout(
+									checkFileCopyComplete,
+									fileCopyDelaySeconds * 1000,
+									path,
+									stat
+								);
+								client.emit("action", {
+									type: "LS_COMIC_ADDED",
+									result: path,
+								});
+							});
+						})
+						// .once(
+						// 	"change",
+
+						// 	(path, stats) =>
+						// 		console.log(
+						// 			`File ${path} has been changed. Stats: ${JSON.stringify(
+						// 				stats,
+						// 				null,
+						// 				2
+						// 			)}`
+						// 		)
+						// )
 						.once(
 							"unlink",
-							debounce(
-								(path) =>
-									console.log(
-										`File ${path} has been removed`
-									),
-								500
-							)
+
+							(path) =>
+								console.log(`File ${path} has been removed`)
 						)
 						.once(
 							"addDir",
-							debounce(
-								(path) =>
-									console.log(
-										`Directory ${path} has been added`
-									),
-								500
-							)
+
+							(path) =>
+								console.log(`Directory ${path} has been added`)
 						);
 				});
 			},
