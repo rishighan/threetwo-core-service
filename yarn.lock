@@ -795,9 +795,9 @@
   "version" "1.0.2"
 
 "@seald-io/nedb@^2.0.4":
-  "integrity" "sha512-whkcx3hpcowNhoSEbIsrfe8TXxDwyj8SJJut2EqF7DSX2GGqQlL7Ix/vzwwOo4FJolzDhZD2DaUTVKmTQS3Rog=="
-  "resolved" "https://registry.npmjs.org/@seald-io/nedb/-/nedb-2.2.0.tgz"
-  "version" "2.2.0"
+  "integrity" "sha512-z91J3pem4ENzHuu9BilOSdlGL2S14OQYePPdvBcPHgHr+s51VIUwQARcOjx21KvtkA27vEpgPqzrVKh7nSlIfw=="
+  "resolved" "https://registry.npmjs.org/@seald-io/nedb/-/nedb-2.2.2.tgz"
+  "version" "2.2.2"
   dependencies:
     "@seald-io/binary-search-tree" "^1.0.2"
     "async" "0.2.10"
@@ -844,13 +844,6 @@
   "integrity" "sha512-eZxlbI8GZscaGS7kkc/trHTT5xgrjH3/1n2JDwusC9iahPKWMRvRjJSAN5mCXviuTGQ/lHnhvv8Q1YTpnfz9gA=="
   "resolved" "https://registry.npmjs.org/@tsconfig/node16/-/node16-1.0.2.tgz"
   "version" "1.0.2"
-
-"@types/axios@^0.14.0":
-  "integrity" "sha1-7CMA++fX3d1+udOr+HmZlkyvzkY="
-  "resolved" "https://registry.npmjs.org/@types/axios/-/axios-0.14.0.tgz"
-  "version" "0.14.0"
-  dependencies:
-    "axios" "*"
 
 "@types/babel__core@^7.0.0", "@types/babel__core@^7.1.14":
   "integrity" "sha512-S7unDjm/C7z2A2R9NzfKCK1I+BAALDtxEmsJBwlB3EzNfb929ykjL++1CK9LO++EIp2fQrC8O+BwjKvz6UeDyQ=="
@@ -1405,7 +1398,7 @@
     "@babel/runtime" "^7.15.4"
     "is-retry-allowed" "^2.2.0"
 
-"axios@*", "axios@^0.25.0":
+"axios@^0.25.0":
   "integrity" "sha512-cD8FOb0tRH3uuEe6+evtAbgJtfxr7ly3fQjYcMcuPlgkwVS9xboaVIpcDV+cYQe+yGykgwZCs1pzjntcGa6l5g=="
   "resolved" "https://registry.npmjs.org/axios/-/axios-0.25.0.tgz"
   "version" "0.25.0"
@@ -2373,7 +2366,7 @@
   "resolved" "https://registry.npmjs.org/delegates/-/delegates-1.0.0.tgz"
   "version" "1.0.0"
 
-"denque@^1.1.0", "denque@^1.4.1":
+"denque@^1.1.0", "denque@^1.4.1", "denque@^1.5.0":
   "integrity" "sha512-XwE+iZ4D6ZUB7mfYRMb5wByE8L74HCn30FBN7sWnXksWc1LO1bPDl67pBR9o/kC4z/xSNAwkMYcGgqDV3BE3Hw=="
   "resolved" "https://registry.npmjs.org/denque/-/denque-1.5.1.tgz"
   "version" "1.5.1"
@@ -5017,7 +5010,7 @@
     "fakerator" "^0.3.4"
     "mongodb" "^3.6.7"
 
-"moleculer-db-adapter-mongoose@^0.8.9":
+"moleculer-db-adapter-mongoose@^0.8.12":
   "integrity" "sha512-bWxpkHH7YFLoqBYD12Nl7hd/fmF+gVbC9Xc+dtW8QF68hm+iul6yTTcJVVWm7OZ4zRykBuuj6sssqPzsie+MfQ=="
   "resolved" "https://registry.npmjs.org/moleculer-db-adapter-mongoose/-/moleculer-db-adapter-mongoose-0.8.12.tgz"
   "version" "0.8.12"
@@ -5025,7 +5018,7 @@
     "bluebird" "^3.7.2"
     "lodash" "^4.17.21"
 
-"moleculer-db@^0.8.13":
+"moleculer-db@^0.8.17":
   "integrity" "sha512-LygIZhhYgqK0UQ9TWOfBdl0iQg2+vRBmTgu7aK3HTDSEVF0qYfxV2HEOB6SEiJXiCnINvZHl9fuIvbdfAHZCnw=="
   "resolved" "https://registry.npmjs.org/moleculer-db/-/moleculer-db-0.8.17.tgz"
   "version" "0.8.17"
@@ -5034,6 +5027,15 @@
     "bluebird" "^3.7.2"
     "flat" "^5.0.2"
     "lodash" "^4.17.21"
+
+"moleculer-io@^2.0.0":
+  "integrity" "sha512-de/t7cG5at5KYPiukkR+cEnZ0nb0xRmSHkCoLrd7mmHfNI8+FwoUbg1fE2+Yt5aoEnVhpvY7UE2x8qcBOT6T3w=="
+  "resolved" "https://registry.npmjs.org/moleculer-io/-/moleculer-io-2.0.0.tgz"
+  "version" "2.0.0"
+  dependencies:
+    "kleur" "^4.1.4"
+    "lodash" "^4.17.21"
+    "socket.io" "^4.4.1"
 
 "moleculer-repl@^0.7.0":
   "integrity" "sha512-Spb1OzUSjt/NJ6Y/rfB644j4UXdx3d9iX8gO0EXlIimsf9Fnz/U4A8GojV+Z8+tTgaG1sXquWCqVNwxEqYeuqw=="
@@ -5311,6 +5313,11 @@
   "integrity" "sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA=="
   "resolved" "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz"
   "version" "3.0.0"
+
+"notepack.io@^2.0.0", "notepack.io@~2.2.0":
+  "integrity" "sha512-9b5w3t5VSH6ZPosoYnyDONnUTF8o0UkBw7JLA6eBlYJWyGT1Q3vQa8Hmuj1/X6RYvHjjygBDgw6fJhe0JEojfw=="
+  "resolved" "https://registry.npmjs.org/notepack.io/-/notepack.io-2.2.0.tgz"
+  "version" "2.2.0"
 
 "npm-audit-report@*":
   "version" "2.1.5"
@@ -6086,7 +6093,7 @@
   dependencies:
     "ttl" "^1.3.0"
 
-"redis-commands@1.7.0":
+"redis-commands@^1.7.0", "redis-commands@1.7.0":
   "integrity" "sha512-nJWqw3bTFy21hX/CPKHth6sfhZbdiHP6bTawSgQBlKOVRG7EZkfHbbHwQJnrE4vsQf0CMNE+3gJ4Fmm16vdVlQ=="
   "resolved" "https://registry.npmjs.org/redis-commands/-/redis-commands-1.7.0.tgz"
   "version" "1.7.0"
@@ -6102,6 +6109,16 @@
   "version" "3.0.0"
   dependencies:
     "redis-errors" "^1.0.0"
+
+"redis@^3.0.0":
+  "integrity" "sha512-grn5KoZLr/qrRQVwoSkmzdbw6pwF+/rwODtrOr6vuBRiR/f3rjSTGupbF90Zpqm2oenix8Do6RV7pYEkGwlKkw=="
+  "resolved" "https://registry.npmjs.org/redis/-/redis-3.1.2.tgz"
+  "version" "3.1.2"
+  dependencies:
+    "denque" "^1.5.0"
+    "redis-commands" "^1.7.0"
+    "redis-errors" "^1.2.0"
+    "redis-parser" "^3.0.0"
 
 "regenerator-runtime@^0.13.4":
   "integrity" "sha512-p3VT+cOEgxFsRRA9X4lkI1E+k2/CtnKtU4gcxyaCUreilL/vqI6CdZ3wxVUx3UOUg+gnUOQQcRI7BmSI656MYA=="
@@ -6475,6 +6492,11 @@
 "smart-buffer@^4.1.0":
   "version" "4.2.0"
 
+"socket.io-adapter@~2.2.0":
+  "integrity" "sha512-rG49L+FwaVEwuAdeBRq49M97YI3ElVabJPzvHT9S6a2CWhDKnjSFasvwAwSYPRhQzfn4NtDIbCaGYgOCOU/rlg=="
+  "resolved" "https://registry.npmjs.org/socket.io-adapter/-/socket.io-adapter-2.2.0.tgz"
+  "version" "2.2.0"
+
 "socket.io-adapter@~2.3.3":
   "integrity" "sha512-Qd/iwn3VskrpNO60BeRyCyr8ZWw9CPZyitW4AQwmRZ8zCiyDiL+znRnWX6tDHXnWn1sJrM1+b6Mn6wEDJJ4aYQ=="
   "resolved" "https://registry.npmjs.org/socket.io-adapter/-/socket.io-adapter-2.3.3.tgz"
@@ -6489,7 +6511,18 @@
     "component-emitter" "~1.3.0"
     "debug" "~4.3.1"
 
-"socket.io@^4.4.0":
+"socket.io-redis@^6.1.1":
+  "integrity" "sha512-jeaXe3TGKC20GMSlPHEdwTUIWUpay/L7m5+S9TQcOf22p9Llx44/RkpJV08+buXTZ8E+aivOotj2RdeFJJWJJQ=="
+  "resolved" "https://registry.npmjs.org/socket.io-redis/-/socket.io-redis-6.1.1.tgz"
+  "version" "6.1.1"
+  dependencies:
+    "debug" "~4.3.1"
+    "notepack.io" "~2.2.0"
+    "redis" "^3.0.0"
+    "socket.io-adapter" "~2.2.0"
+    "uid2" "0.0.3"
+
+"socket.io@^4.4.0", "socket.io@^4.4.1":
   "integrity" "sha512-s04vrBswdQBUmuWJuuNTmXUVJhP0cVky8bBDhdkf8y0Ptsu7fKU2LuLbts9g+pdmAdyMMn8F/9Mf1/wbtUN0fg=="
   "resolved" "https://registry.npmjs.org/socket.io/-/socket.io-4.4.1.tgz"
   "version" "4.4.1"
@@ -7171,6 +7204,11 @@
   "integrity" "sha512-VgYs2A2QIRuGphtzFV7aQJduJ2gyfTljngLzjpfW9FoYZF6xuw1W0vW9ghCKLfcWrCFxK81CSGRAvS1pn4fIUg=="
   "resolved" "https://registry.npmjs.org/typescript/-/typescript-4.5.4.tgz"
   "version" "4.5.4"
+
+"uid2@0.0.3":
+  "integrity" "sha1-SDEm4Rd03y9xuLY53NeZw3YWK4I="
+  "resolved" "https://registry.npmjs.org/uid2/-/uid2-0.0.3.tgz"
+  "version" "0.0.3"
 
 "unbox-primitive@^1.0.1":
   "integrity" "sha512-tZU/3NqK3dA5gpE1KtyiJUrEB0lxnGkMFHptJ7q6ewdZ8s12QrODwNbhIJStmJkd1QDXa1NRA8aF2A1zk/Ypyw=="

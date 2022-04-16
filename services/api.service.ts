@@ -1,19 +1,16 @@
-import { Service, ServiceBroker, Context } from "moleculer";
-import ApiGateway from "moleculer-web";
 import chokidar from "chokidar";
-import path from "path";
 import fs from "fs";
-import { IExtractionOptions, IFolderData } from "threetwo-ui-typings";
-import { SocketIOMixin } from "../mixins/socket.io.mixin";
-import { debounce } from "lodash";
-export const io = SocketIOMixin();
+import { Service, ServiceBroker } from "moleculer";
+import ApiGateway from "moleculer-web";
+import path from "path";
+import { IFolderData } from "threetwo-ui-typings";
 
 export default class ApiService extends Service {
 	public constructor(broker: ServiceBroker) {
 		super(broker);
 		this.parseServiceSchema({
 			name: "api",
-			mixins: [ApiGateway, SocketIOMixin],
+			mixins: [ApiGateway],
 			// More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
 			settings: {
 				port: process.env.PORT || 3000,
@@ -81,148 +78,114 @@ export default class ApiService extends Service {
 				},
 			},
 			events: {
-				"**"(payload, sender, event) {
-					if (io)
-						io.emit("event", {
-							sender,
-							event,
-							payload,
-						});
-				},
+
 			},
 
 			methods: {},
 			started(): any {
-				// Add a connect listener
-				io.on("connection", (client) => {
-					console.log("Client connected via websocket!");
 
-					client.on("action", async (action) => {
-						switch (action.type) {
-							case "LS_IMPORT":
-								// 1. Send task to queue
-								console.log(`Recieved ${action.type} event.`);
-								await this.broker.call(
-									"library.newImport",
-									action.data,
-									{}
-								);
-								break;
-							case "LS_TOGGLE_IMPORT_QUEUE":
-								await this.broker.call(
-									"importqueue.toggleImportQueue",
-									action.data,
-									{}
-								);
-								break;
-						}
-					});
-					// Add a disconnect listener
-					client.on("disconnect", () => {
-						console.log("Client disconnected");
-					});
 
-					// Filewatcher
-					const fileWatcher = chokidar.watch(
-						path.resolve("/comics"),
-						{
-							ignored: (filePath) =>
-								path.extname(filePath) === ".dctmp",
-							persistent: true,
-							usePolling: true,
-							interval: 5000,
-							ignoreInitial: true,
-							followSymlinks: true,
-							atomic: true,
-							awaitWriteFinish: {
-								stabilityThreshold: 2000,
-								pollInterval: 100,
-							},
-						}
-					);
-					const fileCopyDelaySeconds = 3;
-					const checkEnd = (path, prev) => {
-						fs.stat(path, async (err, stat) => {
+				// 	Filewatcher
+				const fileWatcher = chokidar.watch(
+					path.resolve("/comics"),
+					{
+						ignored: (filePath) =>
+							path.extname(filePath) === ".dctmp",
+						persistent: true,
+						usePolling: true,
+						interval: 5000,
+						ignoreInitial: true,
+						followSymlinks: true,
+						atomic: true,
+						awaitWriteFinish: {
+							stabilityThreshold: 2000,
+							pollInterval: 100,
+						},
+					}
+				);
+				const fileCopyDelaySeconds = 3;
+				const checkEnd = (path, prev) => {
+					fs.stat(path, async (err, stat) => {
+						// Replace error checking with something appropriate for your app.
+						if (err) throw err;
+						if (stat.mtime.getTime() === prev.mtime.getTime()) {
+							console.log("finished");
+							// Move on: call whatever needs to be called to process the file.
+							console.log(
+								"File detected, starting import..."
+							);
+							const walkedFolder: IFolderData =
+								await broker.call("library.walkFolders", {
+									basePathToWalk: path,
+								});
+							await this.broker.call(
+								"importqueue.processImport",
+								{
+									fileObject: {
+										filePath: path,
+										fileSize: walkedFolder[0].fileSize,
+									},
+								}
+							);
+						} else
+							setTimeout(
+								checkEnd,
+								fileCopyDelaySeconds,
+								path,
+								stat
+							);
+					});
+				};
+
+				fileWatcher
+					.once("add", (path, stats) => {
+						console.log("Watcher detected new files.");
+						console.log(
+							`File ${path} has been added with stats: ${JSON.stringify(
+								stats,
+								null,
+								2
+							)}`
+						);
+
+						console.log("File", path, "has been added");
+
+						fs.stat(path, function(err, stat) {
 							// Replace error checking with something appropriate for your app.
 							if (err) throw err;
-							if (stat.mtime.getTime() === prev.mtime.getTime()) {
-								console.log("finished");
-								// Move on: call whatever needs to be called to process the file.
-								console.log(
-									"File detected, starting import..."
-								);
-								const walkedFolder: IFolderData =
-									await broker.call("library.walkFolders", {
-										basePathToWalk: path,
-									});
-								await this.broker.call(
-									"importqueue.processImport",
-									{
-										fileObject: {
-											filePath: path,
-											fileSize: walkedFolder[0].fileSize,
-										},
-									}
-								);
-							} else
-								setTimeout(
-									checkEnd,
-									fileCopyDelaySeconds,
-									path,
-									stat
-								);
-						});
-					};
-
-					fileWatcher
-						.once("add", (path, stats) => {
-							console.log("Watcher detected new files.");
-							console.log(
-								`File ${path} has been added with stats: ${JSON.stringify(
-									stats,
-									null,
-									2
-								)}`
+							setTimeout(
+								checkEnd,
+								fileCopyDelaySeconds,
+								path,
+								stat
 							);
+						});
+					})
+					// .once(
+					// 	"change",
 
-							console.log("File", path, "has been added");
+					// 	(path, stats) =>
+					// 		console.log(
+					// 			`File ${path} has been changed. Stats: ${JSON.stringify(
+					// 				stats,
+					// 				null,
+					// 				2
+					// 			)}`
+					// 		)
+					// )
+					.once(
+						"unlink",
 
-							fs.stat(path, function (err, stat) {
-								// Replace error checking with something appropriate for your app.
-								if (err) throw err;
-								setTimeout(
-									checkEnd,
-									fileCopyDelaySeconds,
-									path,
-									stat
-								);
-							});
-						})
-						// .once(
-						// 	"change",
+						(path) =>
+							console.log(`File ${path} has been removed`)
+					)
+					.once(
+						"addDir",
 
-						// 	(path, stats) =>
-						// 		console.log(
-						// 			`File ${path} has been changed. Stats: ${JSON.stringify(
-						// 				stats,
-						// 				null,
-						// 				2
-						// 			)}`
-						// 		)
-						// )
-						.once(
-							"unlink",
+						(path) =>
+							console.log(`Directory ${path} has been added`)
+					);
 
-							(path) =>
-								console.log(`File ${path} has been removed`)
-						)
-						.once(
-							"addDir",
-
-							(path) =>
-								console.log(`Directory ${path} has been added`)
-						);
-				});
 			},
 		});
 	}

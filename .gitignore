@@ -71,3 +71,4 @@ userdata/
 erl_crash.dump
 temp
 test
+.nova

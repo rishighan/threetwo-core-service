@@ -23,7 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. 
+SOFTWARE.
  */
 
 /*
@@ -33,24 +33,21 @@ SOFTWARE.
 
 "use strict";
 
+import { refineQuery } from "filename-parser";
 import {
 	Context,
 	Service,
 	ServiceBroker,
-	ServiceSchema,
-	Errors,
+	ServiceSchema
 } from "moleculer";
-
-import BullMQMixin from "moleculer-bull";
-import { SandboxedJob } from "moleculer-bull";
+import BullMQMixin, { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { extractFromArchive } from "../utils/uncompression.utils";
-import { refineQuery } from "filename-parser";
-import { io } from "./api.service";
-import { USERDATA_DIRECTORY } from "../constants/directories";
-import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
+
 const REDIS_URI = process.env.REDIS_URI || `redis://localhost:6379`;
+const EventEmitter = require("events");
+EventEmitter.defaultMaxListeners = 20;
 
 console.log(`REDIS -> ${REDIS_URI}`);
 export default class QueueService extends Service {
@@ -59,9 +56,13 @@ export default class QueueService extends Service {
 		schema: ServiceSchema<{}> = { name: "importqueue" }
 	) {
 		super(broker);
+		console.log(this.io);
 		this.parseServiceSchema({
 			name: "importqueue",
-			mixins: [BullMQMixin(REDIS_URI), DbMixin("comics", Comic)],
+			mixins: [
+				BullMQMixin(REDIS_URI),
+				DbMixin("comics", Comic),
+			],
 			settings: {},
 			hooks: {},
 			queues: {
@@ -75,7 +76,7 @@ export default class QueueService extends Service {
 						const result = await extractFromArchive(
 							job.data.fileObject.filePath
 						);
-						
+
 						const {
 							name,
 							filePath,
@@ -177,45 +178,42 @@ export default class QueueService extends Service {
 				unarchiveComicBook: {
 					rest: "POST /unarchiveComicBook",
 					params: {},
-					handler: async (ctx: Context<{}>) => {},
+					handler: async (ctx: Context<{}>) => { },
 				},
 			},
 			methods: {},
 			async started(): Promise<any> {
-				io.on("connection", async (client) => {
-					await this.getQueue("process.import").on(
-						"failed",
-						async (job, error) => {
-							console.error(
-								`An error occured in 'process.import' queue on job id '${job.id}': ${error.message}`
-							);
-							console.error(job.data);
-						}
-					);
-					await this.getQueue("process.import").on(
-						"completed",
-						async (job, res) => {
-							client.emit("action", {
-								type: "LS_COVER_EXTRACTED",
-								result: res,
-							});
-							console.info(
-								`Job with the id '${job.id}' completed.`
-							);
-						}
-					);
-					await this.getQueue("process.import").on(
-						"stalled",
-						async (job) => {
-							console.warn(
-								`The job with the id '${job.id} got stalled!`
-							);
-							console.log(`${JSON.stringify(job, null, 2)}`);
-							console.log(`is stalled.`);
-						}
-					);
+				await this.getQueue("process.import").on(
+					"failed",
+					async (job, error) => {
+						console.error(
+							`An error occured in 'process.import' queue on job id '${job.id}': ${error.message}`
+						);
+						console.error(job.data);
+					}
+				);
+				await this.getQueue("process.import").on(
+					"completed",
+					async (job, res) => {
+						await this.broker.call('socket.broadcast', {
+							namespace: '/', //optional
+							event: "action",
+							args: [{ type: "LS_COVER_EXTRACTED", result: res }], //optional
 
-				});
+						})
+						console.info(`Job with the id '${job.id}' completed.`);
+					}
+				);
+				await this.getQueue("process.import").on(
+					"stalled",
+					async (job) => {
+						console.warn(
+							`The job with the id '${job.id} got stalled!`
+						);
+						console.log(`${JSON.stringify(job, null, 2)}`);
+						console.log(`is stalled.`);
+					}
+				);
 			},
 		});
 	}
