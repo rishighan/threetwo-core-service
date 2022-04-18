@@ -4,8 +4,11 @@ import {
 	ServiceBroker,
 	ServiceSchema
 } from "moleculer";
+import SocketIOService from "moleculer-io";
 const redisAdapter = require("socket.io-redis");
-const SocketIOService = require("moleculer-io");
+const redisURL = new URL(process.env.REDIS_URI);
+console.log(redisURL.hostname);
+
 
 export default class SocketService extends Service {
 	// @ts-ignore
@@ -60,7 +63,7 @@ export default class SocketService extends Service {
 								},
 							},
 							options: {
-								adapter: redisAdapter({ host: process.env.REDIS_URI, port: 6379 }),
+								adapter: redisAdapter({ host: redisURL.hostname, port: 6379 })
 							},
 						},
 					},

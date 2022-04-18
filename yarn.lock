@@ -3595,7 +3595,7 @@
     "has" "^1.0.3"
     "side-channel" "^1.0.4"
 
-"ioredis@^4.0.0", "ioredis@^4.28.1", "ioredis@^4.28.5":
+"ioredis@^4.0.0", "ioredis@^4.28.5":
   "integrity" "sha512-3GYo0GJtLqgNXj4YhrisLaNNvWSNwSS2wS4OELGfGxH8I69+XfNdnmV1AyN+ZqMh0i7eX+SWjrwFKDBDgfBC1A=="
   "resolved" "https://registry.npmjs.org/ioredis/-/ioredis-4.28.5.tgz"
   "version" "4.28.5"
@@ -6522,7 +6522,7 @@
     "socket.io-adapter" "~2.2.0"
     "uid2" "0.0.3"
 
-"socket.io@^4.4.0", "socket.io@^4.4.1":
+"socket.io@^4.4.1":
   "integrity" "sha512-s04vrBswdQBUmuWJuuNTmXUVJhP0cVky8bBDhdkf8y0Ptsu7fKU2LuLbts9g+pdmAdyMMn8F/9Mf1/wbtUN0fg=="
   "resolved" "https://registry.npmjs.org/socket.io/-/socket.io-4.4.1.tgz"
   "version" "4.4.1"
