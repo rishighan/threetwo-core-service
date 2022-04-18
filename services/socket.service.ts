@@ -68,7 +68,7 @@ export default class SocketService extends Service {
 					actions: {},
 					methods: {},
 					async started() {
-						this.io.on("connection", (data) => console.log("Connected to socket.io server."))
+						this.io.on("connection", (data) => console.log("socket.io server initialized."))
 					}
 				},
 				schema

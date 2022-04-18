@@ -32,23 +32,22 @@ SOFTWARE.
  */
 
 import {
-	createWriteStream,
-	createReadStream,
-	promises as fs,
-	readFileSync,
-	existsSync,
+	createReadStream, createWriteStream,
+
+
+
+	existsSync
 } from "fs";
+import { isEmpty, isNil, isUndefined, remove } from "lodash";
+import * as p7zip from "p7zip-threetwo";
+import path from "path";
+import sharp from "sharp";
+import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
+import { USERDATA_DIRECTORY } from "../constants/directories";
+import { checkFileExists, getFileConstituents } from "../utils/file.utils";
+import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
 const Unrar = require("unrar");
-import path, { parse } from "path";
-import * as p7zip from "p7zip-threetwo";
-import { IExtractedComicBookCoverFile } from "threetwo-ui-typings";
-import sharp from "sharp";
-import { getFileConstituents, checkFileExists } from "../utils/file.utils";
-import { flatten, isEmpty, isNil, isUndefined, remove } from "lodash";
-import { convertXMLToJSON } from "./xml.utils";
-import { USERDATA_DIRECTORY, COMICS_DIRECTORY } from "../constants/directories";
-import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
 interface RarFile {
 	name: string;
 	type: string;
@@ -63,6 +62,7 @@ interface RarFile {
 }
 
 const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/opt/homebrew/bin/unrar";
+
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
