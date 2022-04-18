@@ -195,9 +195,23 @@ export default class ImportService extends Service {
 								comicMetadata.sourcedMetadata.comicvine.volumeInformation =
 									volumeDetails.results;
 							}
-							return await Comic.create(ctx.params);
+							Comic.create(ctx.params, (error, data) => {
+								if (data) {
+									return data;
+								} else if (error) {
+									console.log("data", data);
+									console.log("error", error);
+									throw new Errors.MoleculerError(
+										"Failed to import comic book",
+										500
+									);
+								}
+							});
 						} catch (error) {
-							console.log(error);
+							throw new Errors.MoleculerError(
+								"Import failed.",
+								500
+							);
 						}
 					},
 				},
