@@ -60,7 +60,7 @@ export default class SocketService extends Service {
 								},
 							},
 							options: {
-								adapter: redisAdapter({ host: 'localhost', port: 6379 }),
+								adapter: redisAdapter({ host: process.env.REDIS_URI, port: 6379 }),
 							},
 						},
 					},
