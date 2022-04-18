@@ -23,7 +23,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. 
+SOFTWARE.
  */
 
 /*
@@ -101,7 +101,7 @@ export default class ImportService extends Service {
 						klaw(path.resolve(COMICS_DIRECTORY))
 							// 1.1 Filter on .cb* extensions
 							.pipe(
-								through2.obj(function (item, enc, next) {
+								through2.obj(function(item, enc, next) {
 									let fileExtension = path.extname(item.path);
 									if (
 										[".cbz", ".cbr", ".cb7"].includes(
@@ -123,18 +123,20 @@ export default class ImportService extends Service {
 								let comicExists = await Comic.exists({
 									"rawFileDetails.name": `${path.basename(
 										item.path,
-										path.extname(item.path),
-										
+										path.extname(item.path)
 									)}`,
 								});
 								if (!comicExists) {
 									// 2. Send the extraction job to the queue
-									await broker.call("importqueue.processImport", {
-										fileObject: {
-											filePath: item.path,
-											fileSize: item.stats.size,
-										},
-									});
+									await broker.call(
+										"importqueue.processImport",
+										{
+											fileObject: {
+												filePath: item.path,
+												fileSize: item.stats.size,
+											},
+										}
+									);
 								} else {
 									console.log(
 										"Comic already exists in the library."
@@ -169,45 +171,34 @@ export default class ImportService extends Service {
 							};
 						}>
 					) {
-						let volumeDetails;
-						const comicMetadata = ctx.params;
-						console.log(comicMetadata);
-						// When an issue is added from the search CV feature
-						if (
-							comicMetadata.sourcedMetadata.comicvine &&
-							!isNil(
-								comicMetadata.sourcedMetadata.comicvine.volume
-							)
-						) {
-							volumeDetails = await this.broker.call(
-								"comicvine.getVolumes",
-								{
-									volumeURI:
-										comicMetadata.sourcedMetadata.comicvine
-											.volume.api_detail_url,
-								}
-							);
-							comicMetadata.sourcedMetadata.comicvine.volumeInformation =
-								volumeDetails.results;
-						}
-						return await Comic.create(
-							ctx.params,
-							(error, data) => {
-								if (data) {
-									return data;
-								} else if (error) {
-									console.log("data", data);
-									console.log("error", error);
-									throw new Errors.MoleculerError(
-										"Failed to import comic book",
-										400,
-										"IMS_FAILED_COMIC_BOOK_IMPORT",
-										error
-									);
-								}
+						try {
+							let volumeDetails;
+							const comicMetadata = ctx.params;
+							console.log(JSON.stringify(comicMetadata, null, 4));
+							// When an issue is added from the search CV feature
+							if (
+								comicMetadata.sourcedMetadata.comicvine &&
+								!isNil(
+									comicMetadata.sourcedMetadata.comicvine
+										.volume
+								)
+							) {
+								volumeDetails = await this.broker.call(
+									"comicvine.getVolumes",
+									{
+										volumeURI:
+											comicMetadata.sourcedMetadata
+												.comicvine.volume
+												.api_detail_url,
+									}
+								);
+								comicMetadata.sourcedMetadata.comicvine.volumeInformation =
+									volumeDetails.results;
 							}
-						);
-						
+							return await Comic.create(ctx.params);
+						} catch (error) {
+							console.log(error);
+						}
 					},
 				},
 				applyComicVineMetadata: {
@@ -487,9 +478,9 @@ export default class ImportService extends Service {
 										{
 											$match: {
 												"sourcedMetadata.comicvine.volumeInformation":
-													{
-														$gt: {},
-													},
+												{
+													$gt: {},
+												},
 											},
 										},
 										{
@@ -552,16 +543,29 @@ export default class ImportService extends Service {
 							.drop()
 							.then(async (data) => {
 								console.info(data);
-								const coversFolderDeleteResult = fsExtra.emptyDirSync(
-									path.resolve(`${USERDATA_DIRECTORY}/covers`)
-								);
-								const  expandedFolderDeleteResult = fsExtra.emptyDirSync(
-									path.resolve(
-										`${USERDATA_DIRECTORY}/expanded`
-									)
-								);
-								const eSIndicesDeleteResult = await ctx.broker.call("search.deleteElasticSearchIndices", {});
-								return { data, coversFolderDeleteResult, expandedFolderDeleteResult, eSIndicesDeleteResult };
+								const coversFolderDeleteResult =
+									fsExtra.emptyDirSync(
+										path.resolve(
+											`${USERDATA_DIRECTORY}/covers`
+										)
+									);
+								const expandedFolderDeleteResult =
+									fsExtra.emptyDirSync(
+										path.resolve(
+											`${USERDATA_DIRECTORY}/expanded`
+										)
+									);
+								const eSIndicesDeleteResult =
+									await ctx.broker.call(
+										"search.deleteElasticSearchIndices",
+										{}
+									);
+								return {
+									data,
+									coversFolderDeleteResult,
+									expandedFolderDeleteResult,
+									eSIndicesDeleteResult,
+								};
 							})
 							.catch((error) => error);
 					},

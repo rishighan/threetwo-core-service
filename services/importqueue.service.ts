@@ -34,12 +34,7 @@ SOFTWARE.
 "use strict";
 
 import { refineQuery } from "filename-parser";
-import {
-	Context,
-	Service,
-	ServiceBroker,
-	ServiceSchema
-} from "moleculer";
+import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import BullMQMixin, { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
@@ -56,18 +51,14 @@ export default class QueueService extends Service {
 		schema: ServiceSchema<{}> = { name: "importqueue" }
 	) {
 		super(broker);
-		console.log(this.io);
 		this.parseServiceSchema({
 			name: "importqueue",
-			mixins: [
-				BullMQMixin(REDIS_URI),
-				DbMixin("comics", Comic),
-			],
+			mixins: [BullMQMixin(REDIS_URI), DbMixin("comics", Comic)],
 			settings: {},
 			hooks: {},
 			queues: {
 				"process.import": {
-					concurrency: 30,
+					concurrency: 1,
 					async process(job: SandboxedJob) {
 						console.info("New job received!", job.data);
 						console.info(`Processing queue...`);
@@ -130,11 +121,12 @@ export default class QueueService extends Service {
 								},
 							}
 						);
-						return Promise.resolve({
+						console.log("JAMA", dbImportResult);
+						return {
 							dbImportResult,
 							id: job.id,
 							worker: process.pid,
-						});
+						};
 					},
 				},
 			},
@@ -195,12 +187,11 @@ export default class QueueService extends Service {
 				await this.getQueue("process.import").on(
 					"completed",
 					async (job, res) => {
-						await this.broker.call('socket.broadcast', {
-							namespace: '/', //optional
+						await this.broker.call("socket.broadcast", {
+							namespace: "/", //optional
 							event: "action",
 							args: [{ type: "LS_COVER_EXTRACTED", result: res }], //optional
-
-						})
+						});
 						console.info(`Job with the id '${job.id}' completed.`);
 					}
 				);
