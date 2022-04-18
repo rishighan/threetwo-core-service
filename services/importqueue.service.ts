@@ -58,7 +58,7 @@ export default class QueueService extends Service {
 			hooks: {},
 			queues: {
 				"process.import": {
-					concurrency: 1,
+					concurrency: 20,
 					async process(job: SandboxedJob) {
 						console.info("New job received!", job.data);
 						console.info(`Processing queue...`);
@@ -89,24 +89,38 @@ export default class QueueService extends Service {
 
 						// write to mongo
 						console.log("Writing to mongo...");
-						const dbImportResult = await this.broker.call(
-							"library.rawImportToDB",
-							{
-								importStatus: {
-									isImported: true,
-									tagged: false,
-									matchedResult: {
-										score: "0",
-									},
+						await this.broker.call("library.rawImportToDB", {
+							importStatus: {
+								isImported: true,
+								tagged: false,
+								matchedResult: {
+									score: "0",
 								},
-								rawFileDetails: {
-									name,
-									filePath,
-									fileSize: job.data.fileObject.fileSize,
-									extension,
-									containedIn,
-									cover,
-								},
+							},
+							rawFileDetails: {
+								name,
+								filePath,
+								fileSize: job.data.fileObject.fileSize,
+								extension,
+								containedIn,
+								cover,
+							},
+							inferredMetadata: {
+								issue: inferredIssueDetails,
+							},
+							sourcedMetadata: {
+								comicInfo: comicInfoJSON,
+								comicvine: {},
+							},
+							// since we already have at least 1 copy
+							// mark it as not wanted by default
+							acquisition: {
+								wanted: false,
+							},
+						});
+						return {
+							data: {
+								result,
 								inferredMetadata: {
 									issue: inferredIssueDetails,
 								},
@@ -114,16 +128,7 @@ export default class QueueService extends Service {
 									comicInfo: comicInfoJSON,
 									comicvine: {},
 								},
-								// since we already have at least 1 copy
-								// mark it as not wanted by default
-								acquisition: {
-									wanted: false,
-								},
-							}
-						);
-						console.log("JAMA", dbImportResult);
-						return {
-							dbImportResult,
+							},
 							id: job.id,
 							worker: process.pid,
 						};
