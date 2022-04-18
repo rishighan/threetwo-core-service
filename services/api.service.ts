@@ -83,8 +83,6 @@ export default class ApiService extends Service {
 
 			methods: {},
 			started(): any {
-
-
 				// 	Filewatcher
 				const fileWatcher = chokidar.watch(
 					path.resolve("/comics"),
@@ -138,7 +136,7 @@ export default class ApiService extends Service {
 				};
 
 				fileWatcher
-					.once("add", (path, stats) => {
+					.on("add", (path, stats) => {
 						console.log("Watcher detected new files.");
 						console.log(
 							`File ${path} has been added with stats: ${JSON.stringify(
@@ -173,13 +171,13 @@ export default class ApiService extends Service {
 					// 			)}`
 					// 		)
 					// )
-					.once(
+					.on(
 						"unlink",
 
 						(path) =>
 							console.log(`File ${path} has been removed`)
 					)
-					.once(
+					.on(
 						"addDir",
 
 						(path) =>
