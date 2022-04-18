@@ -4,7 +4,7 @@ import {
 	ServiceBroker,
 	ServiceSchema
 } from "moleculer";
-import SocketIOService from "moleculer-io";
+const SocketIOService = require("moleculer-io");
 const redisAdapter = require("socket.io-redis");
 const redisURL = new URL(process.env.REDIS_URI);
 console.log(redisURL.hostname);
