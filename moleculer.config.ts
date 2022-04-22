@@ -42,7 +42,6 @@ const brokerConfig: BrokerOptions = {
 	// Enable/disable logging or use custom logger. More info: https://moleculer.services/docs/0.14/logging.html
 	// Available logger types: "Console", "File", "Pino", "Winston", "Bunyan", "debug", "Log4js", "Datadog"
 	logger: [
-
 		{
 			type: "Console",
 			options: {
@@ -81,11 +80,11 @@ const brokerConfig: BrokerOptions = {
 	// Default log level for built-in console logger. It can be overwritten in logger options above.
 	// Available values: trace, debug, info, warn, error, fatal
 	logLevel: {
-        "TRACING": "trace",
-        "TRANS*": "warn",
-        "GREETER": "debug",
-        "**": "info",
-    },
+		TRACING: "trace",
+		"TRANS*": "warn",
+		GREETER: "debug",
+		"**": "info",
+	},
 
 	// Define transporter.
 	// More info: https://moleculer.services/docs/0.14/networking.html
@@ -205,7 +204,7 @@ const brokerConfig: BrokerOptions = {
 
 	// Enable built-in tracing function. More info: https://moleculer.services/docs/0.14/tracing.html
 	tracing: {
-		enabled: false,
+		enabled: true,
 		// Available built-in exporters: "Console", "Datadog", "Event", "EventLegacy", "Jaeger", "Zipkin"
 		exporter: {
 			type: "Console", // Console exporter is only for development!

@@ -31,13 +31,7 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import {
-	createReadStream, createWriteStream,
-
-
-
-	existsSync
-} from "fs";
+import { createReadStream, createWriteStream, existsSync } from "fs";
 import { isEmpty, isNil, isUndefined, remove } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
@@ -199,7 +193,7 @@ export const extractComicInfoXMLFromZip = async (
 		({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name))
 	);
 
-	// detect comicinfo.xml
+	// detect ComicInfo.xml
 	const comicInfoXMLFileObject = remove(
 		filesFromArchive.files,
 		(file) => path.basename(file.name.toLowerCase()) === "comicinfo.xml"
@@ -304,19 +298,16 @@ export const extractComicInfoXMLFromZip = async (
 export const extractFromArchive = async (filePath: string) => {
 	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`);
 	const { extension } = getFileConstituents(filePath);
+	console.log(
+		`Detected file type is ${extension}, looking for comicinfo.xml...`
+	);
 	switch (extension) {
 		case ".cbz":
 		case ".cb7":
-			console.log(
-				"Detected file type is cbz, looking for comicinfo.xml..."
-			);
 			const cbzResult = await extractComicInfoXMLFromZip(filePath);
 			return Object.assign({}, ...cbzResult);
 
 		case ".cbr":
-			console.log(
-				"Detected file type is cbr, looking for comicinfo.xml..."
-			);
 			const cbrResult = await extractComicInfoXMLFromRar(filePath);
 			return Object.assign({}, ...cbrResult);
 
@@ -327,3 +318,17 @@ export const extractFromArchive = async (filePath: string) => {
 			break;
 	}
 };
+
+export const uncompressEntireArchive = async (filePath: string) => {
+	const { extension } = getFileConstituents(filePath);
+	switch (extension) {
+		case ".cbz":
+		case ".cb7":
+			return await uncompressZipArchive(filePath);
+		case ".cbr":
+			return await uncompressRarArchive(filePath);
+	}
+};
+
+export const uncompressZipArchive = async (filePath: string) => { };
+export const uncompressRarArchive = async (filePath: string) => { };
