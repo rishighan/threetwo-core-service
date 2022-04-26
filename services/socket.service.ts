@@ -1,14 +1,9 @@
 "use strict";
-import {
-	Service,
-	ServiceBroker,
-	ServiceSchema
-} from "moleculer";
+import { Service, ServiceBroker, ServiceSchema } from "moleculer";
 const SocketIOService = require("moleculer-io");
 const redisAdapter = require("socket.io-redis");
 const redisURL = new URL(process.env.REDIS_URI);
 console.log(redisURL.hostname);
-
 
 export default class SocketService extends Service {
 	// @ts-ignore
@@ -56,14 +51,19 @@ export default class SocketService extends Service {
 														{}
 													);
 													break;
-
+												case "LS_SINGLE_IMPORT":
+													console.log(data.data);
+													break;
 											}
-										}
+										},
 									},
 								},
 							},
 							options: {
-								adapter: redisAdapter({ host: redisURL.hostname, port: 6379 })
+								adapter: redisAdapter({
+									host: redisURL.hostname,
+									port: 6379,
+								}),
 							},
 						},
 					},
@@ -71,8 +71,10 @@ export default class SocketService extends Service {
 					actions: {},
 					methods: {},
 					async started() {
-						this.io.on("connection", (data) => console.log("socket.io server initialized."))
-					}
+						this.io.on("connection", (data) =>
+							console.log("socket.io server initialized.")
+						);
+					},
 				},
 				schema
 			)
