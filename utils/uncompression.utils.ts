@@ -38,7 +38,7 @@ import path from "path";
 import sharp from "sharp";
 import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
 import { USERDATA_DIRECTORY } from "../constants/directories";
-import { checkFileExists, getFileConstituents } from "../utils/file.utils";
+import { checkFileExists, getFileConstituents, createDirectory, walkFolder } from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
 const Unrar = require("unrar");
@@ -55,7 +55,7 @@ interface RarFile {
 	compression: string;
 }
 
-const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/opt/homebrew/bin/unrar";
+const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar";
 
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
@@ -71,8 +71,8 @@ export const extractComicInfoXMLFromRar = async (
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-	await fse.ensureDir(targetDirectory, directoryOptions);
-	console.info(`%s was created.`, targetDirectory);
+	await createDirectory(directoryOptions, targetDirectory);
+
 	const archive = new Unrar({
 		path: path.resolve(filePath),
 		bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
@@ -179,8 +179,8 @@ export const extractComicInfoXMLFromZip = async (
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
-	await fse.ensureDir(targetDirectory, directoryOptions);
-	console.info(`%s was created.`, targetDirectory);
+	await createDirectory(directoryOptions, targetDirectory);
+
 	let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
 	const extractionTargets = [];
 
@@ -321,6 +321,7 @@ export const extractFromArchive = async (filePath: string) => {
 
 export const uncompressEntireArchive = async (filePath: string) => {
 	const { extension } = getFileConstituents(filePath);
+	console.log(extension);
 	switch (extension) {
 		case ".cbz":
 		case ".cb7":
@@ -330,5 +331,25 @@ export const uncompressEntireArchive = async (filePath: string) => {
 	}
 };
 
-export const uncompressZipArchive = async (filePath: string) => { };
+export const uncompressZipArchive = async (filePath: string) => {
+	// Create the target directory
+	const directoryOptions = {
+		mode: 0o2775,
+	};
+	const { fileNameWithoutExtension, extension } =
+		getFileConstituents(filePath);
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
+	await createDirectory(directoryOptions, targetDirectory);
+
+	await p7zip.extract(
+		filePath,
+		targetDirectory,
+		[],
+		"",
+		true
+	);
+	return await walkFolder(targetDirectory, [
+		".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".bmp"
+	]);
+};
 export const uncompressRarArchive = async (filePath: string) => { };

@@ -47,6 +47,7 @@ import {
 	walkFolder,
 	getSizeOfDirectory,
 } from "../utils/file.utils";
+import { uncompressEntireArchive } from "../utils/uncompression.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -87,6 +88,13 @@ export default class ImportService extends Service {
 					async handler(ctx: Context<{}>) {
 						return convertXMLToJSON("lagos");
 					},
+				},
+				uncompressFullArchive : {
+					rest: "POST /uncompressFullArchive",
+					params: {},
+					handler: async (ctx: Context<{filePath: string}>) => {
+						return await uncompressEntireArchive(ctx.params.filePath);
+					}
 				},
 				newImport: {
 					rest: "POST /newImport",
@@ -323,7 +331,7 @@ export default class ImportService extends Service {
 					) {
 						return await Comic.paginate(ctx.params.predicate, {
 							...ctx.params.paginationOptions,
-							allowDiskUse: true,
+							// allowDiskUse: true,
 						});
 					},
 				},
@@ -537,7 +545,7 @@ export default class ImportService extends Service {
 										{ $sort: { count: -1 } },
 										{ $limit: 1 },
 									],
-									mostPopulatCharacter: [],
+									// mostPopulatCharacter: [],
 								},
 							},
 						]);

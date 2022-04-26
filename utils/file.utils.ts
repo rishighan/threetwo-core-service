@@ -1,4 +1,5 @@
 const Walk = require("@root/walk");
+const fse = require("fs-extra");
 
 import path from "path";
 import fs from "fs";
@@ -11,6 +12,7 @@ import {
 	IFolderData,
 } from "threetwo-ui-typings";
 import { includes, remove, indexOf } from "lodash";
+import { Errors } from "moleculer";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 
@@ -70,11 +72,11 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 // returns a promise which resolves true if file exists:
 export const checkFileExists = (filepath) => {
 	return new Promise((resolve, reject) => {
-	  fs.access(filepath, fs.constants.F_OK, error => {
-		resolve(!error);
-	  });
+		fs.access(filepath, fs.constants.F_OK, error => {
+			resolve(!error);
+		});
 	});
-  }
+}
 
 export const getSizeOfDirectory = async (
 	directoryPath: string,
@@ -119,6 +121,15 @@ export const getFileConstituents = (filePath: string) => {
 		fileNameWithExtension,
 	};
 };
+
+export const createDirectory = async (options: any, directoryPath: string) => {
+	try {
+		await fse.ensureDir(directoryPath, options);
+		console.info(`Directory [ %s ] was created.`, directoryPath);
+	} catch (error) {
+		throw new Errors.MoleculerError("Failed to create directory", 500, "FileOpsError", error);
+	}
+}
 
 const filterOutDotFiles = (entities) =>
 	entities.filter((ent) => !ent.name.startsWith("."));
