@@ -32,15 +32,21 @@ SOFTWARE.
  */
 
 import { createReadStream, createWriteStream, existsSync } from "fs";
-import { isEmpty, isNil, isUndefined, remove } from "lodash";
+import { isEmpty, isNil, isUndefined, remove, each } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
 import sharp from "sharp";
 import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
 import { USERDATA_DIRECTORY } from "../constants/directories";
-import { checkFileExists, getFileConstituents, createDirectory, walkFolder } from "../utils/file.utils";
+import {
+	checkFileExists,
+	getFileConstituents,
+	createDirectory,
+	walkFolder,
+} from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
+import glob from "glob";
 const Unrar = require("unrar");
 interface RarFile {
 	name: string;
@@ -215,7 +221,7 @@ export const extractComicInfoXMLFromZip = async (
 		filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 		extractionTargets.push(filesToWriteToDisk.comicInfoXML);
 	}
-
+	// Extract the files.
 	await p7zip.extract(
 		filePath,
 		targetDirectory,
@@ -341,15 +347,27 @@ export const uncompressZipArchive = async (filePath: string) => {
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 
-	await p7zip.extract(
-		filePath,
-		targetDirectory,
-		[],
-		"",
-		true
-	);
-	return await walkFolder(targetDirectory, [
-		".jpg", ".jpeg", ".JPG", ".JPEG", ".png", ".bmp"
+	await p7zip.extract(filePath, targetDirectory, [], "", false);
+	const files = await walkFolder(targetDirectory, [
+		".jpg",
+		".jpeg",
+		".JPG",
+		".JPEG",
+		".png",
+		".bmp",
 	]);
+	each(files, (file) => {
+		const sharpResizeInstance = sharp(file.filePath).resize(275);
+		const resizedStream = createReadStream(
+			`${targetDirectory}/${file.name}${file.extension}`
+		);
+		console.log(`${targetDirectory}/${file.name}_275${file.extension}`);
+		resizedStream
+			.pipe(sharpResizeInstance)
+			.toFile(`${targetDirectory}/${file.name}_275${file.extension}`)
+			.then((data) => console.log(data));
+	});
+
+	return files;
 };
 export const uncompressRarArchive = async (filePath: string) => { };
