@@ -32,7 +32,7 @@ SOFTWARE.
  */
 
 import { createReadStream, createWriteStream, existsSync } from "fs";
-import { isEmpty, isNil, isUndefined, remove, each } from "lodash";
+import { isEmpty, isNil, isUndefined, remove, each, map } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
 import sharp from "sharp";
@@ -344,10 +344,18 @@ export const uncompressZipArchive = async (filePath: string) => {
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
+	const resizedImagesDirectory = `${USERDATA_DIRECTORY}/expanded/resized/${fileNameWithoutExtension}`
 	await createDirectory(directoryOptions, targetDirectory);
-
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
-	const files = await walkFolder(targetDirectory, [
+	const foo = await resizeImageDirectory(targetDirectory, resizedImagesDirectory)
+	console.log(foo);
+	return [];
+
+};
+export const uncompressRarArchive = async (filePath: string) => { };
+
+export const resizeImageDirectory = async (directoryPath: string, resizedImagesDirectory: string) => {
+	const files = await walkFolder(directoryPath, [
 		".jpg",
 		".jpeg",
 		".JPG",
@@ -355,18 +363,26 @@ export const uncompressZipArchive = async (filePath: string) => {
 		".png",
 		".bmp",
 	]);
-	each(files, (file) => {
-		const sharpResizeInstance = sharp(file.filePath).resize(275);
-		const resizedStream = createReadStream(
-			`${targetDirectory}/${file.name}${file.extension}`
-		);
-		console.log(`${targetDirectory}/${file.name}_275${file.extension}`);
-		resizedStream
-			.pipe(sharpResizeInstance)
-			.toFile(`${targetDirectory}/${file.name}_275${file.extension}`)
-			.then((data) => console.log(data));
-	});
+	await createDirectory({}, resizedImagesDirectory);
+	const resizePromises = new Promise((resolve, reject) => {
+		return map(files, (file) => {
+			const sharpResizeInstance = sharp().resize(275);
+			const resizedStream = createReadStream(
+				`${directoryPath}/${file.name}${file.extension}`
+			);
+			if (fse.existsSync(`${directoryPath}/${file.name}${file.extension}`)) {
+				return resizedStream
+					.pipe(sharpResizeInstance)
+					.toFile(`${resizedImagesDirectory}/${file.name}_275px${file.extension}`)
+					.then((data) => {
+						console.log(`Resized image ${JSON.stringify(data, null, 4)}`);
+						return `${resizedImagesDirectory}/${file.name}_275px${file.extension}`;
+					});
+			}
+		});
+		
 
-	return files;
-};
-export const uncompressRarArchive = async (filePath: string) => { };
+	});
+	return Promise.all([resizePromises]);
+
+}
