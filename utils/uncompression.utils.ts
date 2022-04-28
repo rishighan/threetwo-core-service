@@ -46,7 +46,6 @@ import {
 } from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
-import glob from "glob";
 const Unrar = require("unrar");
 interface RarFile {
 	name: string;
