@@ -344,17 +344,18 @@ export const uncompressZipArchive = async (filePath: string) => {
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
-	const resizedImagesDirectory = `${USERDATA_DIRECTORY}/expanded/resized/${fileNameWithoutExtension}`
+	const resizedImagesDirectory = `${USERDATA_DIRECTORY}/expanded/resized/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
-	const foo = await resizeImageDirectory(targetDirectory, resizedImagesDirectory)
-	console.log(foo);
-	return [];
 
+	return await resizeImageDirectory(targetDirectory, resizedImagesDirectory);
 };
 export const uncompressRarArchive = async (filePath: string) => { };
 
-export const resizeImageDirectory = async (directoryPath: string, resizedImagesDirectory: string) => {
+export const resizeImageDirectory = async (
+	directoryPath: string,
+	resizedImagesDirectory: string
+) => {
 	const files = await walkFolder(directoryPath, [
 		".jpg",
 		".jpeg",
@@ -364,25 +365,35 @@ export const resizeImageDirectory = async (directoryPath: string, resizedImagesD
 		".bmp",
 	]);
 	await createDirectory({}, resizedImagesDirectory);
-	const resizePromises = new Promise((resolve, reject) => {
-		return map(files, (file) => {
-			const sharpResizeInstance = sharp().resize(275);
-			const resizedStream = createReadStream(
-				`${directoryPath}/${file.name}${file.extension}`
-			);
-			if (fse.existsSync(`${directoryPath}/${file.name}${file.extension}`)) {
-				return resizedStream
-					.pipe(sharpResizeInstance)
-					.toFile(`${resizedImagesDirectory}/${file.name}_275px${file.extension}`)
-					.then((data) => {
-						console.log(`Resized image ${JSON.stringify(data, null, 4)}`);
-						return `${resizedImagesDirectory}/${file.name}_275px${file.extension}`;
-					});
-			}
-		});
-		
-
+	const resizePromises = [];
+	map(files, (file) => {
+		resizePromises.push(
+			new Promise((resolve, reject) => {
+				const sharpResizeInstance = sharp().resize(275);
+				const resizedStream = createReadStream(
+					`${directoryPath}/${file.name}${file.extension}`
+				);
+				if (
+					fse.existsSync(
+						`${directoryPath}/${file.name}${file.extension}`
+					)
+				) {
+					resizedStream
+						.pipe(sharpResizeInstance)
+						.toFile(
+							`${resizedImagesDirectory}/${file.name}_275px${file.extension}`
+						)
+						.then((data) => {
+							console.log(
+								`Resized image ${JSON.stringify(data, null, 4)}`
+							);
+							resolve(
+								`${resizedImagesDirectory}/${file.name}_275px${file.extension}`
+							);
+						});
+				}
+			})
+		);
 	});
-	return Promise.all([resizePromises]);
-
-}
+	return await Promise.all(resizePromises);
+};
