@@ -344,18 +344,14 @@ export const uncompressZipArchive = async (filePath: string) => {
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
-	const resizedImagesDirectory = `${USERDATA_DIRECTORY}/expanded/resized/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
 
-	return await resizeImageDirectory(targetDirectory, resizedImagesDirectory);
+	return await resizeImageDirectory(targetDirectory);
 };
 export const uncompressRarArchive = async (filePath: string) => { };
 
-export const resizeImageDirectory = async (
-	directoryPath: string,
-	resizedImagesDirectory: string
-) => {
+export const resizeImageDirectory = async (directoryPath: string) => {
 	const files = await walkFolder(directoryPath, [
 		".jpg",
 		".jpeg",
@@ -364,7 +360,6 @@ export const resizeImageDirectory = async (
 		".png",
 		".bmp",
 	]);
-	await createDirectory({}, resizedImagesDirectory);
 	const resizePromises = [];
 	map(files, (file) => {
 		resizePromises.push(
@@ -381,19 +376,23 @@ export const resizeImageDirectory = async (
 					resizedStream
 						.pipe(sharpResizeInstance)
 						.toFile(
-							`${resizedImagesDirectory}/${file.name}_275px${file.extension}`
+							`${directoryPath}/${file.name}_275px${file.extension}`
 						)
 						.then((data) => {
 							console.log(
 								`Resized image ${JSON.stringify(data, null, 4)}`
 							);
+							fse.unlink(
+								`${directoryPath}/${file.name}${file.extension}`
+							);
 							resolve(
-								`${resizedImagesDirectory}/${file.name}_275px${file.extension}`
+								`${directoryPath}/${file.name}_275px${file.extension}`
 							);
 						});
 				}
 			})
 		);
 	});
+
 	return await Promise.all(resizePromises);
 };

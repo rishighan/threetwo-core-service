@@ -3,7 +3,7 @@ import { ISharpResizedImageStats } from "threetwo-ui-typings";
 const imghash = require("imghash");
 const leven = require("leven");
 import { isNull, reject } from "lodash";
-import fs from "fs";
+import Jimp from "jimp";
 
 export const extractMetadataFromImage = async (
 	imageFilePath: string
@@ -53,56 +53,33 @@ export const getColorHistogramData = async (
 	inputFilePath: string | Buffer,
 	isValueHistogram: Boolean
 ) => {
-	const { data, info } = await sharp(inputFilePath)
-		// output the raw pixels
-		.raw()
-		.toBuffer({ resolveWithObject: true });
-	const src = new Uint32Array(data.buffer);
-	// const src = new Uint8ClampedArray(data.buffer);
-	console.log(src);
+	return new Promise(async (resolve, reject) => {
+		sharp(inputFilePath)
+			.toBuffer()
+			.then((new_image) => {
+				let index = 0;
+				let rgb_values = { r: [], g: [], b: [] };
+				while (index < new_image.length) {
 
-	let histBrightness = new Array(256).fill(0);
-	let histR = new Array(256).fill(0);
-	let histG = new Array(256).fill(0);
-	let histB = new Array(256).fill(0);
+					let point = {
+						red: new_image[index] & 0xFF,
+						green: (new_image[index + 1] >> 8) & 0xFF,
+						blue: (new_image[index + 2] >> 16) & 0xFF,
+					};
 
-	for (let i = 0; i < src.length; i++) {
-		let r = src[i] & 0xff;
-		let g = (src[i] >> 8) & 0xff;
-		let b = (src[i] >> 16) & 0xff;
-		histBrightness[r]++;
-		histBrightness[g]++;
-		histBrightness[b]++;
-		histR[r]++;
-		histG[g]++;
-		histB[b]++;
-	}
+					rgb_values.r.push(point.red);
+					rgb_values.g.push(point.green);
+					rgb_values.b.push(point.blue);
 
-	let maxBrightness = 0;
-	if (isValueHistogram) {
-		for (let i = 1; i < 256; i++) {
-			if (maxBrightness < histBrightness[i]) {
-				maxBrightness = histBrightness[i];
-			}
-		}
-	} else {
-		for (let i = 0; i < 256; i++) {
-			if (maxBrightness < histR[i]) {
-				maxBrightness = histR[i];
-			} else if (maxBrightness < histG[i]) {
-				maxBrightness = histG[i];
-			} else if (maxBrightness < histB[i]) {
-				maxBrightness = histB[i];
-			}
-		}
-	}
-
-	return {
-		r: histR,
-		g: histG,
-		b: histB,
-		maxBrightness,
-	};
+					index = index + 3;
+				}
+				console.log(rgb_values);
+				resolve(rgb_values);
+			})
+			.catch((e) => {
+				reject(e);
+			});
+	});
 };
 
 export const calculateLevenshteinDistance = async (

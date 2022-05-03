@@ -8,7 +8,11 @@ import {
 	Errors,
 } from "moleculer";
 import path from "path";
-import { analyze, getColorHistogramData, resizeImage } from "../utils/imagetransformation.utils";
+import {
+	analyze,
+	getColorHistogramData,
+	resizeImage,
+} from "../utils/imagetransformation.utils";
 export default class ImageTransformation extends Service {
 	// @ts-ignore
 	public constructor(
@@ -62,15 +66,23 @@ export default class ImageTransformation extends Service {
 								const url = new URL(ctx.params.imageFilePath);
 								const pathName = url.pathname;
 								const decodedImageFileURI = decodeURI(pathName);
-								const finalImagePath = path.resolve("." + decodedImageFileURI);
-								
-								const analyzedData = await analyze(finalImagePath);
-								const colorHistogramData = await getColorHistogramData(finalImagePath, false);
+								const finalImagePath = path.resolve(
+									"." + decodedImageFileURI
+								);
+
+								const analyzedData = await analyze(
+									finalImagePath
+								);
+								const colorHistogramData =
+									await getColorHistogramData(
+										finalImagePath,
+										false
+									);
 
 								return {
 									analyzedData,
 									colorHistogramData,
-								}
+								};
 							},
 						},
 					},
