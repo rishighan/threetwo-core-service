@@ -4,6 +4,7 @@ const imghash = require("imghash");
 const leven = require("leven");
 import { isNull, reject } from "lodash";
 import Jimp from "jimp";
+const { Image } = require("image-js");
 
 export const extractMetadataFromImage = async (
 	imageFilePath: string
@@ -54,32 +55,17 @@ export const getColorHistogramData = async (
 	isValueHistogram: Boolean
 ) => {
 	return new Promise(async (resolve, reject) => {
-		sharp(inputFilePath)
-			.toBuffer()
-			.then((new_image) => {
-				let index = 0;
-				let rgb_values = { r: [], g: [], b: [] };
-				while (index < new_image.length) {
+		let image = await Image.load(inputFilePath);
+		console.log(image.getHistograms());
+		const histograms = image.getHistograms();
+		let rgb_values = {
+			r: histograms[0],
+			g: histograms[1],
+			b: histograms[2],
+		};
 
-					let point = {
-						red: new_image[index] & 0xFF,
-						green: (new_image[index + 1] >> 8) & 0xFF,
-						blue: (new_image[index + 2] >> 16) & 0xFF,
-					};
-
-					rgb_values.r.push(point.red);
-					rgb_values.g.push(point.green);
-					rgb_values.b.push(point.blue);
-
-					index = index + 3;
-				}
-				console.log(rgb_values);
-				resolve(rgb_values);
-			})
-			.catch((e) => {
-				reject(e);
-			});
-	});
+		resolve(rgb_values);
+	}).catch((err) => reject(err));
 };
 
 export const calculateLevenshteinDistance = async (
