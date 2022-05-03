@@ -3,7 +3,6 @@ import { ISharpResizedImageStats } from "threetwo-ui-typings";
 const imghash = require("imghash");
 const leven = require("leven");
 import { isNull, reject } from "lodash";
-import Jimp from "jimp";
 const { Image } = require("image-js");
 
 export const extractMetadataFromImage = async (
