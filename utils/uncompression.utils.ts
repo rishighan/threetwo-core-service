@@ -372,27 +372,22 @@ export const uncompressRarArchive = async (filePath: string) => {
 	});
 
 	remove(filesInArchive, ({ type }) => type === "Directory");
-	const extractionPromises = [];
+	let extractionPromises = [];
 	// iterate over the files
-	each(filesInArchive, (file) => {
-		extractionPromises.push(
-			new Promise((resolve, reject) => {
-				const sharpStream = sharp().resize(275);
-				const coverExtractionStream = archive.stream(file.name);
-				const resizeStream = coverExtractionStream.pipe(sharpStream);
-				resizeStream.toFile(
-					`${targetDirectory}/${path.basename(file.name)}`,
-					(err, info) => {
-						resolve(
-							`${targetDirectory}/${path.basename(file.name)}`
-						);
-					}
-				);
-			})
-		);
-	});
 
-	return Promise.all(extractionPromises);
+	each(filesInArchive, (file) => {
+		extractionPromises.push(new Promise((resolve, reject) => {
+			const fileExtractionStream = archive.stream(file.name);
+			const fileWriteStream = createWriteStream(
+				`${targetDirectory}/${path.basename(file.name)}`)
+			fileExtractionStream.pipe(fileWriteStream);
+			fileWriteStream.on("finish", async () => {
+				resolve(`${targetDirectory}/${path.basename(file.name)}`);
+			});
+
+		}));
+	})
+ return Promise.all(extractionPromises);
 };
 
 export const resizeImageDirectory = async (directoryPath: string) => {
