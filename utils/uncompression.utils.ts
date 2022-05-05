@@ -302,6 +302,7 @@ export const extractComicInfoXMLFromZip = async (
 
 export const extractFromArchive = async (filePath: string) => {
 	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`);
+	console.info(`p7zip is located at: ${process.env.SEVENZ_BINARY_PATH}`);
 	const { extension } = getFileConstituents(filePath);
 	console.log(
 		`Detected file type is ${extension}, looking for comicinfo.xml...`
@@ -349,7 +350,50 @@ export const uncompressZipArchive = async (filePath: string) => {
 
 	return await resizeImageDirectory(targetDirectory);
 };
-export const uncompressRarArchive = async (filePath: string) => { };
+
+export const uncompressRarArchive = async (filePath: string) => {
+	// Create the target directory
+	const directoryOptions = {
+		mode: 0o2775,
+	};
+	const { fileNameWithoutExtension, extension } =
+		getFileConstituents(filePath);
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
+	await createDirectory(directoryOptions, targetDirectory);
+
+	const archive = new Unrar({
+		path: path.resolve(filePath),
+		bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
+	});
+	const filesInArchive: [RarFile] = await new Promise((resolve, reject) => {
+		return archive.list((err, entries) => {
+			resolve(entries);
+		});
+	});
+
+	remove(filesInArchive, ({ type }) => type === "Directory");
+	const extractionPromises = [];
+	// iterate over the files
+	each(filesInArchive, (file) => {
+		extractionPromises.push(
+			new Promise((resolve, reject) => {
+				const sharpStream = sharp().resize(275);
+				const coverExtractionStream = archive.stream(file.name);
+				const resizeStream = coverExtractionStream.pipe(sharpStream);
+				resizeStream.toFile(
+					`${targetDirectory}/${path.basename(file.name)}`,
+					(err, info) => {
+						resolve(
+							`${targetDirectory}/${path.basename(file.name)}`
+						);
+					}
+				);
+			})
+		);
+	});
+
+	return Promise.all(extractionPromises);
+};
 
 export const resizeImageDirectory = async (directoryPath: string) => {
 	const files = await walkFolder(directoryPath, [
