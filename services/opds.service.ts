@@ -63,7 +63,7 @@ export default class OpdsService extends Service {
 													ext
 												);
 												const href = encodeURI(
-													`/api/file/${file}`
+													`/opds/file/${file}`
 												);
 												const type =
 													lookup(ext) ||
