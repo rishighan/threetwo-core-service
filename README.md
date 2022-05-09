@@ -10,8 +10,8 @@ This [moleculer-based](https://github.com/moleculerjs/moleculer-web) microservic
 
 ## Local Development
 
-1. You need `calibre` in your local path.
-   On `macOS` you can `brew install calibre` and make sure that `ebook-meta` is present on the path
+1. ~~You need `calibre` in your local path.
+   On `macOS` you can `brew install calibre` and make sure that `ebook-meta` is present on the path~~ Calibre is no longer required as a dependency. Ignore this step.
 2. You need `mongo` for the data store. on `macOS` you can use [these instructions](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/) to install it
 3. Clone this repo
 4. Run `npm i`
