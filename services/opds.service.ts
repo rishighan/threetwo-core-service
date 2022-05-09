@@ -32,7 +32,7 @@ export default class OpdsService extends Service {
 					hooks: {},
 					actions: {
 						opds: {
-							rest: "POST /opds",
+							rest: "POST /serve",
 							handler: async (ctx) => {
 								return buildAsync(
 									initMain({
@@ -63,7 +63,7 @@ export default class OpdsService extends Service {
 													ext
 												);
 												const href = encodeURI(
-													`/opds/file/${file}`
+													`/comics/${file}`
 												);
 												const type =
 													lookup(ext) ||
