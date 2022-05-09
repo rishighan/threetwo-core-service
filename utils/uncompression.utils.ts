@@ -144,7 +144,7 @@ export const extractComicInfoXMLFromRar = async (
 
 	const coverFilePromise = new Promise((resolve, reject) => {
 		const coverFile = path.basename(files[0].name);
-		const sharpStream = sharp().resize(275);
+		const sharpStream = sharp().resize(275).toFormat("png");
 		const coverExtractionStream = archive.stream(files[0].name);
 		const resizeStream = coverExtractionStream.pipe(sharpStream);
 
@@ -264,7 +264,7 @@ export const extractComicInfoXMLFromZip = async (
 	});
 	// Write the cover to disk
 	const coverFilePromise = new Promise((resolve, reject) => {
-		const sharpStream = sharp().resize(275);
+		const sharpStream = sharp().resize(275).toFormat("png");
 		const coverStream = createReadStream(
 			`${targetDirectory}/${path.basename(filesToWriteToDisk.coverFile)}`
 		);
@@ -403,7 +403,7 @@ export const resizeImageDirectory = async (directoryPath: string) => {
 	map(files, (file) => {
 		resizePromises.push(
 			new Promise((resolve, reject) => {
-				const sharpResizeInstance = sharp().resize(275);
+				const sharpResizeInstance = sharp().resize(275).toFormat("png");
 				const resizedStream = createReadStream(
 					`${directoryPath}/${file.name}${file.extension}`
 				);

@@ -76,7 +76,7 @@
     "node-calibre": "^2.1.1",
     "node-unrar-js": "^1.0.5",
     "p7zip-threetwo": "^1.0.4",
-    "sharp": "^0.30.3",
+    "sharp": "^0.30.4",
     "socket.io-redis": "^6.1.1",
     "threetwo-ui-typings": "^1.0.14",
     "through2": "^4.0.2",
