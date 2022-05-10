@@ -28,9 +28,7 @@ export default class SocketService extends Service {
 										},
 										action: async (data, ack) => {
 											// write your handler function here.
-											console.log(
-												JSON.stringify(data, null, 2)
-											);
+
 
 											switch (data.type) {
 												case "LS_IMPORT":
@@ -52,7 +50,9 @@ export default class SocketService extends Service {
 													);
 													break;
 												case "LS_SINGLE_IMPORT":
-													console.log(data.data);
+													console.info("AirDC++ finished a download -> ")
+													
+													await this.broker.call("library.importDownloadedFileToLibrary", data.data, {});
 													break;
 											}
 										},

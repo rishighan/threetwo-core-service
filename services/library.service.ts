@@ -47,7 +47,7 @@ import {
 	walkFolder,
 	getSizeOfDirectory,
 } from "../utils/file.utils";
-import { uncompressEntireArchive } from "../utils/uncompression.utils";
+import { extractFromArchive, uncompressEntireArchive } from "../utils/uncompression.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -89,10 +89,10 @@ export default class ImportService extends Service {
 						return convertXMLToJSON("lagos");
 					},
 				},
-				uncompressFullArchive : {
+				uncompressFullArchive: {
 					rest: "POST /uncompressFullArchive",
 					params: {},
-					handler: async (ctx: Context<{filePath: string}>) => {
+					handler: async (ctx: Context<{ filePath: string }>) => {
 						return await uncompressEntireArchive(ctx.params.filePath);
 					}
 				},
@@ -109,7 +109,7 @@ export default class ImportService extends Service {
 						klaw(path.resolve(COMICS_DIRECTORY))
 							// 1.1 Filter on .cb* extensions
 							.pipe(
-								through2.obj(function(item, enc, next) {
+								through2.obj(function (item, enc, next) {
 									let fileExtension = path.extname(item.path);
 									if (
 										[".cbz", ".cbr", ".cb7"].includes(
@@ -318,6 +318,25 @@ export default class ImportService extends Service {
 							);
 						});
 					},
+				},
+				importDownloadedFileToLibrary: {
+					rest: "POST /importDownloadedFileToLibrary",
+					params: {},
+					handler: async (ctx: Context<{ comicObjectId: string; downloadStatus: { name: string; } }>) => {
+						console.log("miscommunicate");
+						console.log(
+							JSON.stringify(ctx.params, null, 2)
+						);
+						const result = await extractFromArchive(
+							`${COMICS_DIRECTORY}/${ctx.params.downloadStatus.name}`
+						);
+						console.log(result);
+						await Comic.findOneAndUpdate({ _id: new ObjectId(ctx.params.comicObjectId) }, {
+							rawFileDetails: {
+
+							}
+						})
+					}
 				},
 
 				getComicBooks: {
