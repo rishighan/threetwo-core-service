@@ -332,9 +332,9 @@ export default class ImportService extends Service {
 						);
 						console.log(result);
 						await Comic.findOneAndUpdate({ _id: new ObjectId(ctx.params.comicObjectId) }, {
-							rawFileDetails: {
+							rawFileDetails: result,
+							acquisition: { wanted: false, } 
 
-							}
 						})
 					}
 				},

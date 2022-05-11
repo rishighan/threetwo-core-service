@@ -71,6 +71,7 @@ export default class QueueService extends Service {
 						const {
 							name,
 							filePath,
+							fileSize,
 							extension,
 							cover,
 							containedIn,
@@ -100,7 +101,7 @@ export default class QueueService extends Service {
 							rawFileDetails: {
 								name,
 								filePath,
-								fileSize: job.data.fileObject.fileSize,
+								fileSize,
 								extension,
 								containedIn,
 								cover,

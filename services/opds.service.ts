@@ -31,7 +31,7 @@ export default class OpdsService extends Service {
 					},
 					hooks: {},
 					actions: {
-						opds: {
+						serve: {
 							rest: "POST /serve",
 							handler: async (ctx) => {
 								return buildAsync(
@@ -138,17 +138,3 @@ export default class OpdsService extends Service {
 		);
 	}
 }
-
-// router.use("/file/*", async (req, res) => {
-//   const file: string = req.params[0];
-//   const ext = extname(file);
-
-//   if ([".cbr", ".cbz", ".cb7", ".cba", ".cbt"].includes(ext)) {
-//     const content = await fs.readFile(join(path_of_books, file));
-//     const mime = lookup(ext) || "application/octet-stream";
-//     res.set("Content-Type", mime);
-//     return responseStream(res, content);
-//   }
-
-//   res.status(404).end(`'${file}' not exists`);
-// });

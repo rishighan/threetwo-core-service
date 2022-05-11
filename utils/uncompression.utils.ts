@@ -31,7 +31,7 @@ SOFTWARE.
  *     Initial:        2021/05/04        Rishi Ghan
  */
 
-import { createReadStream, createWriteStream, existsSync } from "fs";
+import { createReadStream, createWriteStream, existsSync, statSync } from "fs";
 import { isEmpty, isNil, isUndefined, remove, each, map } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
@@ -160,6 +160,7 @@ export const extractComicInfoXMLFromRar = async (
 					name: fileNameWithoutExtension,
 					extension,
 					containedIn: targetDirectory,
+					fileSize: fse.statSync(filePath).size,
 					cover: {
 						filePath: path.relative(
 							process.cwd(),
@@ -284,6 +285,7 @@ export const extractComicInfoXMLFromZip = async (
 						name: fileNameWithoutExtension,
 						extension,
 						containedIn: targetDirectory,
+						fileSize: fse.statSync(filePath).size,
 						cover: {
 							filePath: path.relative(
 								process.cwd(),
