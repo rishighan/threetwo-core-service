@@ -116,7 +116,9 @@ export default class QueueService extends Service {
 							// since we already have at least 1 copy
 							// mark it as not wanted by default
 							acquisition: {
-								wanted: false,
+								source: {
+									wanted: false,
+								},
 							},
 						});
 						return {
@@ -176,7 +178,7 @@ export default class QueueService extends Service {
 				unarchiveComicBook: {
 					rest: "POST /unarchiveComicBook",
 					params: {},
-					handler: async (ctx: Context<{}>) => { },
+					handler: async (ctx: Context<{}>) => {},
 				},
 			},
 			methods: {},

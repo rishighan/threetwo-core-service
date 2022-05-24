@@ -108,14 +108,16 @@ export const extractComicInfoXMLFromRar = async (
 	const comicInfoXMLFilePromise = new Promise((resolve, reject) => {
 		let comicinfostring = "";
 		if (!isUndefined(comicInfoXML[0])) {
+			console.log(path.basename(comicInfoXML[0].name));
+			const comicInfoXMLFileName = path.basename(comicInfoXML[0].name);
 			const writeStream = createWriteStream(
-				`${targetDirectory}/${comicInfoXML[0].name}`
+				`${targetDirectory}/${comicInfoXMLFileName}`
 			);
 
 			archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
 			writeStream.on("finish", async () => {
 				const readStream = createReadStream(
-					`${targetDirectory}/${comicInfoXML[0].name}`
+					`${targetDirectory}/${comicInfoXMLFileName}`
 				);
 				readStream.on("data", (data) => {
 					comicinfostring += data;
@@ -123,11 +125,7 @@ export const extractComicInfoXMLFromRar = async (
 				readStream.on("error", (error) => reject(error));
 				readStream.on("end", async () => {
 					if (
-						existsSync(
-							`${targetDirectory}/${path.basename(
-								comicInfoXML[0].name
-							)}`
-						)
+						existsSync(`${targetDirectory}/${comicInfoXMLFileName}`)
 					) {
 						const comicInfoJSON = await convertXMLToJSON(
 							comicinfostring.toString()
@@ -378,18 +376,20 @@ export const uncompressRarArchive = async (filePath: string) => {
 	// iterate over the files
 
 	each(filesInArchive, (file) => {
-		extractionPromises.push(new Promise((resolve, reject) => {
-			const fileExtractionStream = archive.stream(file.name);
-			const fileWriteStream = createWriteStream(
-				`${targetDirectory}/${path.basename(file.name)}`)
-			fileExtractionStream.pipe(fileWriteStream);
-			fileWriteStream.on("finish", async () => {
-				resolve(`${targetDirectory}/${path.basename(file.name)}`);
-			});
-
-		}));
-	})
- return Promise.all(extractionPromises);
+		extractionPromises.push(
+			new Promise((resolve, reject) => {
+				const fileExtractionStream = archive.stream(file.name);
+				const fileWriteStream = createWriteStream(
+					`${targetDirectory}/${path.basename(file.name)}`
+				);
+				fileExtractionStream.pipe(fileWriteStream);
+				fileWriteStream.on("finish", async () => {
+					resolve(`${targetDirectory}/${path.basename(file.name)}`);
+				});
+			})
+		);
+	});
+	return Promise.all(extractionPromises);
 };
 
 export const resizeImageDirectory = async (directoryPath: string) => {

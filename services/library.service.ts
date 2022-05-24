@@ -47,7 +47,10 @@ import {
 	walkFolder,
 	getSizeOfDirectory,
 } from "../utils/file.utils";
-import { extractFromArchive, uncompressEntireArchive } from "../utils/uncompression.utils";
+import {
+	extractFromArchive,
+	uncompressEntireArchive,
+} from "../utils/uncompression.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -93,8 +96,10 @@ export default class ImportService extends Service {
 					rest: "POST /uncompressFullArchive",
 					params: {},
 					handler: async (ctx: Context<{ filePath: string }>) => {
-						return await uncompressEntireArchive(ctx.params.filePath);
-					}
+						return await uncompressEntireArchive(
+							ctx.params.filePath
+						);
+					},
 				},
 				newImport: {
 					rest: "POST /newImport",
@@ -162,11 +167,13 @@ export default class ImportService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
+							_id: string,
 							sourcedMetadata: {
 								comicvine?: {
 									volume: { api_detail_url: string };
 									volumeInformation: {};
 								};
+								locg?: {};
 							};
 							inferredMetadata: {
 								issue: Object;
@@ -175,7 +182,10 @@ export default class ImportService extends Service {
 								name: string;
 							};
 							acquisition: {
-								wanted: boolean;
+								source: {
+									wanted: boolean;
+									name?: string;
+								};
 							};
 						}>
 					) {
@@ -184,6 +194,7 @@ export default class ImportService extends Service {
 							const comicMetadata = ctx.params;
 							console.log(JSON.stringify(comicMetadata, null, 4));
 							// When an issue is added from the search CV feature
+							// we solicit volume information and add that to mongo
 							if (
 								comicMetadata.sourcedMetadata.comicvine &&
 								!isNil(
@@ -203,18 +214,23 @@ export default class ImportService extends Service {
 								comicMetadata.sourcedMetadata.comicvine.volumeInformation =
 									volumeDetails.results;
 							}
-							Comic.create(ctx.params, (error, data) => {
-								if (data) {
-									return data;
-								} else if (error) {
-									console.log("data", data);
-									console.log("error", error);
-									throw new Errors.MoleculerError(
-										"Failed to import comic book",
-										500
-									);
-								}
-							});
+							Comic.findOneAndUpdate(
+								{ _id: new ObjectId(ctx.params._id) },
+								ctx.params,
+								{ upsert: true, new: true },
+								(error, data) => {
+									if (data) {
+										return data;
+									} else if (error) {
+										console.log("data", data);
+										console.log("error", error);
+										throw new Errors.MoleculerError(
+											"Failed to import comic book",
+											500
+										);
+									}
+								},
+							);
 						} catch (error) {
 							throw new Errors.MoleculerError(
 								"Import failed.",
@@ -322,21 +338,31 @@ export default class ImportService extends Service {
 				importDownloadedFileToLibrary: {
 					rest: "POST /importDownloadedFileToLibrary",
 					params: {},
-					handler: async (ctx: Context<{ comicObjectId: string; downloadStatus: { name: string; } }>) => {
-						console.log("miscommunicate");
-						console.log(
-							JSON.stringify(ctx.params, null, 2)
-						);
+					handler: async (
+						ctx: Context<{
+							comicObjectId: string;
+							comicObject:  {
+								acquisition: {
+									source:{
+										wanted: boolean;
+									}
+								}
+							};
+							downloadStatus: { name: string };
+						}>
+					) => {
 						const result = await extractFromArchive(
 							`${COMICS_DIRECTORY}/${ctx.params.downloadStatus.name}`
 						);
-						console.log(result);
-						await Comic.findOneAndUpdate({ _id: new ObjectId(ctx.params.comicObjectId) }, {
-							rawFileDetails: result,
-							acquisition: { wanted: false, } 
-
-						})
-					}
+						Object.assign(ctx.params.comicObject, { rawFileDetails: result });
+						ctx.params.comicObject.acquisition.source.wanted = false;
+						const updateResult = await Comic.findOneAndUpdate(
+							{ _id: new ObjectId(ctx.params.comicObjectId) },
+							ctx.params.comicObject,
+							{ upsert: true, new: true }
+						);
+						await updateResult.index();
+					},
 				},
 
 				getComicBooks: {
@@ -519,9 +545,9 @@ export default class ImportService extends Service {
 										{
 											$match: {
 												"sourcedMetadata.comicvine.volumeInformation":
-												{
-													$gt: {},
-												},
+													{
+														$gt: {},
+													},
 											},
 										},
 										{

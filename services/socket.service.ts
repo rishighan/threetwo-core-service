@@ -28,8 +28,6 @@ export default class SocketService extends Service {
 										},
 										action: async (data, ack) => {
 											// write your handler function here.
-
-
 											switch (data.type) {
 												case "LS_IMPORT":
 													console.log(
@@ -51,7 +49,7 @@ export default class SocketService extends Service {
 													break;
 												case "LS_SINGLE_IMPORT":
 													console.info("AirDC++ finished a download -> ")
-													
+													console.log(data);
 													await this.broker.call("library.importDownloadedFileToLibrary", data.data, {});
 													break;
 											}

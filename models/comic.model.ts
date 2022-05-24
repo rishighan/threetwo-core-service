@@ -8,7 +8,8 @@ import {
 	MongoosasticModel,
 	MongoosasticPluginOpts,
 } from "mongoosastic-ts/dist/types";
-const ELASTICSEARCH_HOST = process.env.ELASTICSEARCH_URI || "http://localhost:9200";
+const ELASTICSEARCH_HOST =
+	process.env.ELASTICSEARCH_URI || "http://localhost:9200";
 export const eSClient = new Client({
 	node: ELASTICSEARCH_HOST,
 	auth: {
@@ -34,6 +35,19 @@ const RawFileDetailsSchema = mongoose.Schema({
 	},
 });
 
+const LOCGSchema = mongoose.Schema({
+	_id: false,
+	name: String,
+	publisher: String,
+	url: String,
+	cover: String,
+	description: String,
+	price: String,
+	rating: Number,
+	pulls: Number,
+	potw: Number,
+});
+
 const ComicSchema = mongoose.Schema(
 	{
 		importStatus: {
@@ -54,6 +68,11 @@ const ComicSchema = mongoose.Schema(
 				default: {},
 			},
 			shortboxed: {},
+			locg: {
+				type: LOCGSchema,
+				es_indexed: true,
+				default: {},
+			},
 			gcd: {},
 		},
 		rawFileDetails: {
@@ -75,7 +94,10 @@ const ComicSchema = mongoose.Schema(
 			},
 		},
 		acquisition: {
-			wanted: Boolean,
+			source: {
+				wanted: Boolean,
+				name: String,
+			},
 			release: {},
 			directconnect: Array,
 			torrent: {
@@ -98,7 +120,7 @@ ComicSchema.plugin(mongoosastic, {
 ComicSchema.plugin(paginate);
 
 const Comic = mongoose.model("Comic", ComicSchema);
-// 	stream = Comic.synchronize();
+// const stream = Comic.synchronize();
 // let count = 0;
 
 // stream.on("data", function (err, doc) {

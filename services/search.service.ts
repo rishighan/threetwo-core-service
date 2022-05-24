@@ -90,6 +90,7 @@ export default class SettingsService extends Service {
 												multi_match: {
 													fields: [
 														"rawFileDetails.name",
+														"sourcedMetadata.locg.name",
 														"sourcedMetadata.comicvine.name",
 														"sourcedMetadata.comicvine.volumeInformation.name",
 													],
@@ -102,7 +103,7 @@ export default class SettingsService extends Service {
 												bool: {
 													must: {
 														term: {
-															"acquisition.wanted":
+															"acquisition.source.wanted":
 																true,
 														},
 													},
