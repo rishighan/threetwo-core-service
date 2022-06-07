@@ -54,7 +54,12 @@ export default class QueueService extends Service {
 		this.parseServiceSchema({
 			name: "importqueue",
 			mixins: [BullMQMixin(REDIS_URI), DbMixin("comics", Comic)],
-			settings: {},
+			settings: {
+				bullmq: {
+					maxStalledCount: 0,
+				}
+			},
+
 			hooks: {},
 			queues: {
 				"process.import": {
