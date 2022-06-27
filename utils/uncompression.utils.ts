@@ -36,6 +36,7 @@ import { isEmpty, isNil, isUndefined, remove, each, map, reject } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
 import sharp from "sharp";
+import { sanitize } from "sanitize-filename-ts";
 import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
 import { USERDATA_DIRECTORY } from "../constants/directories";
 import {
@@ -76,7 +77,7 @@ export const extractComicInfoXMLFromRar = async (
 		};
 		const { fileNameWithoutExtension, extension } =
 			getFileConstituents(filePath);
-		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(fileNameWithoutExtension)}`;
 		await createDirectory(directoryOptions, targetDirectory);
 
 		const archive = new Unrar({
@@ -87,7 +88,7 @@ export const extractComicInfoXMLFromRar = async (
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
-					if(err) {
+					if (err) {
 						reject(err);
 					}
 					resolve(entries);
@@ -100,10 +101,13 @@ export const extractComicInfoXMLFromRar = async (
 			filesInArchive,
 			({ name }) => path.basename(name).toLowerCase() === "comicinfo.xml"
 		);
-		
+
 		remove(
 			filesInArchive,
-			({ name }) =>  !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name).toLowerCase())
+			({ name }) =>
+				!IMPORT_IMAGE_FILE_FORMATS.includes(
+					path.extname(name).toLowerCase()
+				)
 		);
 		const files = filesInArchive.sort((a, b) => {
 			if (!isUndefined(a) && !isUndefined(b)) {
@@ -153,7 +157,7 @@ export const extractComicInfoXMLFromRar = async (
 		});
 
 		const coverFilePromise = new Promise((resolve, reject) => {
-			const coverFile = path.basename(files[0].name);
+			const coverFile = sanitize(path.basename(files[0].name));
 			const sharpStream = sharp().resize(275).toFormat("png");
 			const coverExtractionStream = archive.stream(files[0].name);
 			const resizeStream = coverExtractionStream.pipe(sharpStream);
@@ -203,7 +207,7 @@ export const extractComicInfoXMLFromZip = async (
 		};
 		const { fileNameWithoutExtension, extension } =
 			getFileConstituents(filePath);
-		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${fileNameWithoutExtension}`;
+		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(fileNameWithoutExtension)}`;
 		await createDirectory(directoryOptions, targetDirectory);
 
 		let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
@@ -211,18 +215,18 @@ export const extractComicInfoXMLFromZip = async (
 
 		// read the archive
 		let filesFromArchive = await p7zip.read(path.resolve(filePath));
-
-		// only allow allowed image formats
-		remove(
-			filesFromArchive.files,
-			({ name }) =>
-				!IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name).toLowerCase())
-		);
-
 		// detect ComicInfo.xml
 		const comicInfoXMLFileObject = remove(
 			filesFromArchive.files,
 			(file) => path.basename(file.name.toLowerCase()) === "comicinfo.xml"
+		);
+		// only allow allowed image formats
+		remove(
+			filesFromArchive.files,
+			({ name }) =>
+				!IMPORT_IMAGE_FILE_FORMATS.includes(
+					path.extname(name).toLowerCase()
+				)
 		);
 
 		// Natural sort
@@ -236,7 +240,7 @@ export const extractComicInfoXMLFromZip = async (
 		});
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
-		filesToWriteToDisk.coverFile = files[0].name;
+		filesToWriteToDisk.coverFile = sanitize(path.basename(files[0].name));
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
@@ -290,9 +294,7 @@ export const extractComicInfoXMLFromZip = async (
 		const coverFilePromise = new Promise((resolve, reject) => {
 			const sharpStream = sharp().resize(275).toFormat("png");
 			const coverStream = createReadStream(
-				`${targetDirectory}/${path.basename(
-					filesToWriteToDisk.coverFile
-				)}`
+				`${targetDirectory}/${filesToWriteToDisk.coverFile}`
 			);
 			coverStream
 				.pipe(sharpStream)

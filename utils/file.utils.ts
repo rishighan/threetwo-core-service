@@ -13,6 +13,7 @@ import {
 } from "threetwo-ui-typings";
 import { includes, remove, indexOf } from "lodash";
 import { Errors } from "moleculer";
+import { sanitize } from "sanitize-filename-ts";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 
