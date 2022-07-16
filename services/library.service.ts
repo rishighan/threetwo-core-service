@@ -32,7 +32,7 @@ SOFTWARE.
  */
 
 "use strict";
-import { isNil } from "lodash";
+import { isNil, isUndefined } from "lodash";
 import {
 	Context,
 	Service,
@@ -509,6 +509,17 @@ export default class ImportService extends Service {
 							queryObjects,
 						});
 					},
+				},
+				groupIssuesByBundles: {
+					rest: "GET /groupIssuesByBundles",
+					params: {},
+					handler: async (ctx: Context<{}>) => {
+						// params: array of bundle IDs
+						// query mongo for 
+						if(!isNil(ctx.params)) {
+						console.log(Object.values(ctx.params));
+						}
+					}
 				},
 				libraryStatistics: {
 					rest: "GET /libraryStatistics",
