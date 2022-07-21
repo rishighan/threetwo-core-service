@@ -9,7 +9,7 @@ import {
 
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { flatten, isEmpty, isUndefined, map } from "lodash";
+import { flatten, isEmpty, isNil, isUndefined, map } from "lodash";
 import { eSClient } from "../models/comic.model";
 const s = eSClient.helpers.msearch();
 
@@ -113,12 +113,14 @@ export default class SettingsService extends Service {
 										case "volumes":
 											Object.assign(eSQuery, {
 												exists: {
-													field: "sourcedMetadata.comicvine.volumeInformation"
-												}
+													field: "sourcedMetadata.comicvine.volumeInformation",
+												},
 											});
 											break;
 									}
-									console.log("Searching ElasticSearch index with this query -> ");
+									console.log(
+										"Searching ElasticSearch index with this query -> "
+									);
 									console.log(
 										JSON.stringify(eSQuery, null, 2)
 									);
@@ -141,6 +143,47 @@ export default class SettingsService extends Service {
 										"ElasticSearch error",
 										error
 									);
+								}
+							},
+						},
+						groupIssuesByBundles: {
+							rest: "GET /groupIssuesByBundles",
+							params: {},
+							handler: async (
+								ctx: Context<{ bundleIds: [] }>
+							) => {
+								// params: array of bundle IDs
+								// construct the elasticsearch msearch query
+								let elasticsearchQuery = {};
+								if (!isNil(ctx.params.bundleIds)) {
+									ctx.params.bundleIds.map(async (id) => {
+										let foo = await eSClient.search({
+											index: "comics",
+											body: {
+												query: {
+													nested: {
+														path: "acquisition",
+														query: {
+															bool: {
+																must: [
+																	{
+																		match: {
+																			"acquisition.directconnect":
+																				id,
+																		},
+																	},
+																],
+															},
+														},
+														inner_hits: {},
+														// ignore_unmapped: true,
+													},
+												},
+											},
+										});
+										console.log(foo.body);
+										return foo.body;
+									});
 								}
 							},
 						},

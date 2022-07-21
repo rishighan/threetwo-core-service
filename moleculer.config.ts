@@ -57,25 +57,25 @@ const brokerConfig: BrokerOptions = {
 				autoPadding: false,
 			},
 		},
-		{
-			type: "File",
-			options: {
-				level: "debug",
-				folder: "./logs",
-				filename: "threetwo-import-service.log",
-				// Using colors on the output
-				colors: true,
-				// Print module names with different colors (like docker-compose for containers)
-				moduleColors: false,
-				// Line formatter. It can be "json", "short", "simple", "full", a `Function` or a template string like "{timestamp} {level} {nodeID}/{mod}: {msg}"
-				formatter: "full",
-				// Custom object printer. If not defined, it uses the `util.inspect` method.
-				objectPrinter: null,
-				eol: "\n",
-				// Auto-padding the module name in order to messages begin at the same column.
-				autoPadding: true,
-			},
-		},
+		// {
+		// 	type: "File",
+		// 	options: {
+		// 		level: "debug",
+		// 		folder: "./logs",
+		// 		filename: "threetwo-import-service.log",
+		// 		// Using colors on the output
+		// 		colors: true,
+		// 		// Print module names with different colors (like docker-compose for containers)
+		// 		moduleColors: false,
+		// 		// Line formatter. It can be "json", "short", "simple", "full", a `Function` or a template string like "{timestamp} {level} {nodeID}/{mod}: {msg}"
+		// 		formatter: "full",
+		// 		// Custom object printer. If not defined, it uses the `util.inspect` method.
+		// 		objectPrinter: null,
+		// 		eol: "\n",
+		// 		// Auto-padding the module name in order to messages begin at the same column.
+		// 		autoPadding: true,
+		// 	},
+		// },
 	],
 	// Default log level for built-in console logger. It can be overwritten in logger options above.
 	// Available values: trace, debug, info, warn, error, fatal

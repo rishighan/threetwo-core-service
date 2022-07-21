@@ -167,7 +167,7 @@ export default class ImportService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							_id: string,
+							_id: string;
 							sourcedMetadata: {
 								comicvine?: {
 									volume: { api_detail_url: string };
@@ -229,7 +229,7 @@ export default class ImportService extends Service {
 											500
 										);
 									}
-								},
+								}
 							);
 						} catch (error) {
 							throw new Errors.MoleculerError(
@@ -341,12 +341,12 @@ export default class ImportService extends Service {
 					handler: async (
 						ctx: Context<{
 							comicObjectId: string;
-							comicObject:  {
+							comicObject: {
 								acquisition: {
-									source:{
+									source: {
 										wanted: boolean;
-									}
-								}
+									};
+								};
 							};
 							downloadStatus: { name: string };
 						}>
@@ -354,8 +354,11 @@ export default class ImportService extends Service {
 						const result = await extractFromArchive(
 							`${COMICS_DIRECTORY}/${ctx.params.downloadStatus.name}`
 						);
-						Object.assign(ctx.params.comicObject, { rawFileDetails: result });
-						ctx.params.comicObject.acquisition.source.wanted = false;
+						Object.assign(ctx.params.comicObject, {
+							rawFileDetails: result,
+						});
+						ctx.params.comicObject.acquisition.source.wanted =
+							false;
 						const updateResult = await Comic.findOneAndUpdate(
 							{ _id: new ObjectId(ctx.params.comicObjectId) },
 							ctx.params.comicObject,
@@ -510,17 +513,7 @@ export default class ImportService extends Service {
 						});
 					},
 				},
-				groupIssuesByBundles: {
-					rest: "GET /groupIssuesByBundles",
-					params: {},
-					handler: async (ctx: Context<{}>) => {
-						// params: array of bundle IDs
-						// query mongo for 
-						if(!isNil(ctx.params)) {
-						console.log(Object.values(ctx.params));
-						}
-					}
-				},
+				
 				libraryStatistics: {
 					rest: "GET /libraryStatistics",
 					params: {},
