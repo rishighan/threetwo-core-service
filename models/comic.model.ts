@@ -47,6 +47,12 @@ const LOCGSchema = mongoose.Schema({
 	pulls: Number,
 	potw: Number,
 });
+const DirectConnectBundleSchema = mongoose.Schema({
+	resultId: String,
+	bundleId: Number,
+	directoryIds: [String],
+	searchInstanceId: Number,
+});
 
 const ComicSchema = mongoose.Schema(
 	{
@@ -58,7 +64,7 @@ const ComicSchema = mongoose.Schema(
 			},
 		},
 		userAddedMetadata: {
-			tags: [],
+			tags: [String],
 		},
 		sourcedMetadata: {
 			comicInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -99,7 +105,13 @@ const ComicSchema = mongoose.Schema(
 				name: String,
 			},
 			release: {},
-			directconnect: Array,
+			directconnect: {
+				downloads: {
+					type: [DirectConnectBundleSchema],
+					es_indexed: true,
+					default: [],
+				},
+			},
 			torrent: {
 				sourceApplication: String,
 				magnet: String,
@@ -120,6 +132,19 @@ ComicSchema.plugin(mongoosastic, {
 ComicSchema.plugin(paginate);
 
 const Comic = mongoose.model("Comic", ComicSchema);
+// Comic.createMapping({
+// 	analysis: {
+// 		analyzer: {
+// 			content: {
+// 				type: "custom",
+// 				tokenizer: "whitespace",
+// 			},
+// 		},
+// 	},
+// }).then((data) => {
+// 	console.log("Mapping the index...")
+// 	console.log(data)
+// })
 // const stream = Comic.synchronize();
 // let count = 0;
 

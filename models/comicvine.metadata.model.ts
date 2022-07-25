@@ -16,7 +16,7 @@ const Issue = mongoose.Schema({
 });
 const VolumeInformation = mongoose.Schema({
 	_id: false,
-	aliases: [],
+	aliases: [String],
 	api_detail_url: String,
 	characters: [Things],
 	concepts: [Things],
@@ -68,7 +68,7 @@ const ComicVineMetadataSchema = mongoose.Schema({
 	api_detail_url: String,
 	has_staff_review: { type: mongoose.Schema.Types.Mixed },
 
-	cover_date: String,
+	cover_date: Date,
 	date_added: String,
 	date_last_updated: String,
 	deck: String,

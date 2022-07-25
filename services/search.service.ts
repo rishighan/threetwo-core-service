@@ -9,7 +9,7 @@ import {
 
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { flatten, isEmpty, isNil, isUndefined, map } from "lodash";
+import { flatten, isEmpty, isNil, isUndefined, map, result } from "lodash";
 import { eSClient } from "../models/comic.model";
 const s = eSClient.helpers.msearch();
 
@@ -154,35 +154,15 @@ export default class SettingsService extends Service {
 							) => {
 								// params: array of bundle IDs
 								// construct the elasticsearch msearch query
-								let elasticsearchQuery = {};
 								if (!isNil(ctx.params.bundleIds)) {
-									ctx.params.bundleIds.map(async (id) => {
-										let foo = await eSClient.search({
-											index: "comics",
-											body: {
-												query: {
-													nested: {
-														path: "acquisition",
-														query: {
-															bool: {
-																must: [
-																	{
-																		match: {
-																			"acquisition.directconnect":
-																				id,
-																		},
-																	},
-																],
-															},
-														},
-														inner_hits: {},
-														// ignore_unmapped: true,
-													},
+									return await Comic.find({
+										"acquisition.directconnect.downloads": {
+											$elemMatch: {
+												bundleId: {
+													$in: ctx.params.bundleIds,
 												},
 											},
-										});
-										console.log(foo.body);
-										return foo.body;
+										},
 									});
 								}
 							},

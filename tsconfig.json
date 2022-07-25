@@ -1,13 +1,13 @@
 {
 	"compilerOptions": {
-		"module": "commonjs",
+		"module": "CommonJS",
 		"esModuleInterop": true,
 		"noImplicitAny": false,
 		"removeComments": true,
 		"preserveConstEnums": true,
 		"sourceMap": true,
 		"pretty": true,
-		"target": "es6",
+		"target": "ES2022",
 		"outDir": "dist",
 		"skipLibCheck": true,
 		"lib": ["es5", "es6", "dom", "dom.iterable"],

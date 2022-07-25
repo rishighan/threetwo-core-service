@@ -186,6 +186,9 @@ export default class ImportService extends Service {
 									wanted: boolean;
 									name?: string;
 								};
+								directconnect: {
+									downloads: [];
+								};
 							};
 						}>
 					) {
@@ -313,7 +316,7 @@ export default class ImportService extends Service {
 								comicObjectId,
 								{
 									$push: {
-										"acquisition.directconnect": {
+										"acquisition.directconnect.downloads": {
 											resultId: ctx.params.resultId,
 											bundleId: ctx.params.bundleId,
 											directoryIds:
@@ -513,7 +516,7 @@ export default class ImportService extends Service {
 						});
 					},
 				},
-				
+
 				libraryStatistics: {
 					rest: "GET /libraryStatistics",
 					params: {},

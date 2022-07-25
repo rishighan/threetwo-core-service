@@ -124,6 +124,9 @@ export default class QueueService extends Service {
 								source: {
 									wanted: false,
 								},
+								directconnect: {
+									downloads: [],
+								}
 							},
 						});
 						return {
