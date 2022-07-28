@@ -48,10 +48,10 @@ const LOCGSchema = mongoose.Schema({
 	potw: Number,
 });
 const DirectConnectBundleSchema = mongoose.Schema({
-	resultId: String,
 	bundleId: Number,
-	directoryIds: [String],
-	searchInstanceId: Number,
+	name: String,
+	size: String,
+	type: {},
 });
 
 const ComicSchema = mongoose.Schema(

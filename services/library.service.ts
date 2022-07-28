@@ -301,28 +301,28 @@ export default class ImportService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							comicObjectId: string;
-							resultId: string;
-							bundleId: string;
-							directoryIds: [];
-							searchInstanceId: string;
+							bundleId: String;
+							comicObjectId: String,
+							name: String;
+							size: Number;
+							type: String;
 						}>
 					) {
+						console.log(JSON.stringify(ctx.params, null, 2))
 						const comicObjectId = new ObjectId(
 							ctx.params.comicObjectId
 						);
+					
 						return new Promise((resolve, reject) => {
 							Comic.findByIdAndUpdate(
 								comicObjectId,
 								{
 									$push: {
 										"acquisition.directconnect.downloads": {
-											resultId: ctx.params.resultId,
 											bundleId: ctx.params.bundleId,
-											directoryIds:
-												ctx.params.directoryIds,
-											searchInstanceId:
-												ctx.params.searchInstanceId,
+											name: ctx.params.name,
+											size: ctx.params.size,
+											type: ctx.params.type,	
 										},
 									},
 								},

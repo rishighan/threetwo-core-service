@@ -153,7 +153,6 @@ export default class SettingsService extends Service {
 								ctx: Context<{ bundleIds: [] }>
 							) => {
 								// params: array of bundle IDs
-								// construct the elasticsearch msearch query
 								if (!isNil(ctx.params.bundleIds)) {
 									return await Comic.find({
 										"acquisition.directconnect.downloads": {
