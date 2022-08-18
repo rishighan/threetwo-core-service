@@ -21,120 +21,108 @@ export default class OpdsService extends Service {
 		schema: ServiceSchema<{}> = { name: "opds" }
 	) {
 		super(broker);
-		this.parseServiceSchema(
-			Service.mergeSchemas(
-				{
-					name: "opds",
-					mixins: [],
-					settings: {
-						port: process.env.PORT || 3001,
-					},
-					hooks: {},
-					actions: {
-						serve: {
-							rest: "POST /serve",
-							handler: async (ctx) => {
-								return buildAsync(
-									initMain({
-										title: `title`,
-										subtitle: `subtitle`,
-										icon: "/favicon.ico",
-									}),
-									[
-										async (feed: Feed) => {
-											feed.id =
-												"urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2";
-											feed.books = feed.books || [];
-											await FastGlob(
-												[
-													"*.cbr",
-													"*.cbz",
-													"*.cb7",
-													"*.cba",
-													"*.cbt",
-												],
-												{
-													cwd: COMICS_DIRECTORY,
-												}
-											).each((file, idx) => {
-												const ext = extname(file);
-												const title = basename(
-													file,
-													ext
-												);
-												const href = encodeURI(
-													`/comics/${file}`
-												);
-												const type =
-													lookup(ext) ||
-													"application/octet-stream";
-
-												const entry =
-													Entry.deserialize<Entry>({
-														title,
-														id: idx.toString(),
-														links: [
-															{
-																rel: EnumLinkRel.ACQUISITION,
-																href,
-																type,
-															} as Link,
-														],
-													});
-
-												if (
-													!isUndefined(feed) &&
-													!isUndefined(feed.books)
-												) {
-													feed.books.push(entry);
-												}
-											});
-
-											return feed;
-										},
-									]
-								).then((feed) => {
-									ctx.meta.$responseHeaders = {
-										"Content-Type": " application/xml",
-									};
-									let data;
-									xml2js.parseString(
-										feed.toXML(),
-										(err, result) => {
-											result.feed.link = {
-												$: {
-													rel: "self",
-													href: "/opds-catalogs/root.xml",
-													type: "application/atom+xml;profile=opds-catalog;kind=navigation",
-												},
-												_: "",
-											};
-											const builder = new xml2js.Builder({
-												xmldec: {
-													version: "1.0",
-													encoding: "UTF-8",
-													standalone: false,
-												},
-											});
-											data = builder.buildObject(result, {
-												renderOpts: {
-													pretty: true,
-													indent: " ",
-													newline: "\n",
-													allowEmpty: true,
-												},
-											});
+		this.parseServiceSchema({
+			name: "opds",
+			mixins: [],
+			settings: {
+				port: process.env.PORT || 3001,
+			},
+			hooks: {},
+			actions: {
+				serve: {
+					rest: "POST /serve",
+					handler: async (ctx) => {
+						return buildAsync(
+							initMain({
+								title: `title`,
+								subtitle: `subtitle`,
+								icon: "/favicon.ico",
+							}),
+							[
+								async (feed: Feed) => {
+									feed.id =
+										"urn:uuid:2853dacf-ed79-42f5-8e8a-a7bb3d1ae6a2";
+									feed.books = feed.books || [];
+									await FastGlob(
+										[
+											"*.cbr",
+											"*.cbz",
+											"*.cb7",
+											"*.cba",
+											"*.cbt",
+										],
+										{
+											cwd: COMICS_DIRECTORY,
 										}
-									);
-									return data;
+									).each((file, idx) => {
+										const ext = extname(file);
+										const title = basename(file, ext);
+										const href = encodeURI(
+											`/comics/${file}`
+										);
+										const type =
+											lookup(ext) ||
+											"application/octet-stream";
+
+										const entry = Entry.deserialize<Entry>({
+											title,
+											id: idx.toString(),
+											links: [
+												{
+													rel: EnumLinkRel.ACQUISITION,
+													href,
+													type,
+												} as Link,
+											],
+										});
+
+										if (
+											!isUndefined(feed) &&
+											!isUndefined(feed.books)
+										) {
+											feed.books.push(entry);
+										}
+									});
+
+									return feed;
+								},
+							]
+						).then((feed) => {
+							ctx.meta.$responseHeaders = {
+								"Content-Type": " application/xml",
+							};
+							let data;
+							xml2js.parseString(feed.toXML(), (err, result) => {
+								result.feed.link = {
+									$: {
+										rel: "self",
+										href: "/opds-catalogs/root.xml",
+										type: "application/atom+xml;profile=opds-catalog;kind=navigation",
+									},
+									_: "",
+								};
+								const builder = new xml2js.Builder({
+									xmldec: {
+										version: "1.0",
+										encoding: "UTF-8",
+										standalone: false,
+									},
 								});
-							},
-						},
+								data = builder.buildObject(result, {
+									renderOpts: {
+										pretty: true,
+										indent: " ",
+										newline: "\n",
+										allowEmpty: true,
+									},
+								});
+							});
+							return data;
+						});
 					},
-					methods: {},
 				},
-				schema
-			)
-		);
+			},
+			methods: {},
+		});
 	}
 }

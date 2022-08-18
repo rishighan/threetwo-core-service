@@ -12,70 +12,71 @@ export default class SocketService extends Service {
 		schema: ServiceSchema<{}> = { name: "socket" }
 	) {
 		super(broker);
-		this.parseServiceSchema(
-			Service.mergeSchemas(
-				{
-					name: "socket",
-					mixins: [SocketIOService],
-					settings: {
-						port: process.env.PORT || 3001,
-						io: {
-							namespaces: {
-								"/": {
-									events: {
-										call: {
-											// whitelist: ["math.*", "say.*", "accounts.*", "rooms.*", "io.*"],
-										},
-										action: async (data, ack) => {
-											// write your handler function here.
-											switch (data.type) {
-												case "LS_IMPORT":
-													console.log(
-														`Recieved ${data.type} event.`
-													);
-													// 1. Send task to queue
-													await this.broker.call(
-														"library.newImport",
-														data.data,
-														{}
-													);
-													break;
-												case "LS_TOGGLE_IMPORT_QUEUE":
-													await this.broker.call(
-														"importqueue.toggleImportQueue",
-														data.data,
-														{}
-													);
-													break;
-												case "LS_SINGLE_IMPORT":
-													console.info("AirDC++ finished a download -> ")
-													console.log(data);
-													await this.broker.call("library.importDownloadedFileToLibrary", data.data, {});
-													break;
-											}
-										},
-									},
+		this.parseServiceSchema({
+			name: "socket",
+			mixins: [SocketIOService],
+			settings: {
+				port: process.env.PORT || 3001,
+				io: {
+					namespaces: {
+						"/": {
+							events: {
+								call: {
+									// whitelist: ["math.*", "say.*", "accounts.*", "rooms.*", "io.*"],
 								},
-							},
-							options: {
-								adapter: redisAdapter({
-									host: redisURL.hostname,
-									port: 6379,
-								}),
+								action: async (data, ack) => {
+									// write your handler function here.
+									switch (data.type) {
+										case "LS_IMPORT":
+											console.log(
+												`Recieved ${data.type} event.`
+											);
+											// 1. Send task to queue
+											await this.broker.call(
+												"library.newImport",
+												data.data,
+												{}
+											);
+											break;
+										case "LS_TOGGLE_IMPORT_QUEUE":
+											await this.broker.call(
+												"importqueue.toggleImportQueue",
+												data.data,
+												{}
+											);
+											break;
+										case "LS_SINGLE_IMPORT":
+											console.info(
+												"AirDC++ finished a download -> "
+											);
+											console.log(data);
+											await this.broker.call(
+												"library.importDownloadedFileToLibrary",
+												data.data,
+												{}
+											);
+											break;
+									}
+								},
 							},
 						},
 					},
-					hooks: {},
-					actions: {},
-					methods: {},
-					async started() {
-						this.io.on("connection", (data) =>
-							console.log("socket.io server initialized.")
-						);
+					options: {
+						adapter: redisAdapter({
+							host: redisURL.hostname,
+							port: 6379,
+						}),
 					},
 				},
-				schema
-			)
-		);
+			},
+			hooks: {},
+			actions: {},
+			methods: {},
+			async started() {
+				this.io.on("connection", (data) =>
+					console.log("socket.io server initialized.")
+				);
+			},
+		});
 	}
 }
