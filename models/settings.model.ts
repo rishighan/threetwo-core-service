@@ -8,6 +8,7 @@ const SettingsScehma = mongoose.Schema({
 				username: String,
 				password: String,
 				hostname: String,
+				port: String,
 				protocol: String,
 			},
 			airDCPPUserSettings: Object,
