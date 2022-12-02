@@ -63,6 +63,12 @@ interface RarFile {
 
 const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar";
 
+/**
+ * Method that extracts comicInfo.xml file from a .rar archive, if one exists.
+ * Also extracts the first image in the listing, which is assumed to be the cover.
+ * @param {string} filePath
+ * @returns {any}
+ */
 export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
@@ -77,7 +83,9 @@ export const extractComicInfoXMLFromRar = async (
 		};
 		const { fileNameWithoutExtension, extension } =
 			getFileConstituents(filePath);
-		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(fileNameWithoutExtension)}`;
+		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(
+			fileNameWithoutExtension
+		)}`;
 		await createDirectory(directoryOptions, targetDirectory);
 
 		const archive = new Unrar({
@@ -207,7 +215,9 @@ export const extractComicInfoXMLFromZip = async (
 		};
 		const { fileNameWithoutExtension, extension } =
 			getFileConstituents(filePath);
-		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(fileNameWithoutExtension)}`;
+		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(
+			fileNameWithoutExtension
+		)}`;
 		await createDirectory(directoryOptions, targetDirectory);
 
 		let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
@@ -357,33 +367,46 @@ export const extractFromArchive = async (filePath: string) => {
 	}
 };
 
-export const uncompressEntireArchive = async (filePath: string) => {
+/**
+ * Proxy method that calls uncompression on a .zip or a .rar archive and optionally resizes the images contained therein
+ * @param {string} filePath
+ * @param {any} options
+ * @returns {Promise} A promise containing the contents of the uncompressed archive.
+ */
+export const uncompressEntireArchive = async (
+	filePath: string,
+	options: any
+) => {
 	const { extension } = getFileConstituents(filePath);
-	console.log(extension);
 	switch (extension) {
 		case ".cbz":
 		case ".cb7":
-			return await uncompressZipArchive(filePath);
+			return await uncompressZipArchive(filePath, options);
 		case ".cbr":
-			return await uncompressRarArchive(filePath);
+			return await uncompressRarArchive(filePath, options);
 	}
 };
 
-export const uncompressZipArchive = async (filePath: string) => {
+/**
+ * Method that uncompresses a .zip file
+ * @param {string} filePath
+ * @param {any} options
+ * @returns {any}
+ */
+export const uncompressZipArchive = async (filePath: string, options: any) => {
 	// Create the target directory
 	const directoryOptions = {
 		mode: 0o2775,
 	};
-	const { fileNameWithoutExtension, extension } =
-		getFileConstituents(filePath);
+	const { fileNameWithoutExtension } = getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
 
-	return await resizeImageDirectory(targetDirectory);
+	return await resizeImageDirectory(targetDirectory, options);
 };
 
-export const uncompressRarArchive = async (filePath: string) => {
+export const uncompressRarArchive = async (filePath: string, options: any) => {
 	// Create the target directory
 	const directoryOptions = {
 		mode: 0o2775,
@@ -421,10 +444,15 @@ export const uncompressRarArchive = async (filePath: string) => {
 			})
 		);
 	});
-	return Promise.all(extractionPromises);
+
+	await Promise.all(extractionPromises);
+	return await resizeImageDirectory(targetDirectory, options);
 };
 
-export const resizeImageDirectory = async (directoryPath: string) => {
+export const resizeImageDirectory = async (
+	directoryPath: string,
+	options: any
+) => {
 	const files = await walkFolder(directoryPath, [
 		".jpg",
 		".jpeg",
@@ -435,37 +463,36 @@ export const resizeImageDirectory = async (directoryPath: string) => {
 	]);
 	const resizePromises = [];
 	map(files, (file) => {
-		resizePromises.push(
-			new Promise((resolve, reject) => {
-				const sharpResizeInstance = sharp().resize(275).toFormat("png");
-				const resizedStream = createReadStream(
-					`${directoryPath}/${file.name}${file.extension}`
-				);
-				if (
-					fse.existsSync(
-						`${directoryPath}/${file.name}${file.extension}`
-					)
-				) {
-					resizedStream
-						.pipe(sharpResizeInstance)
-						.toFile(
-							`${directoryPath}/${file.name}_275px${file.extension}`
-						)
-						.then((data) => {
-							console.log(
-								`Resized image ${JSON.stringify(data, null, 4)}`
-							);
-							fse.unlink(
-								`${directoryPath}/${file.name}${file.extension}`
-							);
-							resolve(
-								`${directoryPath}/${file.name}_275px${file.extension}`
-							);
-						});
-				}
-			})
-		);
+		resizePromises.push(resizeImage(directoryPath, file, options));
 	});
 
 	return await Promise.all(resizePromises);
+};
+
+export const resizeImage = (directoryPath: string, file: any, options: any) => {
+	const { baseWidth } = options.imageResizeOptions;
+	const sharpResizeInstance = sharp().resize(baseWidth).toFormat("png");
+	return new Promise((resolve, reject) => {
+		const resizedStream = createReadStream(
+			`${directoryPath}/${file.name}${file.extension}`
+		);
+		if (fse.existsSync(`${directoryPath}/${file.name}${file.extension}`)) {
+			resizedStream
+				.pipe(sharpResizeInstance)
+				.toFile(
+					`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`
+				)
+				.then((data) => {
+					console.log(
+						`Resized image ${JSON.stringify(data, null, 4)}`
+					);
+					fse.unlink(
+						`${directoryPath}/${file.name}${file.extension}`
+					);
+					resolve(
+						`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`
+					);
+				});
+		}
+	});
 };

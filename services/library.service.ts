@@ -95,9 +95,12 @@ export default class ImportService extends Service {
 				uncompressFullArchive: {
 					rest: "POST /uncompressFullArchive",
 					params: {},
-					handler: async (ctx: Context<{ filePath: string }>) => {
+					handler: async (
+						ctx: Context<{ filePath: string; options: any }>
+					) => {
 						return await uncompressEntireArchive(
-							ctx.params.filePath
+							ctx.params.filePath,
+							ctx.params.options
 						);
 					},
 				},
@@ -302,17 +305,17 @@ export default class ImportService extends Service {
 					async handler(
 						ctx: Context<{
 							bundleId: String;
-							comicObjectId: String,
+							comicObjectId: String;
 							name: String;
 							size: Number;
 							type: String;
 						}>
 					) {
-						console.log(JSON.stringify(ctx.params, null, 2))
+						console.log(JSON.stringify(ctx.params, null, 2));
 						const comicObjectId = new ObjectId(
 							ctx.params.comicObjectId
 						);
-					
+
 						return new Promise((resolve, reject) => {
 							Comic.findByIdAndUpdate(
 								comicObjectId,
@@ -322,7 +325,7 @@ export default class ImportService extends Service {
 											bundleId: ctx.params.bundleId,
 											name: ctx.params.name,
 											size: ctx.params.size,
-											type: ctx.params.type,	
+											type: ctx.params.type,
 										},
 									},
 								},
