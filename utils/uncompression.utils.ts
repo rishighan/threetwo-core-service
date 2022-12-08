@@ -399,7 +399,7 @@ export const uncompressZipArchive = async (filePath: string, options: any) => {
 		mode: 0o2775,
 	};
 	const { fileNameWithoutExtension } = getFileConstituents(filePath);
-	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
 
@@ -413,7 +413,7 @@ export const uncompressRarArchive = async (filePath: string, options: any) => {
 	};
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
-	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${fileNameWithoutExtension}`;
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 
 	const archive = new Unrar({
@@ -469,9 +469,16 @@ export const resizeImageDirectory = async (
 	return await Promise.all(resizePromises);
 };
 
+/**
+ * Method that resizes an image in a specified location based on parameters provided
+ * @param {string} directoryPath
+ * @param {any} file
+ * @param {any} options
+ * @returns {any}
+ */
 export const resizeImage = (directoryPath: string, file: any, options: any) => {
 	const { baseWidth } = options.imageResizeOptions;
-	const sharpResizeInstance = sharp().resize(baseWidth).toFormat("png");
+	const sharpResizeInstance = sharp().resize(baseWidth).toFormat("jpg");
 	return new Promise((resolve, reject) => {
 		const resizedStream = createReadStream(
 			`${directoryPath}/${file.name}${file.extension}`

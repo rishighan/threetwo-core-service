@@ -62,7 +62,7 @@
     "lodash": "^4.17.21",
     "mkdirp": "^0.5.5",
     "moleculer": "^0.14.23",
-    "moleculer-bull": "github:rishighan/moleculer-bull",
+    "moleculer-bull": "github:rishighan/moleculer-bull#1.0.0",
     "moleculer-db": "^0.8.17",
     "moleculer-db-adapter-mongo": "^0.4.7",
     "moleculer-db-adapter-mongoose": "^0.8.12",

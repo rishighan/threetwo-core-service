@@ -56,6 +56,10 @@ export default class SocketService extends Service {
 												{}
 											);
 											break;
+										// uncompress archive events
+										case "COMICBOOK_EXTRACTION_SUCCESS":
+											console.log(data);
+											return data;
 									}
 								},
 							},

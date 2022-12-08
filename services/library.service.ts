@@ -98,10 +98,10 @@ export default class ImportService extends Service {
 					handler: async (
 						ctx: Context<{ filePath: string; options: any }>
 					) => {
-						return await uncompressEntireArchive(
-							ctx.params.filePath,
-							ctx.params.options
-						);
+						await broker.call("importqueue.uncompressResize", {
+							filePath: ctx.params.filePath,
+							options: ctx.params.options,
+						});
 					},
 				},
 				newImport: {
