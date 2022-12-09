@@ -38,7 +38,10 @@ import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import BullMQMixin, { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import { extractFromArchive, uncompressEntireArchive } from "../utils/uncompression.utils";
+import {
+	extractFromArchive,
+	uncompressEntireArchive,
+} from "../utils/uncompression.utils";
 
 const REDIS_URI = process.env.REDIS_URI || `redis://localhost:6379`;
 const EventEmitter = require("events");
@@ -145,8 +148,11 @@ export default class QueueService extends Service {
 				"process.uncompressAndResize": {
 					concurrency: 2,
 					async process(job: SandboxedJob) {
-						console.log(``);
-						return await uncompressEntireArchive(job.data.filePath, job.data.options);
+						console.log(`Initiating uncompression job...`);
+						return await uncompressEntireArchive(
+							job.data.filePath,
+							job.data.options
+						);
 					},
 				},
 			},
@@ -220,15 +226,15 @@ export default class QueueService extends Service {
 							event: "action",
 							args: [{ type: "LS_COVER_EXTRACTED", result: res }], //optional
 						});
-						console.info(`Import Job with the id '${job.id}' completed.`);
+						console.info(
+							`Import Job with the id '${job.id}' completed.`
+						);
 					}
 				);
 				await this.getQueue("process.import").on(
 					"stalled",
 					async (job) => {
-						console.warn(
-							`Import job '${job.id} stalled!`
-						);
+						console.warn(`Import job '${job.id} stalled!`);
 						console.log(`${JSON.stringify(job, null, 2)}`);
 						console.log(`is stalled.`);
 					}
@@ -240,9 +246,17 @@ export default class QueueService extends Service {
 						await this.broker.call("socket.broadcast", {
 							namespace: "/",
 							event: "action",
-							args: [{ type: "COMICBOOK_EXTRACTION_SUCCESS", result: res }]
+							args: [
+								{
+									type: "COMICBOOK_EXTRACTION_SUCCESS",
+									result: {
+										files: res,
+										purpose: job.data.options.purpose,
+									},
+								},
+							],
 						});
-						console.info(`Uncompression Job ${job.id} completed.`)
+						console.info(`Uncompression Job ${job.id} completed.`);
 					}
 				);
 			},
