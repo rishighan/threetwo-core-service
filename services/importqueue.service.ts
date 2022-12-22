@@ -34,6 +34,7 @@ SOFTWARE.
 "use strict";
 
 import { refineQuery } from "filename-parser";
+import { isNil, isUndefined } from "lodash";
 import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 import BullMQMixin, { SandboxedJob } from "moleculer-bull";
 import { DbMixin } from "../mixins/db.mixin";
@@ -92,10 +93,14 @@ export default class QueueService extends Service {
 							"Issue metadata inferred: ",
 							JSON.stringify(inferredIssueDetails, null, 2)
 						);
-
-						// write to mongo
-						console.log("Writing to mongo...");
-						await this.broker.call("library.rawImportToDB", {
+						// Add the bundleId, if present to the payload
+						let bundleId = null;
+						if (!isNil(job.data.bundleId)) {
+							bundleId = job.data.bundleId;
+						}
+						
+						// Orchestrate the payload
+						const payload = {
 							importStatus: {
 								isImported: true,
 								tagged: false,
@@ -115,30 +120,41 @@ export default class QueueService extends Service {
 								issue: inferredIssueDetails,
 							},
 							sourcedMetadata: {
+								// except for ComicInfo.xml, everything else should be copied over from the
+								// parent comic
 								comicInfo: comicInfoJSON,
-								comicvine: {},
 							},
 							// since we already have at least 1 copy
 							// mark it as not wanted by default
-							acquisition: {
-								source: {
-									wanted: false,
-								},
-								directconnect: {
-									downloads: [],
-								},
-							},
-						});
+							"acquisition.source.wanted": false,
+
+							// clear out the downloads array
+							// "acquisition.directconnect.downloads": [],
+
+							// mark the metadata source
+							"acquisition.source.name": job.data.sourcedFrom,
+						};
+
+						// Add the sourcedMetadata, if present
+						if (!isNil(job.data.sourcedMetadata) && !isUndefined(job.data.sourcedMetadata.comicvine)) {
+							Object.assign(
+								payload.sourcedMetadata,
+								job.data.sourcedMetadata
+							);
+						}
+
+						// write to mongo
+						const importResult = await this.broker.call(
+							"library.rawImportToDB",
+							{
+								importType: job.data.importType,
+								bundleId,
+								payload,
+							}
+						);
 						return {
 							data: {
-								result,
-								inferredMetadata: {
-									issue: inferredIssueDetails,
-								},
-								sourcedMetadata: {
-									comicInfo: comicInfoJSON,
-									comicvine: {},
-								},
+								importResult,
 							},
 							id: job.id,
 							worker: process.pid,
@@ -177,10 +193,18 @@ export default class QueueService extends Service {
 					async handler(
 						ctx: Context<{
 							fileObject: object;
+							importType: string;
+							bundleId: number;
+							sourcedFrom?: string;
+							sourcedMetadata: object;
 						}>
 					) {
 						return await this.createJob("process.import", {
 							fileObject: ctx.params.fileObject,
+							importType: ctx.params.importType,
+							bundleId: ctx.params.bundleId,
+							sourcedFrom: ctx.params.sourcedFrom,
+							sourcedMetadata: ctx.params.sourcedMetadata,
 						});
 					},
 				},

@@ -51,8 +51,8 @@ export default class SocketService extends Service {
 											);
 											console.log(data);
 											await this.broker.call(
-												"library.importDownloadedFileToLibrary",
-												data.data,
+												"library.importDownloadedComic",
+												{ bundle: data },
 												{}
 											);
 											break;

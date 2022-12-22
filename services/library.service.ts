@@ -32,7 +32,7 @@ SOFTWARE.
  */
 
 "use strict";
-import { isNil, isUndefined } from "lodash";
+import { isNil } from "lodash";
 import {
 	Context,
 	Service,
@@ -42,15 +42,8 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-import {
-	explodePath,
-	walkFolder,
-	getSizeOfDirectory,
-} from "../utils/file.utils";
-import {
-	extractFromArchive,
-	uncompressEntireArchive,
-} from "../utils/uncompression.utils";
+import { walkFolder, getSizeOfDirectory } from "../utils/file.utils";
+import { extractFromArchive } from "../utils/uncompression.utils";
 import { convertXMLToJSON } from "../utils/xml.utils";
 import {
 	IExtractComicBookCoverErrorResponse,
@@ -104,6 +97,45 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				importDownloadedComic: {
+					rest: "POST /importDownloadedComic",
+					params: {},
+					handler: async (ctx: Context<{ bundle: any }>) => {
+						console.log(ctx.params);
+						// Find the comic by bundleId
+						const referenceComicObject = await Comic.find({
+							"acquisition.directconnect.downloads.bundleId": `${ctx.params.bundle.data.id}`,
+						});
+						// Determine source where the comic was added from
+						// and gather identifying information about it
+						const sourceName =
+							referenceComicObject[0].acquisition.source.name;
+						const { sourcedMetadata } = referenceComicObject[0];
+
+						const filePath = `${COMICS_DIRECTORY}/${ctx.params.bundle.data.name}`;
+						let comicExists = await Comic.exists({
+							"rawFileDetails.name": `${path.basename(
+								ctx.params.bundle.data.name,
+								path.extname(ctx.params.bundle.data.name)
+							)}`,
+						});
+						if (!comicExists) {
+							// 2. Send the extraction job to the queue
+							await broker.call("importqueue.processImport", {
+								importType: "update",
+								sourcedFrom: sourceName,
+								bundleId: ctx.params.bundle.data.id,
+								sourcedMetadata,
+								fileObject: {
+									filePath,
+									// fileSize: item.stats.size,
+								},
+							});
+						} else {
+							console.log("Comic already exists in the library.");
+						}
+					},
+				},
 				newImport: {
 					rest: "POST /newImport",
 					params: {},
@@ -113,7 +145,6 @@ export default class ImportService extends Service {
 						}>
 					) {
 						// 1. Walk the Source folder
-
 						klaw(path.resolve(COMICS_DIRECTORY))
 							// 1.1 Filter on .cb* extensions
 							.pipe(
@@ -126,7 +157,6 @@ export default class ImportService extends Service {
 									) {
 										this.push(item);
 									}
-
 									next();
 								})
 							)
@@ -151,6 +181,7 @@ export default class ImportService extends Service {
 												filePath: item.path,
 												fileSize: item.stats.size,
 											},
+											importType: "new",
 										}
 									);
 								} else {
@@ -170,35 +201,39 @@ export default class ImportService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							_id: string;
-							sourcedMetadata: {
-								comicvine?: {
-									volume: { api_detail_url: string };
-									volumeInformation: {};
+							bundleId?: string;
+							importType: string;
+							payload: {
+								_id?: string;
+								sourcedMetadata: {
+									comicvine?: {
+										volume: { api_detail_url: string };
+										volumeInformation: {};
+									};
+									locg?: {};
 								};
-								locg?: {};
-							};
-							inferredMetadata: {
-								issue: Object;
-							};
-							rawFileDetails: {
-								name: string;
-							};
-							acquisition: {
-								source: {
-									wanted: boolean;
-									name?: string;
+								inferredMetadata: {
+									issue: Object;
 								};
-								directconnect: {
-									downloads: [];
+								rawFileDetails: {
+									name: string;
+								};
+								acquisition: {
+									source: {
+										wanted: boolean;
+										name?: string;
+									};
+									directconnect: {
+										downloads: [];
+									};
 								};
 							};
 						}>
 					) {
 						try {
 							let volumeDetails;
-							const comicMetadata = ctx.params;
-							console.log(JSON.stringify(comicMetadata, null, 4));
+							const comicMetadata = ctx.params.payload;
+
 							// When an issue is added from the search CV feature
 							// we solicit volume information and add that to mongo
 							if (
@@ -220,23 +255,30 @@ export default class ImportService extends Service {
 								comicMetadata.sourcedMetadata.comicvine.volumeInformation =
 									volumeDetails.results;
 							}
-							Comic.findOneAndUpdate(
-								{ _id: new ObjectId(ctx.params._id) },
-								ctx.params,
-								{ upsert: true, new: true },
-								(error, data) => {
-									if (data) {
-										return data;
-									} else if (error) {
-										console.log("data", data);
-										console.log("error", error);
-										throw new Errors.MoleculerError(
-											"Failed to import comic book",
-											500
-										);
-									}
-								}
+
+							console.log("Saving to Mongo...");
+							console.log(
+								`Import type: [${ctx.params.importType}]`
 							);
+							console.log(JSON.stringify(comicMetadata, null, 4));
+							switch (ctx.params.importType) {
+								case "new":
+									return await Comic.create(comicMetadata);
+								case "update":
+									return await Comic.findOneAndUpdate(
+										{
+											"acquisition.directconnect.downloads.bundleId":
+												ctx.params.bundleId,
+										},
+										comicMetadata,
+										{
+											upsert: true,
+											new: true,
+										}
+									);
+								default:
+									return false;
+							}
 						} catch (error) {
 							throw new Errors.MoleculerError(
 								"Import failed.",
@@ -341,39 +383,6 @@ export default class ImportService extends Service {
 						});
 					},
 				},
-				importDownloadedFileToLibrary: {
-					rest: "POST /importDownloadedFileToLibrary",
-					params: {},
-					handler: async (
-						ctx: Context<{
-							comicObjectId: string;
-							comicObject: {
-								acquisition: {
-									source: {
-										wanted: boolean;
-									};
-								};
-							};
-							downloadStatus: { name: string };
-						}>
-					) => {
-						const result = await extractFromArchive(
-							`${COMICS_DIRECTORY}/${ctx.params.downloadStatus.name}`
-						);
-						Object.assign(ctx.params.comicObject, {
-							rawFileDetails: result,
-						});
-						ctx.params.comicObject.acquisition.source.wanted =
-							false;
-						const updateResult = await Comic.findOneAndUpdate(
-							{ _id: new ObjectId(ctx.params.comicObjectId) },
-							ctx.params.comicObject,
-							{ upsert: true, new: true }
-						);
-						await updateResult.index();
-					},
-				},
-
 				getComicBooks: {
 					rest: "POST /getComicBooks",
 					params: {},

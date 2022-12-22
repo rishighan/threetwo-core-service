@@ -73,10 +73,6 @@ export const extractComicInfoXMLFromRar = async (
 	filePath: string
 ): Promise<any> => {
 	try {
-		const result = {
-			filePath,
-		};
-
 		// Create the target directory
 		const directoryOptions = {
 			mode: 0o2775,
@@ -92,7 +88,7 @@ export const extractComicInfoXMLFromRar = async (
 			path: path.resolve(filePath),
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
 		});
-
+		
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
@@ -128,7 +124,6 @@ export const extractComicInfoXMLFromRar = async (
 		const comicInfoXMLFilePromise = new Promise((resolve, reject) => {
 			let comicinfostring = "";
 			if (!isUndefined(comicInfoXML[0])) {
-				console.log(path.basename(comicInfoXML[0].name));
 				const comicInfoXMLFileName = path.basename(
 					comicInfoXML[0].name
 				);
@@ -138,6 +133,7 @@ export const extractComicInfoXMLFromRar = async (
 
 				archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
 				writeStream.on("finish", async () => {
+					console.log(`Attempting to write comicInfo.xml...`);
 					const readStream = createReadStream(
 						`${targetDirectory}/${comicInfoXMLFileName}`
 					);
@@ -154,7 +150,7 @@ export const extractComicInfoXMLFromRar = async (
 							const comicInfoJSON = await convertXMLToJSON(
 								comicinfostring.toString()
 							);
-
+							console.log(`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`)
 							resolve({ comicInfoJSON: comicInfoJSON.comicinfo });
 						}
 					});
@@ -357,6 +353,8 @@ export const extractFromArchive = async (filePath: string) => {
 
 		case ".cbr":
 			const cbrResult = await extractComicInfoXMLFromRar(filePath);
+			console.log("ASDASDASDASDas");
+			console.log(JSON.stringify(cbrResult, null, 4))
 			return Object.assign({}, ...cbrResult);
 
 		default:
