@@ -67,7 +67,7 @@ export default class QueueService extends Service {
 			hooks: {},
 			queues: {
 				"process.import": {
-					concurrency: 20,
+					concurrency: 10,
 					async process(job: SandboxedJob) {
 						console.info("New job received!", job.data);
 						console.info(`Processing queue...`);
@@ -98,7 +98,7 @@ export default class QueueService extends Service {
 						if (!isNil(job.data.bundleId)) {
 							bundleId = job.data.bundleId;
 						}
-						
+
 						// Orchestrate the payload
 						const payload = {
 							importStatus: {

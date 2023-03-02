@@ -1,8 +1,8 @@
-const mongoose = require("mongoose");
 const paginate = require("mongoose-paginate-v2");
 const { Client } = require("@elastic/elasticsearch");
 import ComicVineMetadataSchema from "./comicvine.metadata.model";
 import { mongoosastic } from "mongoosastic-ts";
+const mongoose = require("mongoose")
 import {
 	MongoosasticDocument,
 	MongoosasticModel,
@@ -10,6 +10,7 @@ import {
 } from "mongoosastic-ts/dist/types";
 const ELASTICSEARCH_HOST =
 	process.env.ELASTICSEARCH_URI || "http://localhost:9200";
+console.log(`ELASTICSEARCH -> ${ELASTICSEARCH_HOST}`);
 export const eSClient = new Client({
 	node: ELASTICSEARCH_HOST,
 	auth: {
@@ -127,34 +128,11 @@ const ComicSchema = mongoose.Schema(
 );
 
 ComicSchema.plugin(mongoosastic, {
+	index: "comics",
+	type: "comic",
 	esClient: eSClient,
-});
+} as MongoosasticPluginOpts);
 ComicSchema.plugin(paginate);
 
 const Comic = mongoose.model("Comic", ComicSchema);
-// Comic.createMapping({
-// 	analysis: {
-// 		analyzer: {
-// 			content: {
-// 				type: "custom",
-// 				tokenizer: "whitespace",
-// 			},
-// 		},
-// 	},
-// }).then((data) => {
-// 	console.log("Mapping the index...")
-// 	console.log(data)
-// })
-// const stream = Comic.synchronize();
-// let count = 0;
-
-// stream.on("data", function (err, doc) {
-// 	count++;
-// });
-// stream.on("close", function () {
-// 	console.log("indexed " + count + " documents!");
-// });
-// stream.on("error", function (err) {
-// 	console.log(err);
-// });
 export default Comic;

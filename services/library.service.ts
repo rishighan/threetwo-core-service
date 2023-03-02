@@ -57,7 +57,7 @@ import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 
-console.log(process.env.MONGO_URI);
+console.log(`MONGO -> ${process.env.MONGO_URI}`);
 export default class ImportService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -233,7 +233,6 @@ export default class ImportService extends Service {
 						try {
 							let volumeDetails;
 							const comicMetadata = ctx.params.payload;
-
 							// When an issue is added from the search CV feature
 							// we solicit volume information and add that to mongo
 							if (
@@ -260,7 +259,6 @@ export default class ImportService extends Service {
 							console.log(
 								`Import type: [${ctx.params.importType}]`
 							);
-							console.log(JSON.stringify(comicMetadata, null, 4));
 							switch (ctx.params.importType) {
 								case "new":
 									return await Comic.create(comicMetadata);
@@ -280,6 +278,7 @@ export default class ImportService extends Service {
 									return false;
 							}
 						} catch (error) {
+							console.log(error);
 							throw new Errors.MoleculerError(
 								"Import failed.",
 								500

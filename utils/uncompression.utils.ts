@@ -88,7 +88,7 @@ export const extractComicInfoXMLFromRar = async (
 			path: path.resolve(filePath),
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
 		});
-		
+
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
@@ -353,8 +353,6 @@ export const extractFromArchive = async (filePath: string) => {
 
 		case ".cbr":
 			const cbrResult = await extractComicInfoXMLFromRar(filePath);
-			console.log("ASDASDASDASDas");
-			console.log(JSON.stringify(cbrResult, null, 4))
 			return Object.assign({}, ...cbrResult);
 
 		default:
