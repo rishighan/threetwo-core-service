@@ -87,12 +87,13 @@ export const extractComicInfoXMLFromRar = async (
 		const archive = new Unrar({
 			path: path.resolve(filePath),
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
+			arguments: ["-v"]
 		});
-
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
 					if (err) {
+       					console.log(`DEBUG: ${JSON.stringify(err, null, 2)}` )
 						reject(err);
 					}
 					resolve(entries);
@@ -161,11 +162,10 @@ export const extractComicInfoXMLFromRar = async (
 		});
 
 		const coverFilePromise = new Promise((resolve, reject) => {
-			const coverFile = sanitize(path.basename(files[0].name));
+			const coverFile = path.basename(files[0].name);
 			const sharpStream = sharp().resize(275).toFormat("png");
 			const coverExtractionStream = archive.stream(files[0].name);
 			const resizeStream = coverExtractionStream.pipe(sharpStream);
-
 			resizeStream.toFile(
 				`${targetDirectory}/${coverFile}`,
 				(err, info) => {
@@ -246,7 +246,8 @@ export const extractComicInfoXMLFromZip = async (
 		});
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
-		filesToWriteToDisk.coverFile = sanitize(path.basename(files[0].name));
+		filesToWriteToDisk.coverFile = path.basename(files[0].name);
+			console.log(`sanitized or not, here I am: ${filesToWriteToDisk.coverFile}`);
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
