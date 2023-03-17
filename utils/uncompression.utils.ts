@@ -44,6 +44,7 @@ import {
 	getFileConstituents,
 	createDirectory,
 	walkFolder,
+	getMimeType,
 } from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
@@ -346,6 +347,8 @@ export const extractFromArchive = async (filePath: string) => {
 	console.log(
 		`Detected file type is ${extension}, looking for comicinfo.xml...`
 	);
+	const mimeType = await getMimeType(filePath);
+	console.log(`File has the following mime-type: ${mimeType}`);
 	switch (extension) {
 		case ".cbz":
 		case ".cb7":

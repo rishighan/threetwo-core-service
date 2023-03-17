@@ -3,6 +3,7 @@ const fse = require("fs-extra");
 
 import path from "path";
 import fs from "fs";
+import { FileMagic, MagicFlags } from "@npcz/magic";
 const { readdir, stat } = require("fs/promises");
 import {
 	IExplodedPathResponse,
@@ -16,6 +17,17 @@ import { Errors } from "moleculer";
 import { sanitize } from "sanitize-filename-ts";
 
 const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
+
+// Tell FileMagic where to find the magic.mgc file
+FileMagic.magicFile = require.resolve("@npcz/magic/dist/magic.mgc");
+
+// We can onlu use MAGIC_PRESERVE_ATIME on operating suystems that support
+// it and that includes OS X for example. It's a good practice as we don't
+// want to change the last access time because we are just checking the file
+// contents type
+if (process.platform === "darwin" || process.platform === "linux") {
+	FileMagic.defaulFlags = MagicFlags.MAGIC_PRESERVE_ATIME;
+}
 
 export const walkFolder = async (
 	folder: string,
@@ -73,11 +85,11 @@ export const explodePath = (filePath: string): IExplodedPathResponse => {
 // returns a promise which resolves true if file exists:
 export const checkFileExists = (filepath) => {
 	return new Promise((resolve, reject) => {
-		fs.access(filepath, fs.constants.F_OK, error => {
+		fs.access(filepath, fs.constants.F_OK, (error) => {
 			resolve(!error);
 		});
 	});
-}
+};
 
 export const getSizeOfDirectory = async (
 	directoryPath: string,
@@ -123,14 +135,28 @@ export const getFileConstituents = (filePath: string) => {
 	};
 };
 
+export const getMimeType = async (filePath: string) => {
+	return await FileMagic.getInstance().then((magic: FileMagic) => {
+		return magic.detect(
+			path.resolve(filePath),
+			magic.flags | MagicFlags.MAGIC_MIME
+		);
+	});
+};
+
 export const createDirectory = async (options: any, directoryPath: string) => {
 	try {
 		await fse.ensureDir(directoryPath, options);
 		console.info(`Directory [ %s ] was created.`, directoryPath);
 	} catch (error) {
-		throw new Errors.MoleculerError("Failed to create directory", 500, "FileOpsError", error);
+		throw new Errors.MoleculerError(
+			"Failed to create directory",
+			500,
+			"FileOpsError",
+			error
+		);
 	}
-}
+};
 
 const filterOutDotFiles = (entities) =>
 	entities.filter((ent) => !ent.name.startsWith("."));
