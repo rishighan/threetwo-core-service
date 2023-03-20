@@ -62,7 +62,7 @@
     "leven": "^3.1.0",
     "lodash": "^4.17.21",
     "mkdirp": "^0.5.5",
-    "moleculer": "^0.14.28",
+    "moleculer": "^0.14.29",
     "moleculer-bull": "github:rishighan/moleculer-bull#1.0.0",
     "moleculer-db": "^0.8.23",
     "moleculer-db-adapter-mongo": "^0.4.17",

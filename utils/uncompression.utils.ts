@@ -88,13 +88,13 @@ export const extractComicInfoXMLFromRar = async (
 		const archive = new Unrar({
 			path: path.resolve(filePath),
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
-			arguments: ["-v"]
+			arguments: ["-v"],
 		});
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
 					if (err) {
-       					console.log(`DEBUG: ${JSON.stringify(err, null, 2)}` )
+						console.log(`DEBUG: ${JSON.stringify(err, null, 2)}`);
 						reject(err);
 					}
 					resolve(entries);
@@ -152,7 +152,9 @@ export const extractComicInfoXMLFromRar = async (
 							const comicInfoJSON = await convertXMLToJSON(
 								comicinfostring.toString()
 							);
-							console.log(`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`)
+							console.log(
+								`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`
+							);
 							resolve({ comicInfoJSON: comicInfoJSON.comicinfo });
 						}
 					});
@@ -248,7 +250,9 @@ export const extractComicInfoXMLFromZip = async (
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
 		filesToWriteToDisk.coverFile = path.basename(files[0].name);
-			console.log(`sanitized or not, here I am: ${filesToWriteToDisk.coverFile}`);
+		console.log(
+			`sanitized or not, here I am: ${filesToWriteToDisk.coverFile}`
+		);
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
@@ -349,13 +353,13 @@ export const extractFromArchive = async (filePath: string) => {
 	);
 	const mimeType = await getMimeType(filePath);
 	console.log(`File has the following mime-type: ${mimeType}`);
-	switch (extension) {
-		case ".cbz":
-		case ".cb7":
+	switch (mimeType) {
+		case "application/x-7z-compressed; charset=binary":
+		case "application/zip; charset=binary":
 			const cbzResult = await extractComicInfoXMLFromZip(filePath);
 			return Object.assign({}, ...cbzResult);
 
-		case ".cbr":
+		case "application/x-rar; charset=binary":
 			const cbrResult = await extractComicInfoXMLFromRar(filePath);
 			return Object.assign({}, ...cbrResult);
 

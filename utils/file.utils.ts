@@ -121,6 +121,12 @@ export const constructPaths = (
 		walkedFolder.extension,
 });
 
+/**
+ * Method that gets file metadata from a filepath.
+ * Extracts the file extension, file name with and without the extension
+ * @param {string} filePath
+ * @returns {Object} object
+ */
 export const getFileConstituents = (filePath: string) => {
 	const extension = path.extname(filePath);
 	const fileNameWithExtension = path.basename(filePath);
@@ -135,6 +141,11 @@ export const getFileConstituents = (filePath: string) => {
 	};
 };
 
+/**
+ * Method that infers MIME type from a filepath 
+ * @param {string} filePath
+ * @returns {Promise} string
+ */
 export const getMimeType = async (filePath: string) => {
 	return await FileMagic.getInstance().then((magic: FileMagic) => {
 		return magic.detect(
