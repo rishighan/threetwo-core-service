@@ -1,13 +1,14 @@
 const path = require("path");
 const mkdir = require("mkdirp").sync;
 const DbService = require("moleculer-db");
-const MongoAdapter = require("moleculer-db-adapter-mongoose");
+
 
 export const DbMixin = (collection, model) => {
-	if(process.env.MONGO_URI) {
+	if (process.env.MONGO_URI) {
+		const MongooseAdapter = require("moleculer-db-adapter-mongoose");
 		return {
 			mixins: [DbService],
-			adapter: new MongoAdapter(process.env.MONGO_URI, {
+			adapter: new MongooseAdapter(process.env.MONGO_URI, {
 				user: process.env.MONGO_INITDB_ROOT_USERNAME,
 				pass: process.env.MONGO_INITDB_ROOT_PASSWORD,
 				keepAlive: true,
@@ -15,7 +16,6 @@ export const DbMixin = (collection, model) => {
 				family: 4,
 			}),
 			model,
-			collection,
 		};
 	}
 	mkdir(path.resolve("./data"));

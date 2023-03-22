@@ -7,8 +7,10 @@ module.exports = {
 	ignorePatterns: [ "test/*"],
 	parser: "@typescript-eslint/parser",
 	parserOptions: {
+		ecmaVersion: "esnext",
 		project: "tsconfig.json",
-		sourceType: "module"
+		sourceType: "module",
+		ecmaVersion: "latest",
 	},
 	plugins: ["prefer-arrow", "import", "@typescript-eslint"],
 	rules: {

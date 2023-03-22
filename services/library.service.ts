@@ -75,6 +75,7 @@ export default class ImportService extends Service {
 						return await walkFolder(ctx.params.basePathToWalk, [
 							".cbz",
 							".cbr",
+							".cb7",
 						]);
 					},
 				},

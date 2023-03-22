@@ -1,10 +1,16 @@
 "use strict";
 import { Service, ServiceBroker, ServiceSchema } from "moleculer";
+import { createClient } from "redis";
+import { createAdapter } from "@socket.io/redis-adapter";
 const SocketIOService = require("moleculer-io");
-const redisAdapter = require("socket.io-redis");
 const redisURL = new URL(process.env.REDIS_URI);
-console.log(redisURL.hostname);
+// console.log(redisURL.hostname);
 
+const pubClient = createClient({ url: `redis://${redisURL.hostname}:6379` });
+(async () => {
+	await pubClient.connect();
+})();
+const subClient = pubClient.duplicate();
 export default class SocketService extends Service {
 	// @ts-ignore
 	public constructor(
@@ -66,10 +72,7 @@ export default class SocketService extends Service {
 						},
 					},
 					options: {
-						adapter: redisAdapter({
-							host: redisURL.hostname,
-							port: 6379,
-						}),
+						adapter: createAdapter(pubClient, subClient),
 					},
 				},
 			},
