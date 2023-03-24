@@ -25,14 +25,12 @@ const RawFileDetailsSchema = mongoose.Schema({
 	filePath: String,
 	fileSize: Number,
 	extension: String,
+	mimeType: String,
 	containedIn: String,
 	pageCount: Number,
 	cover: {
 		filePath: String,
 		stats: Object,
-	},
-	calibreMetadata: {
-		coverWriteResult: String,
 	},
 });
 
