@@ -44,6 +44,7 @@ import {
 	getFileConstituents,
 	createDirectory,
 	walkFolder,
+	getMimeType,
 } from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
 const fse = require("fs-extra");
@@ -62,7 +63,8 @@ interface RarFile {
 }
 
 const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar";
-
+// errors array
+const errors = [];
 /**
  * Method that extracts comicInfo.xml file from a .rar archive, if one exists.
  * Also extracts the first image in the listing, which is assumed to be the cover.
@@ -70,7 +72,8 @@ const UNRAR_BIN_PATH = process.env.UNRAR_BIN_PATH || "/usr/local/bin/unrar";
  * @returns {any}
  */
 export const extractComicInfoXMLFromRar = async (
-	filePath: string
+	filePath: string,
+	mimeType: string,
 ): Promise<any> => {
 	try {
 		// Create the target directory
@@ -87,13 +90,13 @@ export const extractComicInfoXMLFromRar = async (
 		const archive = new Unrar({
 			path: path.resolve(filePath),
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
-			arguments: ["-v"]
+			arguments: ["-v"],
 		});
 		const filesInArchive: [RarFile] = await new Promise(
 			(resolve, reject) => {
 				return archive.list((err, entries) => {
 					if (err) {
-       					console.log(`DEBUG: ${JSON.stringify(err, null, 2)}` )
+						console.log(`DEBUG: ${JSON.stringify(err, null, 2)}`);
 						reject(err);
 					}
 					resolve(entries);
@@ -151,7 +154,9 @@ export const extractComicInfoXMLFromRar = async (
 							const comicInfoJSON = await convertXMLToJSON(
 								comicinfostring.toString()
 							);
-							console.log(`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`)
+							console.log(
+								`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`
+							);
 							resolve({ comicInfoJSON: comicInfoJSON.comicinfo });
 						}
 					});
@@ -182,6 +187,7 @@ export const extractComicInfoXMLFromRar = async (
 								extension,
 								containedIn: targetDirectory,
 								fileSize: fse.statSync(filePath).size,
+								mimeType,
 								cover: {
 									filePath: path.relative(
 										process.cwd(),
@@ -202,7 +208,8 @@ export const extractComicInfoXMLFromRar = async (
 };
 
 export const extractComicInfoXMLFromZip = async (
-	filePath: string
+	filePath: string,
+	mimeType: string,
 ): Promise<any> => {
 	try {
 		// Create the target directory
@@ -247,7 +254,7 @@ export const extractComicInfoXMLFromZip = async (
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
 		filesToWriteToDisk.coverFile = path.basename(files[0].name);
-			console.log(`sanitized or not, here I am: ${filesToWriteToDisk.coverFile}`);
+	
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
@@ -318,6 +325,7 @@ export const extractComicInfoXMLFromZip = async (
 							filePath,
 							name: fileNameWithoutExtension,
 							extension,
+							mimeType,
 							containedIn: targetDirectory,
 							fileSize: fse.statSync(filePath).size,
 							cover: {
@@ -342,18 +350,17 @@ export const extractComicInfoXMLFromZip = async (
 export const extractFromArchive = async (filePath: string) => {
 	console.info(`Unrar is located at: ${UNRAR_BIN_PATH}`);
 	console.info(`p7zip is located at: ${process.env.SEVENZ_BINARY_PATH}`);
-	const { extension } = getFileConstituents(filePath);
-	console.log(
-		`Detected file type is ${extension}, looking for comicinfo.xml...`
-	);
-	switch (extension) {
-		case ".cbz":
-		case ".cb7":
-			const cbzResult = await extractComicInfoXMLFromZip(filePath);
+
+	const mimeType = await getMimeType(filePath);
+	console.log(`File has the following mime-type: ${mimeType}`);
+	switch (mimeType) {
+		case "application/x-7z-compressed; charset=binary":
+		case "application/zip; charset=binary":
+			const cbzResult = await extractComicInfoXMLFromZip(filePath, mimeType);
 			return Object.assign({}, ...cbzResult);
 
-		case ".cbr":
-			const cbrResult = await extractComicInfoXMLFromRar(filePath);
+		case "application/x-rar; charset=binary":
+			const cbrResult = await extractComicInfoXMLFromRar(filePath, mimeType);
 			return Object.assign({}, ...cbrResult);
 
 		default:
@@ -374,13 +381,20 @@ export const uncompressEntireArchive = async (
 	filePath: string,
 	options: any
 ) => {
-	const { extension } = getFileConstituents(filePath);
-	switch (extension) {
-		case ".cbz":
-		case ".cb7":
-			return await uncompressZipArchive(filePath, options);
-		case ".cbr":
-			return await uncompressRarArchive(filePath, options);
+	const mimeType = await getMimeType(filePath);
+	console.log(`File has the following mime-type: ${mimeType}`);
+	switch (mimeType) {
+		case "application/x-7z-compressed; charset=binary":
+		case "application/zip; charset=binary":
+			return await uncompressZipArchive(filePath, {
+				...options,
+				mimeType,
+			});
+		case "application/x-rar; charset=binary":
+			return await uncompressRarArchive(filePath, {
+				...options,
+				mimeType,
+			});
 	}
 };
 
