@@ -48,6 +48,7 @@
     "@types/mkdirp": "^1.0.0",
     "@types/node": "^13.9.8",
     "@types/string-similarity": "^4.0.0",
+    "@elastic/elasticsearch": "^8.6.0",
     "axios": "^0.25.0",
     "axios-retry": "^3.2.4",
     "bree": "^7.1.5",
