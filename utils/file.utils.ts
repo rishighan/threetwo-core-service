@@ -21,7 +21,7 @@ const ALLOWED_IMAGE_FILE_FORMATS = [".jpg", ".jpeg", ".png"];
 // Tell FileMagic where to find the magic.mgc file
 FileMagic.magicFile = require.resolve("@npcz/magic/dist/magic.mgc");
 
-// We can onlu use MAGIC_PRESERVE_ATIME on operating suystems that support
+// We can only use MAGIC_PRESERVE_ATIME on operating suystems that support
 // it and that includes OS X for example. It's a good practice as we don't
 // want to change the last access time because we are just checking the file
 // contents type
@@ -108,6 +108,14 @@ export const isValidImageFileExtension = (fileName: string): boolean => {
 	return includes(ALLOWED_IMAGE_FILE_FORMATS, path.extname(fileName));
 };
 
+/**
+ * This function constructs paths for a target extraction folder and an input file based on extraction
+ * options and a walked folder.
+ * @param {IExtractionOptions} extractionOptions - An object containing options for the extraction
+ * process, such as the target extraction folder.
+ * @param {IFolderData} walkedFolder - `walkedFolder` is an object that represents a folder that has
+ * been walked through during a file extraction process. It contains the following properties:
+ */
 export const constructPaths = (
 	extractionOptions: IExtractionOptions,
 	walkedFolder: IFolderData
@@ -142,7 +150,7 @@ export const getFileConstituents = (filePath: string) => {
 };
 
 /**
- * Method that infers MIME type from a filepath 
+ * Method that infers MIME type from a filepath
  * @param {string} filePath
  * @returns {Promise} string
  */
@@ -155,6 +163,15 @@ export const getMimeType = async (filePath: string) => {
 	});
 };
 
+/**
+ * This function creates a directory at a specified path using the fse.ensureDir method and throws an
+ * error if it fails.
+ * @param {any} options - The options parameter is an optional object that can be passed to the
+ * fse.ensureDir method to configure its behavior. It can include properties such as mode, which sets
+ * the permissions of the directory, and fs, which specifies the file system module to use.
+ * @param {string} directoryPath - The `directoryPath` parameter is a string that represents the path
+ * of the directory that needs to be created.
+ */
 export const createDirectory = async (options: any, directoryPath: string) => {
 	try {
 		await fse.ensureDir(directoryPath, options);
