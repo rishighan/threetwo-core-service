@@ -66,6 +66,17 @@ export default class ImportService extends Service {
 			mixins: [DbMixin("comics", Comic)],
 			hooks: {},
 			actions: {
+				getHealthInformation: {
+					rest: "GET /getHealthInformation",
+					params: {},
+					handler: async (ctx: Context<{}>) => {
+						try {
+							return await ctx.broker.call("$node.services");
+						} catch (error) {
+							return new Error("Service is down.");
+						}
+					},
+				},
 				walkFolders: {
 					rest: "POST /walkFolders",
 					params: {
@@ -139,61 +150,72 @@ export default class ImportService extends Service {
 				},
 				newImport: {
 					rest: "POST /newImport",
-					params: {},
+					// params: {},
 					async handler(
 						ctx: Context<{
 							extractionOptions?: any;
 						}>
 					) {
-						// 1. Walk the Source folder
-						klaw(path.resolve(COMICS_DIRECTORY))
-							// 1.1 Filter on .cb* extensions
-							.pipe(
-								through2.obj(function (item, enc, next) {
-									let fileExtension = path.extname(item.path);
-									if (
-										[".cbz", ".cbr", ".cb7"].includes(
-											fileExtension
-										)
-									) {
-										this.push(item);
-									}
-									next();
-								})
-							)
-							// 1.2 Pipe filtered results to the next step
-							.on("data", async (item) => {
-								console.info(
-									"Found a file at path: %s",
-									item.path
-								);
-								let comicExists = await Comic.exists({
-									"rawFileDetails.name": `${path.basename(
-										item.path,
-										path.extname(item.path)
-									)}`,
-								});
-								if (!comicExists) {
-									// 2. Send the extraction job to the queue
-									await broker.call(
-										"importqueue.processImport",
-										{
+						try {
+							// 1. Walk the Source folder
+							klaw(path.resolve(COMICS_DIRECTORY))
+								// 1.1 Filter on .cb* extensions
+								.pipe(
+									through2.obj(function(item, enc, next) {
+										let fileExtension = path.extname(item.path);
+										if (
+											[".cbz", ".cbr", ".cb7"].includes(
+												fileExtension
+											)
+										) {
+											this.push(item);
+										}
+										next();
+									})
+								)
+								// 1.2 Pipe filtered results to the next step
+								.on("data", async (item) => {
+									console.info(
+										"Found a file at path: %s",
+										item.path
+									);
+									let comicExists = await Comic.exists({
+										"rawFileDetails.name": `${path.basename(
+											item.path,
+											path.extname(item.path)
+										)}`,
+									});
+									if (!comicExists) {
+										// 2. Send the extraction job to the queue
+										// await broker.call(
+										// 	"importqueue.processImport",
+										// 	{
+										// 		fileObject: {
+										// 			filePath: item.path,
+										// 			fileSize: item.stats.size,
+										// 		},
+										// 		importType: "new",
+										// 	}
+										// );
+										this.broker.call('jobqueue.enqueue', {
 											fileObject: {
 												filePath: item.path,
 												fileSize: item.stats.size,
 											},
 											importType: "new",
-										}
-									);
-								} else {
-									console.log(
-										"Comic already exists in the library."
-									);
-								}
-							})
-							.on("end", () => {
-								console.log("All files traversed.");
-							});
+										});
+									} else {
+										console.log(
+											"Comic already exists in the library."
+										);
+									}
+								})
+								.on("end", () => {
+									console.log("All files traversed.");
+								});
+						} catch (error) {
+							console.log(error);
+						}
 					},
 				},
 
@@ -564,9 +586,9 @@ export default class ImportService extends Service {
 										{
 											$match: {
 												"sourcedMetadata.comicvine.volumeInformation":
-													{
-														$gt: {},
-													},
+												{
+													$gt: {},
+												},
 											},
 										},
 										{
