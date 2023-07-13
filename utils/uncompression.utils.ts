@@ -254,7 +254,7 @@ export const extractComicInfoXMLFromZip = async (
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
 		filesToWriteToDisk.coverFile = path.basename(files[0].name);
-	
+
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
@@ -364,10 +364,11 @@ export const extractFromArchive = async (filePath: string) => {
 			return Object.assign({}, ...cbrResult);
 
 		default:
-			console.log(
+			console.error(
 				"Error inferring filetype for comicinfo.xml extraction."
 			);
-			break;
+			throw new Error("Cannot infer filetype");
+
 	}
 };
 

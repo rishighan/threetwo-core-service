@@ -3,9 +3,9 @@ import {
 	Service,
 	ServiceBroker,
 	ServiceSchema,
-	Errors,
 } from "moleculer";
-// import { BullMQAdapter, JobStatus, BullMqMixin } from 'moleculer-bullmq';
+const MoleculerError = require("moleculer").Errors;
+import JobResult from "../models/jobresult.model";
 import { refineQuery } from "filename-parser";
 import BullMqMixin, { BullMQAdapter, Queue } from 'moleculer-bullmq';
 import { extractFromArchive } from "../utils/uncompression.utils";
@@ -45,8 +45,11 @@ export default class JobQueueService extends Service {
 						return job.id;
 					}
 				},
+				// Comic Book Import Job Queue
 				"enqueue.async": {
-					handler: async (ctx: Context<{}>) => {
+					handler: async (ctx: Context<{
+						socketSessionId: String,
+					}>) => {
 						try {
 							console.log(`Recieved Job ID ${ctx.locals.job.id}, processing...`);
 
@@ -125,7 +128,7 @@ export default class JobQueueService extends Service {
 							) {
 								Object.assign(
 									payload.sourcedMetadata,
-									ctx.locals.job.data.paramssourcedMetadata
+									ctx.locals.job.data.params.sourcedMetadata
 								);
 							}
 
@@ -143,9 +146,11 @@ export default class JobQueueService extends Service {
 									importResult,
 								},
 								id: ctx.locals.job.id,
+								socketSessionId: ctx.params.socketSessionId,
 							};
 						} catch (error) {
 							console.error(`An error occurred processing Job ID ${ctx.locals.job.id}`);
+							throw new MoleculerError(error, 500, "IMPORT_JOB_ERROR", ctx.params.socketSessionId);
 						}
 					}
 				},
@@ -153,16 +158,28 @@ export default class JobQueueService extends Service {
 
 			events: {
 				// use the `${QUEUE_NAME}.QUEUE_EVENT` scheme
-				async "enqueue.async.active"(ctx) {
+				async "enqueue.async.active"(ctx: Context<{ id: Number }>) {
 					console.log(`Job ID ${ctx.params.id} is set to active.`);
 				},
 
-				async "enqueue.async.completed"(ctx) {
+				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
+					const jobState = await this.job(ctx.params.id);
+					await JobResult.create({
+						id: ctx.params.id,
+						status: "completed",
+						failedReason: {},
+					});
 					console.log(`Job ID ${ctx.params.id} completed.`);
+
 				},
 
 				async "enqueue.async.failed"(ctx) {
-					console.log("ch-----++++++++++-");
+					const jobState = await this.job(ctx.params.id);
+					await JobResult.create({
+						id: ctx.params.id,
+						status: "failed",
+						failedReason: jobState.failedReason,
+					});
 				}
 			}
 		});

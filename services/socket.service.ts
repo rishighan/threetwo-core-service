@@ -1,16 +1,16 @@
 "use strict";
-import { Service, ServiceBroker, ServiceSchema } from "moleculer";
+import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 const SocketIOService = require("moleculer-io");
-const redisURL = new URL(process.env.REDIS_URI);
-// console.log(redisURL.hostname);
 
+const redisURL = new URL(process.env.REDIS_URI);
 const pubClient = createClient({ url: `redis://${redisURL.hostname}:6379` });
 (async () => {
 	await pubClient.connect();
 })();
 const subClient = pubClient.duplicate();
+
 export default class SocketService extends Service {
 	// @ts-ignore
 	public constructor(
@@ -18,6 +18,7 @@ export default class SocketService extends Service {
 		schema: ServiceSchema<{}> = { name: "socket" }
 	) {
 		super(broker);
+		let socketSessionId = null;
 		this.parseServiceSchema({
 			name: "socket",
 			mixins: [SocketIOService],
@@ -30,8 +31,7 @@ export default class SocketService extends Service {
 								call: {
 									// whitelist: ["math.*", "say.*", "accounts.*", "rooms.*", "io.*"],
 								},
-								action: async (data, ack) => {
-									// write your handler function here.
+								action: async (data) => {
 									switch (data.type) {
 										case "LS_IMPORT":
 											console.log(
@@ -40,10 +40,11 @@ export default class SocketService extends Service {
 											// 1. Send task to queue
 											await this.broker.call(
 												"library.newImport",
-												data.data,
+												{ data: data.data, socketSessionId },
 												{}
 											);
 											break;
+
 										case "LS_TOGGLE_IMPORT_QUEUE":
 											await this.broker.call(
 												"importqueue.toggleImportQueue",
@@ -77,12 +78,18 @@ export default class SocketService extends Service {
 				},
 			},
 			hooks: {},
-			actions: {},
-			methods: {},
+			actions: {
+
+			},
+			methods: {
+
+			},
 			async started() {
-				this.io.on("connection", (data) =>
-					console.log("socket.io server initialized.")
-				);
+				this.io.on("connection", (socket) => {
+					console.log(`socket.io server initialized with session ID: ${socket.id}`);
+					socket.emit("sessionId", socket.id);
+					socketSessionId = socket.id;
+				});
 			},
 		});
 	}

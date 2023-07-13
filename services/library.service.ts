@@ -154,6 +154,7 @@ export default class ImportService extends Service {
 					async handler(
 						ctx: Context<{
 							extractionOptions?: any;
+							socketSessionId: String,
 						}>
 					) {
 						try {
@@ -203,6 +204,7 @@ export default class ImportService extends Service {
 												fileSize: item.stats.size,
 											},
 											importType: "new",
+											socketSessionId: ctx.params.socketSessionId,
 										});
 									} else {
 										console.log(

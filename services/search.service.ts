@@ -46,14 +46,15 @@ export default class SettingsService extends Service {
 							.map((item) => JSON.stringify(item))
 							.join("\n");
 						queries += "\n";
-						const { body } = await eSClient.msearch({
+						const { responses } = await eSClient.msearch({
 							body: queries,
 						});
-						body.responses.forEach((match) => {
+
+						responses.forEach((match) => {
 							console.log(match.hits);
 						});
 
-						return body.responses;
+						return responses;
 					},
 				},
 				issue: {
