@@ -4,14 +4,14 @@ import {
 	ServiceBroker,
 	ServiceSchema,
 } from "moleculer";
-const MoleculerError = require("moleculer").Errors;
+const { MoleculerError } = require("moleculer").Errors;
 import JobResult from "../models/jobresult.model";
 import { refineQuery } from "filename-parser";
 import BullMqMixin, { BullMQAdapter, Queue } from 'moleculer-bullmq';
 import { extractFromArchive } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
 
-
+console.log(process.env.REDIS_URI);
 export default class JobQueueService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -150,7 +150,7 @@ export default class JobQueueService extends Service {
 							};
 						} catch (error) {
 							console.error(`An error occurred processing Job ID ${ctx.locals.job.id}`);
-							throw new MoleculerError(error, 500, "IMPORT_JOB_ERROR", ctx.params.socketSessionId);
+							throw new MoleculerError(error, 500, "IMPORT_JOB_ERROR", {data: ctx.params.socketSessionId});
 						}
 					}
 				},

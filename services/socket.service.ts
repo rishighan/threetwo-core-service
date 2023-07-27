@@ -2,8 +2,9 @@
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
+import Session from "../models/session.model";
 const SocketIOService = require("moleculer-io");
-
+const { v4: uuidv4 } = require("uuid");
 const redisURL = new URL(process.env.REDIS_URI);
 const pubClient = createClient({ url: `redis://${redisURL.hostname}:6379` });
 (async () => {
@@ -33,6 +34,11 @@ export default class SocketService extends Service {
 								},
 								action: async (data) => {
 									switch (data.type) {
+										case "RESUME_SESSION": 
+										console.log("Attempting to resume session...")
+
+										break;
+
 										case "LS_IMPORT":
 											console.log(
 												`Recieved ${data.type} event.`
@@ -85,10 +91,23 @@ export default class SocketService extends Service {
 
 			},
 			async started() {
-				this.io.on("connection", (socket) => {
-					console.log(`socket.io server initialized with session ID: ${socket.id}`);
-					socket.emit("sessionId", socket.id);
-					socketSessionId = socket.id;
+				this.io.on("connection", async (socket) => {
+					console.log(socket);
+					console.log(`socket.io server connected to client with session ID: ${socket.id}`);
+					console.log("Looking up sessionId in Mongo...");
+					const sessionIdExists = await Session.find({ sessionId: socket.handshake.query.sessionId });
+					if(sessionIdExists.length === 0) {
+						console.log(`Socket Id ${socket.id} not found in Mongo, creating a new session...`);
+						const sessionId = uuidv4();
+						socket.sessionId = sessionId;
+						console.log(`Saving session ${sessionId} to Mongo...`);
+						await Session.create({
+							sessionId,
+							socketId: socket.id,
+						});
+						socket.emit("sessionInitialized", sessionId);
+					}
+					
 				});
 			},
 		});

@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const paginate = require("mongoose-paginate-v2");
 
 const JobResultScehma = mongoose.Schema({
 	id: Number,
