@@ -1,13 +1,8 @@
-import {
-	Context,
-	Service,
-	ServiceBroker,
-	ServiceSchema,
-} from "moleculer";
+import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
 const { MoleculerError } = require("moleculer").Errors;
 import JobResult from "../models/jobresult.model";
 import { refineQuery } from "filename-parser";
-import BullMqMixin, { BullMQAdapter, Queue } from 'moleculer-bullmq';
+import BullMqMixin, { BullMQAdapter, Queue } from "moleculer-bullmq";
 import { extractFromArchive } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
 
@@ -23,41 +18,52 @@ export default class JobQueueService extends Service {
 			settings: {
 				bullmq: {
 					client: process.env.REDIS_URI,
-				}
+				},
 			},
 			actions: {
 				getJobStatuses: {
 					rest: "GET /getJobStatuses",
 					handler: async (ctx: Context<{}>) => {
-						const foo = await this.getJobStatuses('enqueue.async');
+						const foo = await this.getJobStatuses("enqueue.async");
 						console.log(foo);
 						return foo;
-					}
+					},
 				},
 				enqueue: {
 					queue: true,
 					rest: "/GET enqueue",
 					handler: async (ctx: Context<{}>) => {
 						// Enqueue the job
-						const job = await this.localQueue(ctx, 'enqueue.async', ctx.params, { priority: 10 });
+						const job = await this.localQueue(
+							ctx,
+							"enqueue.async",
+							ctx.params,
+							{ priority: 10 }
+						);
 						console.log(`Job ${job.id} enqueued`);
 
 						return job.id;
-					}
+					},
 				},
 				// Comic Book Import Job Queue
 				"enqueue.async": {
-					handler: async (ctx: Context<{
-						socketSessionId: String,
-					}>) => {
+					handler: async (
+						ctx: Context<{
+							socketSessionId: String;
+						}>
+					) => {
 						try {
-							console.log(`Recieved Job ID ${ctx.locals.job.id}, processing...`);
+							console.log(
+								`Recieved Job ID ${ctx.locals.job.id}, processing...`
+							);
 
 							// 1. De-structure the job params
 							const { fileObject } = ctx.locals.job.data.params;
 
 							// 2. Extract metadata from the archive
-							const result = await extractFromArchive(fileObject.filePath);
+							const result = await extractFromArchive(
+								fileObject.filePath
+							);
 							const {
 								name,
 								filePath,
@@ -112,8 +118,9 @@ export default class JobQueueService extends Service {
 								// "acquisition.directconnect.downloads": [],
 
 								// mark the metadata source
-								"acquisition.source.name": ctx.locals.job.data.params.sourcedFrom,
-							}
+								"acquisition.source.name":
+									ctx.locals.job.data.params.sourcedFrom,
+							};
 
 							// 3c. Add the bundleId, if present to the payload
 							let bundleId = null;
@@ -123,8 +130,13 @@ export default class JobQueueService extends Service {
 
 							// 3d. Add the sourcedMetadata, if present
 							if (
-								!isNil(ctx.locals.job.data.params.sourcedMetadata) &&
-								!isUndefined(ctx.locals.job.data.params.sourcedMetadata.comicvine)
+								!isNil(
+									ctx.locals.job.data.params.sourcedMetadata
+								) &&
+								!isUndefined(
+									ctx.locals.job.data.params.sourcedMetadata
+										.comicvine
+								)
 							) {
 								Object.assign(
 									payload.sourcedMetadata,
@@ -136,7 +148,8 @@ export default class JobQueueService extends Service {
 							const importResult = await this.broker.call(
 								"library.rawImportToDB",
 								{
-									importType: ctx.locals.job.data.params.importType,
+									importType:
+										ctx.locals.job.data.params.importType,
 									bundleId,
 									payload,
 								}
@@ -149,10 +162,17 @@ export default class JobQueueService extends Service {
 								socketSessionId: ctx.params.socketSessionId,
 							};
 						} catch (error) {
-							console.error(`An error occurred processing Job ID ${ctx.locals.job.id}`);
-							throw new MoleculerError(error, 500, "IMPORT_JOB_ERROR", {data: ctx.params.socketSessionId});
+							console.error(
+								`An error occurred processing Job ID ${ctx.locals.job.id}`
+							);
+							throw new MoleculerError(
+								error,
+								500,
+								"IMPORT_JOB_ERROR",
+								{ data: ctx.params.socketSessionId }
+							);
 						}
-					}
+					},
 				},
 			},
 
@@ -164,13 +184,13 @@ export default class JobQueueService extends Service {
 
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
 					const jobState = await this.job(ctx.params.id);
+
 					await JobResult.create({
 						id: ctx.params.id,
 						status: "completed",
 						failedReason: {},
 					});
 					console.log(`Job ID ${ctx.params.id} completed.`);
-
 				},
 
 				async "enqueue.async.failed"(ctx) {
@@ -180,8 +200,8 @@ export default class JobQueueService extends Service {
 						status: "failed",
 						failedReason: jobState.failedReason,
 					});
-				}
-			}
+				},
+			},
 		});
 	}
 }

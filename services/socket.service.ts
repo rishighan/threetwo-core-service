@@ -34,10 +34,20 @@ export default class SocketService extends Service {
 								},
 								action: async (data) => {
 									switch (data.type) {
-										case "RESUME_SESSION": 
-										console.log("Attempting to resume session...")
+										case "RESUME_SESSION":
+											console.log(
+												"Attempting to resume session..."
+											);
+											const sessionRecord =
+												await Session.find({
+													sessionId:
+														data.session.sessionId,
+												});
+											this.io.emit("yelaveda", {
+												hagindari: "bhagindari",
+											});
 
-										break;
+											break;
 
 										case "LS_IMPORT":
 											console.log(
@@ -46,7 +56,10 @@ export default class SocketService extends Service {
 											// 1. Send task to queue
 											await this.broker.call(
 												"library.newImport",
-												{ data: data.data, socketSessionId },
+												{
+													data: data.data,
+													socketSessionId,
+												},
 												{}
 											);
 											break;
@@ -84,20 +97,22 @@ export default class SocketService extends Service {
 				},
 			},
 			hooks: {},
-			actions: {
-
-			},
-			methods: {
-
-			},
+			actions: {},
+			methods: {},
 			async started() {
 				this.io.on("connection", async (socket) => {
-					console.log(socket);
-					console.log(`socket.io server connected to client with session ID: ${socket.id}`);
+					console.log(
+						`socket.io server connected to client with session ID: ${socket.id}`
+					);
 					console.log("Looking up sessionId in Mongo...");
-					const sessionIdExists = await Session.find({ sessionId: socket.handshake.query.sessionId });
-					if(sessionIdExists.length === 0) {
-						console.log(`Socket Id ${socket.id} not found in Mongo, creating a new session...`);
+					const sessionIdExists = await Session.find({
+						sessionId: socket.handshake.query.sessionId,
+					});
+					// 1. if sessionId isn't found in Mongo, create one and persist it
+					if (sessionIdExists.length === 0) {
+						console.log(
+							`Socket Id ${socket.id} not found in Mongo, creating a new session...`
+						);
 						const sessionId = uuidv4();
 						socket.sessionId = sessionId;
 						console.log(`Saving session ${sessionId} to Mongo...`);
@@ -107,7 +122,12 @@ export default class SocketService extends Service {
 						});
 						socket.emit("sessionInitialized", sessionId);
 					}
-					
+					// 2. else, retrieve it from Mongo and "resume" the socket.io connection
+					else {
+						console.log(
+							`Found socketId ${socket.id}, attempting to resume socket.io connection...`
+						);
+					}
 				});
 			},
 		});
