@@ -3,14 +3,9 @@ import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Session from "../models/session.model";
+import { pubClient, subClient } from "../config/redis.config";
 const SocketIOService = require("moleculer-io");
 const { v4: uuidv4 } = require("uuid");
-const redisURL = new URL(process.env.REDIS_URI);
-const pubClient = createClient({ url: `redis://${redisURL.hostname}:6379` });
-(async () => {
-	await pubClient.connect();
-})();
-const subClient = pubClient.duplicate();
 
 export default class SocketService extends Service {
 	// @ts-ignore
