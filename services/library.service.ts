@@ -51,6 +51,7 @@ import {
 	IExtractionOptions,
 } from "threetwo-ui-typings";
 const ObjectId = require("mongoose").Types.ObjectId;
+import { pubClient } from "../config/redis.config";
 import fsExtra from "fs-extra";
 const through2 = require("through2");
 import klaw from "klaw";
@@ -197,6 +198,9 @@ export default class ImportService extends Service {
 										// 		importType: "new",
 										// 	}
 										// );
+										// reset the job counters in Redis
+										await pubClient.set("completedJobCount", 0);
+										await pubClient.set("failedJobCount", 0);
 										this.broker.call('jobqueue.enqueue', {
 											fileObject: {
 												filePath: item.path,

@@ -4,6 +4,7 @@ import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Session from "../models/session.model";
 import { pubClient, subClient } from "../config/redis.config";
+const { MoleculerError } = require("moleculer").Errors;
 const SocketIOService = require("moleculer-io");
 const { v4: uuidv4 } = require("uuid");
 
@@ -33,14 +34,25 @@ export default class SocketService extends Service {
 											console.log(
 												"Attempting to resume session..."
 											);
-											const sessionRecord =
-												await Session.find({
-													sessionId:
-														data.session.sessionId,
-												});
-											this.io.emit("yelaveda", {
-												hagindari: "bhagindari",
-											});
+											try {
+												const sessionRecord =
+													await Session.find({
+														sessionId:
+															data.session.sessionId,
+													});
+												if (sessionRecord.length !== 0 && sessionRecord[0].sessionId === data.session.sessionId) {
+													this.io.emit("yelaveda", {
+														hagindari: "bhagindari",
+													});
+												}
+											} catch (err) {
+												throw new MoleculerError(
+													err,
+													500,
+													"SESSION_ID_NOT_FOUND",
+													{ data: data.session.sessionId }
+												);
+											}
 
 											break;
 

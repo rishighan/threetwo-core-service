@@ -1,10 +1,12 @@
 import { Context, Service, ServiceBroker, ServiceSchema } from "moleculer";
-const { MoleculerError } = require("moleculer").Errors;
 import JobResult from "../models/jobresult.model";
 import { refineQuery } from "filename-parser";
 import BullMqMixin, { BullMQAdapter, Queue } from "moleculer-bullmq";
 import { extractFromArchive } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
+import { pubClient } from "../config/redis.config";
+
+const { MoleculerError } = require("moleculer").Errors;
 
 console.log(process.env.REDIS_URI);
 export default class JobQueueService extends Service {
@@ -183,8 +185,19 @@ export default class JobQueueService extends Service {
 				},
 
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
+					// 1. Fetch the job result using the job Id
 					const jobState = await this.job(ctx.params.id);
-
+					// 2. Incremement the completed job counter
+					await pubClient.incr("completedJobCount");
+					// 3. Fetch the completed job count for the final payload to be sent to the client
+					const completedJobCount = await pubClient.get("completedJobCount");
+					// 4. Emit the LS_COVER_EXTRACTED event with the necessary details
+					await this.broker.call("socket.broadcast", {
+						namespace: "/", //optional
+						event: "action",
+						args: [{ type: "LS_COVER_EXTRACTED", completedJobCount, importResult: jobState.returnvalue.data.importResult }], //optional
+					});
+					// 5. Persist the job results in mongo for posterity 
 					await JobResult.create({
 						id: ctx.params.id,
 						status: "completed",
@@ -194,12 +207,25 @@ export default class JobQueueService extends Service {
 				},
 
 				async "enqueue.async.failed"(ctx) {
+					console.log("FAILED FAILED FAILED FAILED FAILED")
 					const jobState = await this.job(ctx.params.id);
+					await pubClient.incr("failedJobCount");
+					const failedJobCount = await pubClient.get("failedJobCount");
+
 					await JobResult.create({
 						id: ctx.params.id,
 						status: "failed",
 						failedReason: jobState.failedReason,
 					});
+
+					// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
+					await this.broker.call("socket.broadcast", {
+						namespace: "/", //optional
+						event: "action",
+						args: [{ type: "LS_COVER_EXTRACTION_FAILED", failedJobCount, importResult: jobState }], //optional
+					});
+
+					
 				},
 			},
 		});
