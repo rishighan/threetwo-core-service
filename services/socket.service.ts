@@ -31,16 +31,17 @@ export default class SocketService extends Service {
 								action: async (data) => {
 									switch (data.type) {
 										case "RESUME_SESSION":
-											console.log(
-												"Attempting to resume session..."
-											);
+											console.log("Attempting to resume session...");
 											try {
-												const sessionRecord =
-													await Session.find({
-														sessionId:
-															data.session.sessionId,
-													});
-												if (sessionRecord.length !== 0 && sessionRecord[0].sessionId === data.session.sessionId) {
+												const sessionRecord = await Session.find({
+													sessionId: data.session.sessionId,
+												});
+												// check for sessionId's existence
+												if (
+													sessionRecord.length !== 0 &&
+													sessionRecord[0].sessionId ===
+														data.session.sessionId
+												) {
 													this.io.emit("yelaveda", {
 														hagindari: "bhagindari",
 													});
@@ -50,16 +51,16 @@ export default class SocketService extends Service {
 													err,
 													500,
 													"SESSION_ID_NOT_FOUND",
-													{ data: data.session.sessionId }
+													{
+														data: data.session.sessionId,
+													}
 												);
 											}
 
 											break;
 
 										case "LS_IMPORT":
-											console.log(
-												`Recieved ${data.type} event.`
-											);
+											console.log(`Recieved ${data.type} event.`);
 											// 1. Send task to queue
 											await this.broker.call(
 												"library.newImport",
@@ -73,15 +74,13 @@ export default class SocketService extends Service {
 
 										case "LS_TOGGLE_IMPORT_QUEUE":
 											await this.broker.call(
-												"importqueue.toggleImportQueue",
+												"jobqueue.toggle",
 												data.data,
 												{}
 											);
 											break;
 										case "LS_SINGLE_IMPORT":
-											console.info(
-												"AirDC++ finished a download -> "
-											);
+											console.info("AirDC++ finished a download -> ");
 											console.log(data);
 											await this.broker.call(
 												"library.importDownloadedComic",
