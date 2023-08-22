@@ -196,6 +196,11 @@ export default class JobQueueService extends Service {
 					});
 					// 6. Purge it from Redis
 					await job.remove();
+
+					// 7. Check
+					const jobCounts = this.getJobCounts("active", "completed", "failed");
+					console.log("ASDASD");
+					console.log(jobCounts);
 					console.log(`Job ID ${ctx.params.id} completed.`);
 				},
 
@@ -221,18 +226,6 @@ export default class JobQueueService extends Service {
 								importResult: jobState,
 							},
 						], //optional
-					});
-				},
-				async "enqueue.async.drained"(ctx) {
-					console.log(`Queue drained, all jobs processed.`);
-					await this.broker.call("socket.broadcast", {
-						namespace: "/",
-						event: "action",
-						args: [
-							{
-								type: "LS_IMPORT_QUEUE_DRAINED",
-							},
-						],
 					});
 				},
 			},
