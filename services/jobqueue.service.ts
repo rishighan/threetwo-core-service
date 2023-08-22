@@ -168,7 +168,17 @@ export default class JobQueueService extends Service {
 				async "enqueue.async.active"(ctx: Context<{ id: Number }>) {
 					console.log(`Job ID ${ctx.params.id} is set to active.`);
 				},
-
+				async "drained"(ctx) {
+					console.log("Queue drained.");
+					this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "action",
+						args: [{
+							type: "LS_IMPORT_QUEUE_DRAINED",
+							data: "cham"
+						}],
+					});
+				},
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
 					// 1. Fetch the job result using the job Id
 					const job = await this.job(ctx.params.id);
@@ -197,10 +207,6 @@ export default class JobQueueService extends Service {
 					// 6. Purge it from Redis
 					await job.remove();
 
-					// 7. Check
-					const jobCounts = this.getJobCounts("active", "completed", "failed");
-					console.log("ASDASD");
-					console.log(jobCounts);
 					console.log(`Job ID ${ctx.params.id} completed.`);
 				},
 
