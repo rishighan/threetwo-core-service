@@ -170,12 +170,11 @@ export default class JobQueueService extends Service {
 				},
 				async "drained"(ctx) {
 					console.log("Queue drained.");
-					this.broker.call("socket.broadcast", {
+					await this.broker.call("socket.broadcast", {
 						namespace: "/",
 						event: "action",
 						args: [{
 							type: "LS_IMPORT_QUEUE_DRAINED",
-							data: "cham"
 						}],
 					});
 				},

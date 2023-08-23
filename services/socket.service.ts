@@ -42,8 +42,20 @@ export default class SocketService extends Service {
 													sessionRecord[0].sessionId ===
 														data.session.sessionId
 												) {
-													this.io.emit("yelaveda", {
-														hagindari: "bhagindari",
+													// 1. Get job counts
+													console.log("yea?")
+													const completedJobCount = await pubClient.get("completedJobCount");
+													const failedJobCount = await pubClient.get("failedJobCount");
+													await this.broker.call("socket.broadcast", {
+														namespace: "/", //optional
+														event: "action",
+														args: [
+															{
+																type: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
+																completedJobCount,
+																failedJobCount,
+															},
+														],
 													});
 												}
 											} catch (err) {
@@ -72,10 +84,11 @@ export default class SocketService extends Service {
 											);
 											break;
 
-										case "LS_TOGGLE_IMPORT_QUEUE":
+										case "LS_SET_QUEUE_STATUS":
+											console.log(data);
 											await this.broker.call(
 												"jobqueue.toggle",
-												data.data,
+												{ action: data.data.queueAction },
 												{}
 											);
 											break;
