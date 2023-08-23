@@ -23,6 +23,13 @@ export default class JobQueueService extends Service {
 				},
 			},
 			actions: {
+				getJobCountsByType: {
+					rest: "GET /getJobCountsByType",
+					handler: async (ctx: Context<{}>) => {
+						console.log(ctx.params);
+						return await this.$resolve("jobqueue").getJobCounts();
+					}
+				},
 				toggle: {
 					rest: "GET /toggle",
 					handler: async (ctx: Context<{ action: String }>) => {
@@ -203,35 +210,35 @@ export default class JobQueueService extends Service {
 						status: "completed",
 						failedReason: {},
 					});
-					// 6. Purge it from Redis
-					await job.remove();
+				
 
 					console.log(`Job ID ${ctx.params.id} completed.`);
 				},
 
 				async "enqueue.async.failed"(ctx) {
-					const jobState = await this.job(ctx.params.id);
+					const job = await this.job(ctx.params.id);
 					await pubClient.incr("failedJobCount");
 					const failedJobCount = await pubClient.get("failedJobCount");
 
 					await JobResult.create({
 						id: ctx.params.id,
 						status: "failed",
-						failedReason: jobState.failedReason,
+						failedReason: job.failedReason,
 					});
 
 					// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
 					await this.broker.call("socket.broadcast", {
-						namespace: "/", //optional
+						namespace: "/",
 						event: "action",
 						args: [
 							{
 								type: "LS_COVER_EXTRACTION_FAILED",
 								failedJobCount,
-								importResult: jobState,
+								importResult: job,
 							},
-						], //optional
+						], 
 					});
+					
 				},
 			},
 		});

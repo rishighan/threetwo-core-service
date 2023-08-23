@@ -1,5 +1,6 @@
 "use strict";
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
+import {JobType} from "moleculer-bullmq";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Session from "../models/session.model";
@@ -36,27 +37,38 @@ export default class SocketService extends Service {
 												const sessionRecord = await Session.find({
 													sessionId: data.session.sessionId,
 												});
-												// check for sessionId's existence
+												// 1. Check for sessionId's existence, and a match
 												if (
 													sessionRecord.length !== 0 &&
 													sessionRecord[0].sessionId ===
-														data.session.sessionId
+													data.session.sessionId
 												) {
-													// 1. Get job counts
-													console.log("yea?")
-													const completedJobCount = await pubClient.get("completedJobCount");
-													const failedJobCount = await pubClient.get("failedJobCount");
-													await this.broker.call("socket.broadcast", {
-														namespace: "/", //optional
-														event: "action",
-														args: [
-															{
-																type: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
-																completedJobCount,
-																failedJobCount,
-															},
-														],
-													});
+													// 2. Find if the queue has active jobs
+													const jobs: JobType = await this.broker.call("jobqueue.getJobCountsByType", {})
+													const { active, prioritized } = jobs;
+
+													if (active > 0 && prioritized > 0) {
+														// 3. Get job counts
+														const completedJobCount = await pubClient.get("completedJobCount");
+														const failedJobCount = await pubClient.get("failedJobCount");
+														
+														// 4. Send the counts to the active socket.io session
+														await this.broker.call("socket.broadcast", {
+															namespace: "/",
+															event: "action",
+															args: [
+																{
+																	type: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
+																	completedJobCount,
+																	failedJobCount,
+																	queueStatus: "running",
+																},
+															],
+														});
+													}
+
+
+
 												}
 											} catch (err) {
 												throw new MoleculerError(
