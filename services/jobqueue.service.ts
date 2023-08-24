@@ -188,6 +188,7 @@ export default class JobQueueService extends Service {
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
 					// 1. Fetch the job result using the job Id
 					const job = await this.job(ctx.params.id);
+					console.log(job);
 					// 2. Increment the completed job counter
 					await pubClient.incr("completedJobCount");
 					// 3. Fetch the completed job count for the final payload to be sent to the client
@@ -208,6 +209,7 @@ export default class JobQueueService extends Service {
 					await JobResult.create({
 						id: ctx.params.id,
 						status: "completed",
+						timestamp: job.timestamp,
 						failedReason: {},
 					});
 				
