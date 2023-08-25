@@ -27,7 +27,7 @@ export default class JobQueueService extends Service {
 					handler: async (ctx: Context<{}>) => {
 						console.log(ctx.params);
 						return await this.$resolve("jobqueue").getJobCounts();
-					}
+					},
 				},
 				toggle: {
 					rest: "GET /toggle",
@@ -170,19 +170,19 @@ export default class JobQueueService extends Service {
 				getJobResultStatistics: {
 					rest: "GET /getJobResultStatistics",
 					handler: async (ctx: Context<{}>) => {
-						const result = await JobResult.aggregate([
+						return await JobResult.aggregate([
 							{
 								$group: {
-									_id: "$_id",
-									jobResults: { $addToSet: "status" }
+									_id: "$status",
+									// data: { $push: "$$ROOT._id" },
+									count: { $sum: 1 },
 								},
-								
 							},
+
 							{ $sort: { timestamp: -1 } },
 							{ $skip: 0 },
-							{ $limit: 5 },
-						])
-					}
+						]);
+					},
 				},
 			},
 
@@ -191,14 +191,16 @@ export default class JobQueueService extends Service {
 				async "enqueue.async.active"(ctx: Context<{ id: Number }>) {
 					console.log(`Job ID ${ctx.params.id} is set to active.`);
 				},
-				async "drained"(ctx) {
+				async drained(ctx) {
 					console.log("Queue drained.");
 					await this.broker.call("socket.broadcast", {
 						namespace: "/",
 						event: "action",
-						args: [{
-							type: "LS_IMPORT_QUEUE_DRAINED",
-						}],
+						args: [
+							{
+								type: "LS_IMPORT_QUEUE_DRAINED",
+							},
+						],
 					});
 				},
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
@@ -227,7 +229,6 @@ export default class JobQueueService extends Service {
 						timestamp: job.timestamp,
 						failedReason: {},
 					});
-				
 
 					console.log(`Job ID ${ctx.params.id} completed.`);
 				},
@@ -254,9 +255,8 @@ export default class JobQueueService extends Service {
 								failedJobCount,
 								importResult: job,
 							},
-						], 
+						],
 					});
-					
 				},
 			},
 		});
