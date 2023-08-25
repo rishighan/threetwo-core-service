@@ -175,6 +175,7 @@ export default class ImportService extends Service {
 									})
 								)
 								// 1.2 Pipe filtered results to the next step
+								// 	   Enqueue the job in the queue	
 								.on("data", async (item) => {
 									console.info(
 										"Found a file at path: %s",
@@ -187,20 +188,10 @@ export default class ImportService extends Service {
 										)}`,
 									});
 									if (!comicExists) {
-										// 2. Send the extraction job to the queue
-										// await broker.call(
-										// 	"importqueue.processImport",
-										// 	{
-										// 		fileObject: {
-										// 			filePath: item.path,
-										// 			fileSize: item.stats.size,
-										// 		},
-										// 		importType: "new",
-										// 	}
-										// );
-										// reset the job counters in Redis
+										// 2.1 Reset the job counters in Redis
 										await pubClient.set("completedJobCount", 0);
 										await pubClient.set("failedJobCount", 0);
+										// 2.2 Send the extraction job to the queue
 										this.broker.call('jobqueue.enqueue', {
 											fileObject: {
 												filePath: item.path,
@@ -222,7 +213,6 @@ export default class ImportService extends Service {
 						}
 					},
 				},
-
 				rawImportToDB: {
 					rest: "POST /rawImportToDB",
 					params: {},
