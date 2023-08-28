@@ -61,12 +61,12 @@ export default class JobQueueService extends Service {
 				"enqueue.async": {
 					handler: async (
 						ctx: Context<{
-							socketSessionId: String;
+							sessionId: String;
 						}>
 					) => {
 						try {
 							console.log(`Recieved Job ID ${ctx.locals.job.id}, processing...`);
-
+							console.log(ctx.params);
 							// 1. De-structure the job params
 							const { fileObject } = ctx.locals.job.data.params;
 
@@ -155,14 +155,14 @@ export default class JobQueueService extends Service {
 									importResult,
 								},
 								id: ctx.locals.job.id,
-								socketSessionId: ctx.params.socketSessionId,
+								sessionId: ctx.params.sessionId,
 							};
 						} catch (error) {
 							console.error(
 								`An error occurred processing Job ID ${ctx.locals.job.id}`
 							);
 							throw new MoleculerError(error, 500, "IMPORT_JOB_ERROR", {
-								data: ctx.params.socketSessionId,
+								data: ctx.params.sessionId,
 							});
 						}
 					},
@@ -227,6 +227,7 @@ export default class JobQueueService extends Service {
 						id: ctx.params.id,
 						status: "completed",
 						timestamp: job.timestamp,
+						sessionId: job.returnvalue.sessionId,
 						failedReason: {},
 					});
 
@@ -242,6 +243,7 @@ export default class JobQueueService extends Service {
 						id: ctx.params.id,
 						status: "failed",
 						failedReason: job.failedReason,
+						sessionId: job.returnvalue.sessionId,
 						timestamp: job.timestamp,
 					});
 

@@ -1,6 +1,6 @@
 "use strict";
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
-import {JobType} from "moleculer-bullmq";
+import { JobType } from "moleculer-bullmq";
 import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Session from "../models/session.model";
@@ -16,7 +16,6 @@ export default class SocketService extends Service {
 		schema: ServiceSchema<{}> = { name: "socket" }
 	) {
 		super(broker);
-		let socketSessionId = null;
 		this.parseServiceSchema({
 			name: "socket",
 			mixins: [SocketIOService],
@@ -41,17 +40,25 @@ export default class SocketService extends Service {
 												if (
 													sessionRecord.length !== 0 &&
 													sessionRecord[0].sessionId ===
-													data.session.sessionId
+														data.session.sessionId
 												) {
 													// 2. Find if the queue has active jobs
-													const jobs: JobType = await this.broker.call("jobqueue.getJobCountsByType", {})
+													const jobs: JobType = await this.broker.call(
+														"jobqueue.getJobCountsByType",
+														{}
+													);
 													const { active, prioritized } = jobs;
 
 													if (active > 0 && prioritized > 0) {
 														// 3. Get job counts
-														const completedJobCount = await pubClient.get("completedJobCount");
-														const failedJobCount = await pubClient.get("failedJobCount");
-														
+														const completedJobCount =
+															await pubClient.get(
+																"completedJobCount"
+															);
+														const failedJobCount = await pubClient.get(
+															"failedJobCount"
+														);
+
 														// 4. Send the counts to the active socket.io session
 														await this.broker.call("socket.broadcast", {
 															namespace: "/",
@@ -66,9 +73,6 @@ export default class SocketService extends Service {
 															],
 														});
 													}
-
-
-
 												}
 											} catch (err) {
 												throw new MoleculerError(
@@ -81,19 +85,6 @@ export default class SocketService extends Service {
 												);
 											}
 
-											break;
-
-										case "LS_IMPORT":
-											console.log(`Recieved ${data.type} event.`);
-											// 1. Send task to queue
-											await this.broker.call(
-												"library.newImport",
-												{
-													data: data.data,
-													socketSessionId,
-												},
-												{}
-											);
 											break;
 
 										case "LS_SET_QUEUE_STATUS":
