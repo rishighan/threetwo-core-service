@@ -173,14 +173,26 @@ export default class JobQueueService extends Service {
 						return await JobResult.aggregate([
 							{
 								$group: {
-									_id: "$status",
-									// data: { $push: "$$ROOT._id" },
+									_id: {
+										sessionId: "$sessionId",
+										status: "$status",
+									},
+									earliestTimestamp: { $min: "$timestamp" },
 									count: { $sum: 1 },
 								},
 							},
-
-							{ $sort: { timestamp: -1 } },
-							{ $skip: 0 },
+							{
+								$group: {
+									_id: "$_id.sessionId",
+									statuses: {
+										$push: {
+											status: "$_id.status",
+											earliestTimestamp: "$earliestTimestamp",
+											count: "$count",
+										},
+									},
+								},
+							},
 						]);
 					},
 				},
@@ -243,7 +255,7 @@ export default class JobQueueService extends Service {
 						id: ctx.params.id,
 						status: "failed",
 						failedReason: job.failedReason,
-						sessionId: job.returnvalue.sessionId,
+						sessionId: job.data.params.sessionId,
 						timestamp: job.timestamp,
 					});
 
