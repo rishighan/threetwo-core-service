@@ -47,9 +47,9 @@ export default class SocketService extends Service {
 														"jobqueue.getJobCountsByType",
 														{}
 													);
-													const { active, prioritized } = jobs;
+													const { active } = jobs;
 
-													if (active > 0 && prioritized > 0) {
+													if (active > 0) {
 														// 3. Get job counts
 														const completedJobCount =
 															await pubClient.get(
@@ -149,6 +149,7 @@ export default class SocketService extends Service {
 						console.log(
 							`Found socketId ${socket.id}, attempting to resume socket.io connection...`
 						);
+						console.log(socket.handshake.query.sessionId);
 					}
 				});
 			},
