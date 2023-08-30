@@ -47,6 +47,7 @@ import {
 	getMimeType,
 } from "../utils/file.utils";
 import { convertXMLToJSON } from "./xml.utils";
+const { MoleculerError } = require("moleculer").Errors;
 const fse = require("fs-extra");
 const Unrar = require("unrar");
 interface RarFile {
@@ -254,7 +255,7 @@ export const extractComicInfoXMLFromZip = async (
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
 		filesToWriteToDisk.coverFile = path.basename(files[0].name);
-	
+
 		if (!isEmpty(comicInfoXMLFileObject)) {
 			filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
@@ -364,10 +365,13 @@ export const extractFromArchive = async (filePath: string) => {
 			return Object.assign({}, ...cbrResult);
 
 		default:
-			console.log(
+			console.error(
 				"Error inferring filetype for comicinfo.xml extraction."
 			);
-			break;
+			throw new MoleculerError({}, 500, "FILETYPE_INFERENCE_ERROR", {
+				data: { message: "Cannot infer filetype."},
+			});
+
 	}
 };
 
