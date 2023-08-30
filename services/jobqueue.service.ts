@@ -177,8 +177,12 @@ export default class JobQueueService extends Service {
 										sessionId: "$sessionId",
 										status: "$status",
 									},
-									earliestTimestamp: { $min: "$timestamp" },
-									count: { $sum: 1 },
+									earliestTimestamp: {
+										$min: "$timestamp",
+									},
+									count: {
+										$sum: 1,
+									},
 								},
 							},
 							{
@@ -190,6 +194,55 @@ export default class JobQueueService extends Service {
 											earliestTimestamp: "$earliestTimestamp",
 											count: "$count",
 										},
+									},
+								},
+							},
+							{
+								$project: {
+									_id: 0,
+									sessionId: "$_id",
+									completedJobs: {
+										$reduce: {
+											input: "$statuses",
+											initialValue: 0,
+											in: {
+												$sum: [
+													"$$value",
+													{
+														$cond: [
+															{
+																$eq: ["$$this.status", "completed"],
+															},
+															"$$this.count",
+															0,
+														],
+													},
+												],
+											},
+										},
+									},
+									failedJobs: {
+										$reduce: {
+											input: "$statuses",
+											initialValue: 0,
+											in: {
+												$sum: [
+													"$$value",
+													{
+														$cond: [
+															{
+																$eq: ["$$this.status", "failed"],
+															},
+															"$$this.count",
+															0,
+														],
+													},
+												],
+											},
+										},
+									},
+									earliestTimestamp: {
+										$min: "$statuses.earliestTimestamp",
 									},
 								},
 							},
