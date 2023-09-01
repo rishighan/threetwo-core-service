@@ -11,20 +11,26 @@ This [moleculer-based](https://github.com/moleculerjs/moleculer-web) microservic
 ## Local Development
 
 1. You need the following dependencies installed: `mongo`, `elasticsearch` and `redis`
-2. Clone this repo
-3. Run `npm i`
-4. Assuming you installed the dependencies correctly, run:
+2. You also need binaries for `unrar` and `p7zip`
+3. Clone this repo
+4. Run `npm i`
+5. Assuming you installed the dependencies correctly, run:
+
     ```
     COMICS_DIRECTORY=<PATH_TO_COMICS_DIRECTORY> \
     USERDATA_DIRECTORY=<PATH_TO_USERDATA_DIRECTORY> \
     REDIS_URI=redis://<REDIS_HOST:REDIS_PORT> \
     ELASTICSEARCH_URI=<ELASTICSEARCH_HOST:ELASTICSEARCH_PORT> \
     MONGO_URI=mongodb://<MONGO_HOST:MONGO_PORT>/threetwo \
+    UNRAR_BIN_PATH=<UNRAR_BIN_PATH> \
+    SEVENZ_BINARY_PATH=<SEVENZ_BINARY_PATH> \
     npm run dev
     ```
+
     to start the service
-5. You should see the service spin up and a list of all the endpoints in the terminal
-6. The service can be accessed through `http://localhost:3000/api/<serviceName>/*`
+
+6. You should see the service spin up and a list of all the endpoints in the terminal
+7. The service can be accessed through `http://localhost:3000/api/<serviceName>/*`
 
 ## Docker Instructions
 
