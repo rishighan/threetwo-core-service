@@ -42,43 +42,83 @@ export default class SettingsService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							settingsPayload: {
-								host: object;
-								airDCPPUserSettings: object;
-								hubs: [];
+							settingsPayload?: {
+								protocol: string;
+								hostname: string;
+								port: string;
+								username: string;
+								password: string;
+								_id?: string;
+								airDCPPUserSettings?: object;
+								hubs?: [];
 							};
-							settingsObjectId: string;
+							settingsObjectId?: string;
+							settingsKey: string;
 						}>
 					) {
-						console.log("varan bhat", ctx.params);
-						const { host, airDCPPUserSettings, hubs } =
+						let query = {};
+						const { settingsKey, settingsObjectId } = ctx.params;
+						const { hostname, protocol, port, username, password } =
 							ctx.params.settingsPayload;
-						let query = {
-							host,
-							airDCPPUserSettings,
-							hubs,
-						};
-						const keysToUpdate = pickBy(query, identity);
-						let updateQuery = {};
 
-						map(Object.keys(keysToUpdate), (key) => {
-							updateQuery[`directConnect.client.${key}`] =
-								query[key];
-						});
+						switch (settingsKey) {
+							case "bittorrent":
+								console.log(
+									`Recieved settings for ${settingsKey}, building query...`
+								);
+								query = {
+									bittorrent: {
+										client: {
+											host: {
+												hostname,
+												protocol,
+												port,
+												username,
+												password,
+											},
+											name: "qbittorrent",
+										},
+									},
+								};
+								break;
+							case "directConnect":
+								const { hubs, airDCPPUserSettings } =
+									ctx.params.settingsPayload;
+								query = {
+									directConnect: {
+										client: {
+											host: {
+												hostname,
+												protocol,
+												port,
+												username,
+												password,
+											},
+											hubs,
+											airDCPPUserSettings,
+										},
+									},
+								};
+								break;
+
+							default:
+								return false;
+						}
+
 						const options = {
 							upsert: true,
-							new: true,
 							setDefaultsOnInsert: true,
 						};
 						const filter = {
-							_id: new ObjectId(ctx.params.settingsObjectId),
+							_id: settingsObjectId,
 						};
-						const result = Settings.findOneAndUpdate(
-							filter,
-							{ $set: updateQuery },
+
+						const result = await Settings.updateOne(
+							{},
+							query,
 							options
 						);
-
+						console.log(result);
 						return result;
 					},
 				},
