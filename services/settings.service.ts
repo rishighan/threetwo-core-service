@@ -56,70 +56,84 @@ export default class SettingsService extends Service {
 							settingsKey: string;
 						}>
 					) {
-						let query = {};
-						const { settingsKey, settingsObjectId } = ctx.params;
-						const { hostname, protocol, port, username, password } =
-							ctx.params.settingsPayload;
+						try {
+							let query = {};
+							const { settingsKey, settingsObjectId } =
+								ctx.params;
+							const {
+								hostname,
+								protocol,
+								port,
+								username,
+								password,
+							} = ctx.params.settingsPayload;
 
-						switch (settingsKey) {
-							case "bittorrent":
-								console.log(
-									`Recieved settings for ${settingsKey}, building query...`
-								);
-								query = {
-									bittorrent: {
-										client: {
-											host: {
-												hostname,
-												protocol,
-												port,
-												username,
-												password,
+							// Update, depending what key was passed in params
+							// 1. Construct the update query
+							switch (settingsKey) {
+								case "bittorrent":
+									console.log(
+										`Recieved settings for ${settingsKey}, building query...`
+									);
+									query = {
+										bittorrent: {
+											client: {
+												host: {
+													hostname,
+													protocol,
+													port,
+													username,
+													password,
+												},
+												name: "qbittorrent",
 											},
-											name: "qbittorrent",
 										},
-									},
-								};
-								break;
-							case "directConnect":
-								const { hubs, airDCPPUserSettings } =
-									ctx.params.settingsPayload;
-								query = {
-									directConnect: {
-										client: {
-											host: {
-												hostname,
-												protocol,
-												port,
-												username,
-												password,
+									};
+									break;
+								case "directConnect":
+									console.log(
+										`Recieved settings for ${settingsKey}, building query...`
+									);
+									const { hubs, airDCPPUserSettings } =
+										ctx.params.settingsPayload;
+									query = {
+										directConnect: {
+											client: {
+												host: {
+													hostname,
+													protocol,
+													port,
+													username,
+													password,
+												},
+												hubs,
+												airDCPPUserSettings,
 											},
-											hubs,
-											airDCPPUserSettings,
 										},
-									},
-								};
-								break;
+									};
+									break;
 
-							default:
-								return false;
-						}
+								default:
+									return false;
+							}
 
-						const options = {
-							upsert: true,
-							setDefaultsOnInsert: true,
-						};
-						const filter = {
-							_id: settingsObjectId,
-						};
-
-						const result = await Settings.updateOne(
-							{},
-							query,
-							options
-						);
-						console.log(result);
-						return result;
+							// 2. Set up options, filters
+							const options = {
+								upsert: true,
+								setDefaultsOnInsert: true,
+								returnDocument: "after",
+							};
+							const filter = {
+								_id: settingsObjectId,
+							};
+							// 3. Execute the mongo query
+							const result = await Settings.findOneAndUpdate(
+								{},
+								query,
+								options
+							);
+							return result;
+						} catch (err) {}
 					},
 				},
 				deleteSettings: {
