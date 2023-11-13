@@ -26,90 +26,92 @@ export default class SocketService extends Service {
 						"/": {
 							events: {
 								call: {
-									// whitelist: ["math.*", "say.*", "accounts.*", "rooms.*", "io.*"],
+									whitelist: ["socket.resumeSession"],
 								},
-								action: async (data) => {
-									switch (data.type) {
-										case "RESUME_SESSION":
-											console.log("Attempting to resume session...");
-											try {
-												const sessionRecord = await Session.find({
-													sessionId: data.session.sessionId,
-												});
-												// 1. Check for sessionId's existence, and a match
-												if (
-													sessionRecord.length !== 0 &&
-													sessionRecord[0].sessionId ===
-														data.session.sessionId
-												) {
-													// 2. Find if the queue has active jobs
-													const jobs: JobType = await this.broker.call(
-														"jobqueue.getJobCountsByType",
-														{}
-													);
-													const { active } = jobs;
 
-													if (active > 0) {
-														// 3. Get job counts
-														const completedJobCount =
-															await pubClient.get(
-																"completedJobCount"
-															);
-														const failedJobCount = await pubClient.get(
-															"failedJobCount"
-														);
-
-														// 4. Send the counts to the active socket.io session
-														await this.broker.call("socket.broadcast", {
-															namespace: "/",
-															event: "action",
-															args: [
-																{
-																	type: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
-																	completedJobCount,
-																	failedJobCount,
-																	queueStatus: "running",
-																},
-															],
-														});
-													}
-												}
-											} catch (err) {
-												throw new MoleculerError(
-													err,
-													500,
-													"SESSION_ID_NOT_FOUND",
-													{
-														data: data.session.sessionId,
-													}
-												);
-											}
-
-											break;
-
-										case "LS_SET_QUEUE_STATUS":
-											console.log(data);
-											await this.broker.call(
-												"jobqueue.toggle",
-												{ action: data.data.queueAction },
-												{}
-											);
-											break;
-										case "LS_SINGLE_IMPORT":
-											console.info("AirDC++ finished a download -> ");
-											console.log(data);
-											await this.broker.call(
-												"library.importDownloadedComic",
-												{ bundle: data },
-												{}
-											);
-											break;
-										// uncompress archive events
-										case "COMICBOOK_EXTRACTION_SUCCESS":
-											console.log(data);
-											return data;
-									}
-								},
+								// 								async (data) => {
+								// 									console.log("uldas", data);
+								// 									switch (data.type) {
+								// 										case "RESUME_SESSION":
+								// 											console.log("Attempting to resume session...");
+								// 											try {
+								// 												const sessionRecord = await Session.find({
+								// 													sessionId: data.session.sessionId,
+								// 												});
+								// 												// 1. Check for sessionId's existence, and a match
+								// 												if (
+								// 													sessionRecord.length !== 0 &&
+								// 													sessionRecord[0].sessionId ===
+								// 														data.session.sessionId
+								// 												) {
+								// 													// 2. Find if the queue has active jobs
+								// 													const jobs: JobType = await this.broker.call(
+								// 														"jobqueue.getJobCountsByType",
+								// 														{}
+								// 													);
+								// 													const { active } = jobs;
+								//
+								// 													if (active > 0) {
+								// 														// 3. Get job counts
+								// 														const completedJobCount =
+								// 															await pubClient.get(
+								// 																"completedJobCount"
+								// 															);
+								// 														const failedJobCount = await pubClient.get(
+								// 															"failedJobCount"
+								// 														);
+								//
+								// 														// 4. Send the counts to the active socket.io session
+								// 														await this.broker.call("socket.broadcast", {
+								// 															namespace: "/",
+								// 															event: "action",
+								// 															args: [
+								// 																{
+								// 																	type: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
+								// 																	completedJobCount,
+								// 																	failedJobCount,
+								// 																	queueStatus: "running",
+								// 																},
+								// 															],
+								// 														});
+								// 													}
+								// 												}
+								// 											} catch (err) {
+								// 												throw new MoleculerError(
+								// 													err,
+								// 													500,
+								// 													"SESSION_ID_NOT_FOUND",
+								// 													{
+								// 														data: data.session.sessionId,
+								// 													}
+								// 												);
+								// 											}
+								//
+								// 											break;
+								//
+								// 										case "LS_SET_QUEUE_STATUS":
+								// 											console.log(data);
+								// 											await this.broker.call(
+								// 												"jobqueue.toggle",
+								// 												{ action: data.data.queueAction },
+								// 												{}
+								// 											);
+								// 											break;
+								// 										case "LS_SINGLE_IMPORT":
+								// 											console.info("AirDC++ finished a download -> ");
+								// 											console.log(data);
+								// 											await this.broker.call(
+								// 												"library.importDownloadedComic",
+								// 												{ bundle: data },
+								// 												{}
+								// 											);
+								// 											break;
+								// 										// uncompress archive events
+								// 										case "COMICBOOK_EXTRACTION_SUCCESS":
+								// 											console.log(data);
+								// 											return data;
+								// 									}
+								// 								},
 							},
 						},
 					},
@@ -119,7 +121,11 @@ export default class SocketService extends Service {
 				},
 			},
 			hooks: {},
-			actions: {},
+			actions: {
+				resumeSession: (ctx: Context<{}>) => {
+					console.log("aya re", ctx.params);
+				},
+			},
 			methods: {},
 			async started() {
 				this.io.on("connection", async (socket) => {
