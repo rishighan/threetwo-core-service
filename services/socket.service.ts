@@ -26,7 +26,7 @@ export default class SocketService extends Service {
 						"/": {
 							events: {
 								call: {
-									whitelist: ["socket.resumeSession"],
+									whitelist: ["socket.*"],
 								},
 
 								// 								async (data) => {
@@ -143,8 +143,12 @@ export default class SocketService extends Service {
 
 							if (active > 0) {
 								// 3. Get job counts
-								const completedJobCount = await pubClient.get("completedJobCount");
-								const failedJobCount = await pubClient.get("failedJobCount");
+								const completedJobCount = await pubClient.get(
+									"completedJobCount"
+								);
+								const failedJobCount = await pubClient.get(
+									"failedJobCount"
+								);
 
 								// 4. Send the counts to the active socket.io session
 								await this.broker.call("socket.broadcast", {
@@ -161,17 +165,27 @@ export default class SocketService extends Service {
 							}
 						}
 					} catch (err) {
-						throw new MoleculerError(err, 500, "SESSION_ID_NOT_FOUND", {
-							data: sessionId,
-						});
+						throw new MoleculerError(
+							err,
+							500,
+							"SESSION_ID_NOT_FOUND",
+							{
+								data: sessionId,
+							}
+						);
 					}
 				},
 
-				setQueueStatus: async (ctx: Context<{}>) => {
-					console.log(data);
+				setQueueStatus: async (
+					ctx: Context<{
+						queueAction: string;
+						queueStatus: string;
+					}>
+				) => {
+					const { queueAction } = ctx.params;
 					await this.broker.call(
 						"jobqueue.toggle",
-						{ action: data.data.queueAction },
+						{ action: queueAction },
 						{}
 					);
 				},
