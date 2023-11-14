@@ -124,7 +124,6 @@ export default class SocketService extends Service {
 			actions: {
 				resumeSession: async (ctx: Context<{ sessionId: string }>) => {
 					const { sessionId } = ctx.params;
-					console.log("asdasdA");
 					console.log("Attempting to resume session...");
 					try {
 						const sessionRecord = await Session.find({
@@ -144,12 +143,8 @@ export default class SocketService extends Service {
 
 							if (active > 0) {
 								// 3. Get job counts
-								const completedJobCount = await pubClient.get(
-									"completedJobCount"
-								);
-								const failedJobCount = await pubClient.get(
-									"failedJobCount"
-								);
+								const completedJobCount = await pubClient.get("completedJobCount");
+								const failedJobCount = await pubClient.get("failedJobCount");
 
 								// 4. Send the counts to the active socket.io session
 								await this.broker.call("socket.broadcast", {
@@ -166,15 +161,19 @@ export default class SocketService extends Service {
 							}
 						}
 					} catch (err) {
-						throw new MoleculerError(
-							err,
-							500,
-							"SESSION_ID_NOT_FOUND",
-							{
-								data: sessionId,
-							}
-						);
+						throw new MoleculerError(err, 500, "SESSION_ID_NOT_FOUND", {
+							data: sessionId,
+						});
 					}
+				},
+
+				setQueueStatus: async (ctx: Context<{}>) => {
+					console.log(data);
+					await this.broker.call(
+						"jobqueue.toggle",
+						{ action: data.data.queueAction },
+						{}
+					);
 				},
 			},
 			methods: {},
