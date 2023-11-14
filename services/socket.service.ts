@@ -122,8 +122,59 @@ export default class SocketService extends Service {
 			},
 			hooks: {},
 			actions: {
-				resumeSession: (ctx: Context<{}>) => {
-					console.log("aya re", ctx.params);
+				resumeSession: async (ctx: Context<{ sessionId: string }>) => {
+					const { sessionId } = ctx.params;
+					console.log("asdasdA");
+					console.log("Attempting to resume session...");
+					try {
+						const sessionRecord = await Session.find({
+							sessionId,
+						});
+						// 1. Check for sessionId's existence, and a match
+						if (
+							sessionRecord.length !== 0 &&
+							sessionRecord[0].sessionId === sessionId
+						) {
+							// 2. Find if the queue has active jobs
+							const jobs: JobType = await this.broker.call(
+								"jobqueue.getJobCountsByType",
+								{}
+							);
+							const { active } = jobs;
+
+							if (active > 0) {
+								// 3. Get job counts
+								const completedJobCount = await pubClient.get(
+									"completedJobCount"
+								);
+								const failedJobCount = await pubClient.get(
+									"failedJobCount"
+								);
+
+								// 4. Send the counts to the active socket.io session
+								await this.broker.call("socket.broadcast", {
+									namespace: "/",
+									event: "RESTORE_JOB_COUNTS_AFTER_SESSION_RESTORATION",
+									args: [
+										{
+											completedJobCount,
+											failedJobCount,
+											queueStatus: "running",
+										},
+									],
+								});
+							}
+						}
+					} catch (err) {
+						throw new MoleculerError(
+							err,
+							500,
+							"SESSION_ID_NOT_FOUND",
+							{
+								data: sessionId,
+							}
+						);
+					}
 				},
 			},
 			methods: {},
@@ -152,10 +203,7 @@ export default class SocketService extends Service {
 					}
 					// 2. else, retrieve it from Mongo and "resume" the socket.io connection
 					else {
-						console.log(
-							`Found socketId ${socket.id}, attempting to resume socket.io connection...`
-						);
-						console.log(socket.handshake.query.sessionId);
+						console.log(`Found socketId ${socket.id}, no-op.`);
 					}
 				});
 			},
