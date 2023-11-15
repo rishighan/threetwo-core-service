@@ -134,14 +134,14 @@ export default class SocketService extends Service {
 							sessionRecord.length !== 0 &&
 							sessionRecord[0].sessionId === sessionId
 						) {
-							// 2. Find if the queue has active jobs
+							// 2. Find if the queue has active, paused or waiting jobs
 							const jobs: JobType = await this.broker.call(
 								"jobqueue.getJobCountsByType",
 								{}
 							);
-							const { active } = jobs;
+							const { active, paused, waiting } = jobs;
 
-							if (active > 0) {
+							if (active > 0 || paused > 0 || waiting > 0) {
 								// 3. Get job counts
 								const completedJobCount = await pubClient.get(
 									"completedJobCount"
@@ -188,6 +188,15 @@ export default class SocketService extends Service {
 						{ action: queueAction },
 						{}
 					);
+				},
+				importSingleIssue: async (ctx: Context<{}>) => {
+					console.info("AirDC++ finished a download -> ");
+					console.log(ctx.params);
+					// await this.broker.call(
+					// 	"library.importDownloadedComic",
+					// 	{ bundle: data },
+					// 	{}
+					// );
 				},
 			},
 			methods: {},
