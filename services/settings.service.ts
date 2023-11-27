@@ -8,7 +8,7 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Settings from "../models/settings.model";
-import { isEmpty, pickBy, identity, map } from "lodash";
+import { isEmpty, pickBy, identity, map, isNil } from "lodash";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class SettingsService extends Service {
@@ -57,7 +57,6 @@ export default class SettingsService extends Service {
 						}>
 					) {
 						try {
-							console.log(ctx.params);
 							let query = {};
 							const { settingsKey, settingsObjectId } =
 								ctx.params;
@@ -68,6 +67,16 @@ export default class SettingsService extends Service {
 								username,
 								password,
 							} = ctx.params.settingsPayload;
+							const host = {
+								hostname,
+								protocol,
+								port,
+								username,
+								password,
+							};
+							const undefinedPropsInHostname = Object.values(
+								host
+							).filter((value) => value === undefined);
 
 							// Update, depending what key was passed in params
 							// 1. Construct the update query
@@ -79,13 +88,7 @@ export default class SettingsService extends Service {
 									query = {
 										bittorrent: {
 											client: {
-												host: {
-													hostname,
-													protocol,
-													port,
-													username,
-													password,
-												},
+												...(host && host),
 												name: "qbittorrent",
 											},
 										},
@@ -98,20 +101,21 @@ export default class SettingsService extends Service {
 									const { hubs, airDCPPUserSettings } =
 										ctx.params.settingsPayload;
 									query = {
-										directConnect: {
-											client: {
-												host: {
-													hostname,
-													protocol,
-													port,
-													username,
-													password,
-												},
-												hubs,
-												airDCPPUserSettings,
+										...(undefinedPropsInHostname.length ===
+											0 && {
+											$set: {
+												"directConnect.client.host":
+													host,
 											},
-										},
+										}),
+										...(!isNil(hubs) && {
+											$set: {
+												"directConnect.client.hubs":
+													hubs,
+											},
+										}),
 									};
+									console.log(JSON.stringify(query, null, 4));
 									break;
 
 								default:
@@ -124,17 +128,20 @@ export default class SettingsService extends Service {
 								setDefaultsOnInsert: true,
 								returnDocument: "after",
 							};
-							const filter = {
-								_id: settingsObjectId,
-							};
+							const filter = settingsObjectId
+								? { _id: settingsObjectId }
+								: {};
+
 							// 3. Execute the mongo query
 							const result = await Settings.findOneAndUpdate(
-								{},
+								filter,
 								query,
 								options
 							);
 							return result;
-						} catch (err) {}
+						} catch (err) {
+							return err;
+						}
 					},
 				},
 				deleteSettings: {
