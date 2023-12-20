@@ -86,12 +86,12 @@ export default class SettingsService extends Service {
 										`Recieved settings for ${settingsKey}, building query...`
 									);
 									query = {
-										bittorrent: {
-											client: {
-												...(host && host),
-												name: "qbittorrent",
+										...(undefinedPropsInHostname.length ===
+											0 && {
+											$set: {
+												"bittorrent.client.host": host,
 											},
-										},
+										}),
 									};
 									break;
 								case "directConnect":
