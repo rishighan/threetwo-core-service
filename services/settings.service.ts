@@ -8,7 +8,7 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Settings from "../models/settings.model";
-import { isEmpty, pickBy, identity, map } from "lodash";
+import { isEmpty, pickBy, identity, map, isNil } from "lodash";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class SettingsService extends Service {
@@ -42,44 +42,106 @@ export default class SettingsService extends Service {
 					params: {},
 					async handler(
 						ctx: Context<{
-							settingsPayload: {
-								host: object;
-								airDCPPUserSettings: object;
-								hubs: [];
+							settingsPayload?: {
+								protocol: string;
+								hostname: string;
+								port: string;
+								username: string;
+								password: string;
+								_id?: string;
+								airDCPPUserSettings?: object;
+								hubs?: [];
 							};
-							settingsObjectId: string;
+							settingsObjectId?: string;
+							settingsKey: string;
 						}>
 					) {
-						console.log("varan bhat", ctx.params);
-						const { host, airDCPPUserSettings, hubs } =
-							ctx.params.settingsPayload;
-						let query = {
-							host,
-							airDCPPUserSettings,
-							hubs,
-						};
-						const keysToUpdate = pickBy(query, identity);
-						let updateQuery = {};
+						try {
+							let query = {};
+							const { settingsKey, settingsObjectId } =
+								ctx.params;
+							const {
+								hostname,
+								protocol,
+								port,
+								username,
+								password,
+							} = ctx.params.settingsPayload;
+							const host = {
+								hostname,
+								protocol,
+								port,
+								username,
+								password,
+							};
+							const undefinedPropsInHostname = Object.values(
+								host
+							).filter((value) => value === undefined);
 
-						map(Object.keys(keysToUpdate), (key) => {
-							updateQuery[`directConnect.client.${key}`] =
-								query[key];
-						});
-						const options = {
-							upsert: true,
-							new: true,
-							setDefaultsOnInsert: true,
-						};
-						const filter = {
-							_id: new ObjectId(ctx.params.settingsObjectId),
-						};
-						const result = Settings.findOneAndUpdate(
-							filter,
-							{ $set: updateQuery },
-							options
-						);
+							// Update, depending what key was passed in params
+							// 1. Construct the update query
+							switch (settingsKey) {
+								case "bittorrent":
+									console.log(
+										`Recieved settings for ${settingsKey}, building query...`
+									);
+									query = {
+										...(undefinedPropsInHostname.length ===
+											0 && {
+											$set: {
+												"bittorrent.client.host": host,
+											},
+										}),
+									};
+									break;
+								case "directConnect":
+									console.log(
+										`Recieved settings for ${settingsKey}, building query...`
+									);
+									const { hubs, airDCPPUserSettings } =
+										ctx.params.settingsPayload;
+									query = {
+										...(undefinedPropsInHostname.length ===
+											0 && {
+											$set: {
+												"directConnect.client.host":
+													host,
+											},
+										}),
+										...(!isNil(hubs) && {
+											$set: {
+												"directConnect.client.hubs":
+													hubs,
+											},
+										}),
+									};
+									console.log(JSON.stringify(query, null, 4));
+									break;
 
-						return result;
+								default:
+									return false;
+							}
+
+							// 2. Set up options, filters
+							const options = {
+								upsert: true,
+								setDefaultsOnInsert: true,
+								returnDocument: "after",
+							};
+							const filter = settingsObjectId
+								? { _id: settingsObjectId }
+								: {};
+
+							// 3. Execute the mongo query
+							const result = await Settings.findOneAndUpdate(
+								filter,
+								query,
+								options
+							);
+							return result;
+						} catch (err) {
+							return err;
+						}
 					},
 				},
 				deleteSettings: {

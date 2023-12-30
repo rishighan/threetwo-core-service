@@ -186,6 +186,7 @@ export default class ImportService extends Service {
 											},
 											sessionId,
 											importType: "new",
+											queueName: "enqueue.async",
 										});
 									} else {
 										console.log("Comic already exists in the library.");
@@ -385,6 +386,7 @@ export default class ImportService extends Service {
 					rest: "POST /getComicBookById",
 					params: { id: "string" },
 					async handler(ctx: Context<{ id: string }>) {
+						console.log(ctx.params.id);
 						return await Comic.findById(ctx.params.id);
 					},
 				},

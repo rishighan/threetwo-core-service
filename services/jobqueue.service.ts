@@ -2,7 +2,7 @@ import { Context, Service, ServiceBroker } from "moleculer";
 import JobResult from "../models/jobresult.model";
 import { refineQuery } from "filename-parser";
 import BullMqMixin from "moleculer-bullmq";
-import { extractFromArchive } from "../utils/uncompression.utils";
+import { extractFromArchive, uncompressEntireArchive } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
 
@@ -47,12 +47,15 @@ export default class JobQueueService extends Service {
 				enqueue: {
 					queue: true,
 					rest: "/GET enqueue",
-					handler: async (ctx: Context<{}>) => {
+					handler: async (ctx: Context<{ queueName: string; description: string }>) => {
+						console.log(ctx.params);
+						const { queueName, description } = ctx.params;
 						// Enqueue the job
-						const job = await this.localQueue(ctx, "enqueue.async", ctx.params, {
+						const job = await this.localQueue(ctx, queueName, ctx.params, {
 							priority: 10,
 						});
 						console.log(`Job ${job.id} enqueued`);
+						console.log(`${description}`);
 
 						return job.id;
 					},
@@ -249,9 +252,24 @@ export default class JobQueueService extends Service {
 						]);
 					},
 				},
+				"uncompressFullArchive.async": {
+					rest: "POST /uncompressFullArchive",
+					handler: async (ctx: Context<{ filePath: string; options: any }>) => {
+						const { filePath, options } = ctx.params;
+						console.log("asd", filePath);
+						// 2. Extract metadata from the archive
+						return await uncompressEntireArchive(filePath, options);
+					},
+				},
 			},
 
 			events: {
+				async "uncompressFullArchive.async.active"(ctx: Context<{ id: number }>) {
+					console.log(`Uncompression Job ID ${ctx.params.id} is set to active.`);
+				},
+				async "uncompressFullArchive.async.completed"(ctx: Context<{ id: number }>) {
+					console.log(`Uncompression Job ID ${ctx.params.id} completed.`);
+				},
 				// use the `${QUEUE_NAME}.QUEUE_EVENT` scheme
 				async "enqueue.async.active"(ctx: Context<{ id: Number }>) {
 					console.log(`Job ID ${ctx.params.id} is set to active.`);
@@ -260,10 +278,10 @@ export default class JobQueueService extends Service {
 					console.log("Queue drained.");
 					await this.broker.call("socket.broadcast", {
 						namespace: "/",
-						event: "action",
+						event: "LS_IMPORT_QUEUE_DRAINED",
 						args: [
 							{
-								type: "LS_IMPORT_QUEUE_DRAINED",
+								message: "drained",
 							},
 						],
 					});
@@ -278,10 +296,9 @@ export default class JobQueueService extends Service {
 					// 4. Emit the LS_COVER_EXTRACTED event with the necessary details
 					await this.broker.call("socket.broadcast", {
 						namespace: "/",
-						event: "action",
+						event: "LS_COVER_EXTRACTED",
 						args: [
 							{
-								type: "LS_COVER_EXTRACTED",
 								completedJobCount,
 								importResult: job.returnvalue.data.importResult,
 							},
@@ -315,10 +332,9 @@ export default class JobQueueService extends Service {
 					// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
 					await this.broker.call("socket.broadcast", {
 						namespace: "/",
-						event: "action",
+						event: "LS_COVER_EXTRACTION_FAILED",
 						args: [
 							{
-								type: "LS_COVER_EXTRACTION_FAILED",
 								failedJobCount,
 								importResult: job,
 							},

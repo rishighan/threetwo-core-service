@@ -2,7 +2,7 @@ const paginate = require("mongoose-paginate-v2");
 const { Client } = require("@elastic/elasticsearch");
 import ComicVineMetadataSchema from "./comicvine.metadata.model";
 import { mongoosastic } from "mongoosastic-ts";
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 import {
 	MongoosasticDocument,
 	MongoosasticModel,
@@ -112,6 +112,7 @@ const ComicSchema = mongoose.Schema(
 				},
 			},
 			torrent: {
+				downloads: [],
 				sourceApplication: String,
 				magnet: String,
 				tracker: String,

@@ -75,9 +75,9 @@ export default class SettingsService extends Service {
 					) => {
 						try {
 							console.log(ctx.params);
-							const { query, pagination } = ctx.params;
+							const { query, pagination, type } = ctx.params;
 							let eSQuery = {};
-							switch (ctx.params.type) {
+							switch (type) {
 								case "all":
 									Object.assign(eSQuery, {
 										match_all: {},
