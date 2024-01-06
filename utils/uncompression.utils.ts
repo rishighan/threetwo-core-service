@@ -81,7 +81,8 @@ export const extractComicInfoXMLFromRar = async (
 		const directoryOptions = {
 			mode: 0o2775,
 		};
-		const { fileNameWithoutExtension, extension } = getFileConstituents(filePath);
+		const { fileNameWithoutExtension, extension } =
+			getFileConstituents(filePath);
 		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(
 			fileNameWithoutExtension
 		)}`;
@@ -92,15 +93,17 @@ export const extractComicInfoXMLFromRar = async (
 			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
 			arguments: ["-v"],
 		});
-		const filesInArchive: [RarFile] = await new Promise((resolve, reject) => {
-			return archive.list((err, entries) => {
-				if (err) {
-					console.log(`DEBUG: ${JSON.stringify(err, null, 2)}`);
-					reject(err);
-				}
-				resolve(entries);
-			});
-		});
+		const filesInArchive: [RarFile] = await new Promise(
+			(resolve, reject) => {
+				return archive.list((err, entries) => {
+					if (err) {
+						console.log(`DEBUG: ${JSON.stringify(err, null, 2)}`);
+						reject(err);
+					}
+					resolve(entries);
+				});
+			}
+		);
 
 		remove(filesInArchive, ({ type }) => type === "Directory");
 		const comicInfoXML = remove(
@@ -110,7 +113,10 @@ export const extractComicInfoXMLFromRar = async (
 
 		remove(
 			filesInArchive,
-			({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name).toLowerCase())
+			({ name }) =>
+				!IMPORT_IMAGE_FILE_FORMATS.includes(
+					path.extname(name).toLowerCase()
+				)
 		);
 		const files = filesInArchive.sort((a, b) => {
 			if (!isUndefined(a) && !isUndefined(b)) {
@@ -123,8 +129,12 @@ export const extractComicInfoXMLFromRar = async (
 		const comicInfoXMLFilePromise = new Promise((resolve, reject) => {
 			let comicinfostring = "";
 			if (!isUndefined(comicInfoXML[0])) {
-				const comicInfoXMLFileName = path.basename(comicInfoXML[0].name);
-				const writeStream = createWriteStream(`${targetDirectory}/${comicInfoXMLFileName}`);
+				const comicInfoXMLFileName = path.basename(
+					comicInfoXML[0].name
+				);
+				const writeStream = createWriteStream(
+					`${targetDirectory}/${comicInfoXMLFileName}`
+				);
 
 				archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
 				writeStream.on("finish", async () => {
@@ -137,7 +147,11 @@ export const extractComicInfoXMLFromRar = async (
 					});
 					readStream.on("error", (error) => reject(error));
 					readStream.on("end", async () => {
-						if (existsSync(`${targetDirectory}/${comicInfoXMLFileName}`)) {
+						if (
+							existsSync(
+								`${targetDirectory}/${comicInfoXMLFileName}`
+							)
+						) {
 							const comicInfoJSON = await convertXMLToJSON(
 								comicinfostring.toString()
 							);
@@ -158,29 +172,34 @@ export const extractComicInfoXMLFromRar = async (
 			const sharpStream = sharp().resize(275).toFormat("png");
 			const coverExtractionStream = archive.stream(files[0].name);
 			const resizeStream = coverExtractionStream.pipe(sharpStream);
-			resizeStream.toFile(`${targetDirectory}/${coverFile}`, (err, info) => {
-				if (err) {
-					reject(err);
+			resizeStream.toFile(
+				`${targetDirectory}/${coverFile}`,
+				(err, info) => {
+					if (err) {
+						reject(err);
+					}
+					checkFileExists(`${targetDirectory}/${coverFile}`).then(
+						(bool) => {
+							console.log(`${coverFile} exists: ${bool}`);
+							// orchestrate result
+							resolve({
+								filePath,
+								name: fileNameWithoutExtension,
+								extension,
+								containedIn: targetDirectory,
+								fileSize: fse.statSync(filePath).size,
+								mimeType,
+								cover: {
+									filePath: path.relative(
+										process.cwd(),
+										`${targetDirectory}/${coverFile}`
+									),
+								},
+							});
+						}
+					);
 				}
-				checkFileExists(`${targetDirectory}/${coverFile}`).then((bool) => {
-					console.log(`${coverFile} exists: ${bool}`);
-					// orchestrate result
-					resolve({
-						filePath,
-						name: fileNameWithoutExtension,
-						extension,
-						containedIn: targetDirectory,
-						fileSize: fse.statSync(filePath).size,
-						mimeType,
-						cover: {
-							filePath: path.relative(
-								process.cwd(),
-								`${targetDirectory}/${coverFile}`
-							),
-						},
-					});
-				});
-			});
+			);
 		});
 
 		return Promise.all([comicInfoXMLFilePromise, coverFilePromise]);
@@ -198,7 +217,8 @@ export const extractComicInfoXMLFromZip = async (
 		const directoryOptions = {
 			mode: 0o2775,
 		};
-		const { fileNameWithoutExtension, extension } = getFileConstituents(filePath);
+		const { fileNameWithoutExtension, extension } =
+			getFileConstituents(filePath);
 		const targetDirectory = `${USERDATA_DIRECTORY}/covers/${sanitize(
 			fileNameWithoutExtension
 		)}`;
@@ -217,7 +237,10 @@ export const extractComicInfoXMLFromZip = async (
 		// only allow allowed image formats
 		remove(
 			filesFromArchive.files,
-			({ name }) => !IMPORT_IMAGE_FILE_FORMATS.includes(path.extname(name).toLowerCase())
+			({ name }) =>
+				!IMPORT_IMAGE_FILE_FORMATS.includes(
+					path.extname(name).toLowerCase()
+				)
 		);
 
 		// Natural sort
@@ -238,7 +261,13 @@ export const extractComicInfoXMLFromZip = async (
 			extractionTargets.push(filesToWriteToDisk.comicInfoXML);
 		}
 		// Extract the files.
-		await p7zip.extract(filePath, targetDirectory, extractionTargets, "", false);
+		await p7zip.extract(
+			filePath,
+			targetDirectory,
+			extractionTargets,
+			"",
+			false
+		);
 
 		// ComicInfoXML detection, parsing and conversion to JSON
 		// Write ComicInfo.xml to disk
@@ -246,15 +275,26 @@ export const extractComicInfoXMLFromZip = async (
 		const comicInfoXMLPromise = new Promise((resolve, reject) => {
 			if (
 				!isNil(filesToWriteToDisk.comicInfoXML) &&
-				existsSync(`${targetDirectory}/${path.basename(filesToWriteToDisk.comicInfoXML)}`)
+				existsSync(
+					`${targetDirectory}/${path.basename(
+						filesToWriteToDisk.comicInfoXML
+					)}`
+				)
 			) {
 				let comicinfoString = "";
 				const comicInfoXMLStream = createReadStream(
-					`${targetDirectory}/${path.basename(filesToWriteToDisk.comicInfoXML)}`
+					`${targetDirectory}/${path.basename(
+						filesToWriteToDisk.comicInfoXML
+					)}`
 				);
-				comicInfoXMLStream.on("data", (data) => (comicinfoString += data));
+				comicInfoXMLStream.on(
+					"data",
+					(data) => (comicinfoString += data)
+				);
 				comicInfoXMLStream.on("end", async () => {
-					const comicInfoJSON = await convertXMLToJSON(comicinfoString.toString());
+					const comicInfoJSON = await convertXMLToJSON(
+						comicinfoString.toString()
+					);
 					resolve({
 						comicInfoJSON: comicInfoJSON.comicinfo,
 					});
@@ -274,7 +314,9 @@ export const extractComicInfoXMLFromZip = async (
 			coverStream
 				.pipe(sharpStream)
 				.toFile(
-					`${targetDirectory}/${path.basename(filesToWriteToDisk.coverFile)}`,
+					`${targetDirectory}/${path.basename(
+						filesToWriteToDisk.coverFile
+					)}`,
 					(err, info) => {
 						if (err) {
 							reject(err);
@@ -315,15 +357,23 @@ export const extractFromArchive = async (filePath: string) => {
 	switch (mimeType) {
 		case "application/x-7z-compressed; charset=binary":
 		case "application/zip; charset=binary":
-			const cbzResult = await extractComicInfoXMLFromZip(filePath, mimeType);
+			const cbzResult = await extractComicInfoXMLFromZip(
+				filePath,
+				mimeType
+			);
 			return Object.assign({}, ...cbzResult);
 
 		case "application/x-rar; charset=binary":
-			const cbrResult = await extractComicInfoXMLFromRar(filePath, mimeType);
+			const cbrResult = await extractComicInfoXMLFromRar(
+				filePath,
+				mimeType
+			);
 			return Object.assign({}, ...cbrResult);
 
 		default:
-			console.error("Error inferring filetype for comicinfo.xml extraction.");
+			console.error(
+				"Error inferring filetype for comicinfo.xml extraction."
+			);
 			throw new MoleculerError({}, 500, "FILETYPE_INFERENCE_ERROR", {
 				data: { message: "Cannot infer filetype." },
 			});
@@ -336,7 +386,10 @@ export const extractFromArchive = async (filePath: string) => {
  * @param {any} options
  * @returns {Promise} A promise containing the contents of the uncompressed archive.
  */
-export const uncompressEntireArchive = async (filePath: string, options: any) => {
+export const uncompressEntireArchive = async (
+	filePath: string,
+	options: any
+) => {
 	const mimeType = await getMimeType(filePath);
 	console.log(`File has the following mime-type: ${mimeType}`);
 	switch (mimeType) {
@@ -378,7 +431,8 @@ export const uncompressRarArchive = async (filePath: string, options: any) => {
 	const directoryOptions = {
 		mode: 0o2775,
 	};
-	const { fileNameWithoutExtension, extension } = getFileConstituents(filePath);
+	const { fileNameWithoutExtension, extension } =
+		getFileConstituents(filePath);
 	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${fileNameWithoutExtension}`;
 	await createDirectory(directoryOptions, targetDirectory);
 
@@ -415,7 +469,10 @@ export const uncompressRarArchive = async (filePath: string, options: any) => {
 	return await resizeImageDirectory(targetDirectory, options);
 };
 
-export const resizeImageDirectory = async (directoryPath: string, options: any) => {
+export const resizeImageDirectory = async (
+	directoryPath: string,
+	options: any
+) => {
 	const files = await walkFolder(directoryPath, [
 		".jpg",
 		".jpeg",
@@ -443,15 +500,25 @@ export const resizeImage = (directoryPath: string, file: any, options: any) => {
 	const { baseWidth } = options.imageResizeOptions;
 	const sharpResizeInstance = sharp().resize(baseWidth).toFormat("jpg");
 	return new Promise((resolve, reject) => {
-		const resizedStream = createReadStream(`${directoryPath}/${file.name}${file.extension}`);
+		const resizedStream = createReadStream(
+			`${directoryPath}/${file.name}${file.extension}`
+		);
 		if (fse.existsSync(`${directoryPath}/${file.name}${file.extension}`)) {
 			resizedStream
 				.pipe(sharpResizeInstance)
-				.toFile(`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`)
+				.toFile(
+					`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`
+				)
 				.then((data) => {
-					console.log(`Resized image ${JSON.stringify(data, null, 4)}`);
-					fse.unlink(`${directoryPath}/${file.name}${file.extension}`);
-					resolve(`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`);
+					console.log(
+						`Resized image ${JSON.stringify(data, null, 4)}`
+					);
+					fse.unlink(
+						`${directoryPath}/${file.name}${file.extension}`
+					);
+					resolve(
+						`${directoryPath}/${file.name}_${baseWidth}px${file.extension}`
+					);
 				});
 		}
 	});
