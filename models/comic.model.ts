@@ -28,6 +28,10 @@ const RawFileDetailsSchema = mongoose.Schema({
 	mimeType: String,
 	containedIn: String,
 	pageCount: Number,
+	archive: {
+		uncompressed: Boolean,
+		expandedPath: String,
+	},
 	cover: {
 		filePath: String,
 		stats: Object,

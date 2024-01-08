@@ -7,6 +7,8 @@ import {
 	ServiceSchema,
 	Errors,
 } from "moleculer";
+import { DbMixin } from "../mixins/db.mixin";
+import Comic from "../models/comic.model";
 import path from "path";
 import {
 	analyze,
@@ -22,16 +24,13 @@ export default class ImageTransformation extends Service {
 		super(broker);
 		this.parseServiceSchema({
 			name: "imagetransformation",
-			mixins: [],
+			mixins: [DbMixin("comics", Comic)],
 			settings: {
 				// Available fields in the responses
-				fields: ["_id", "name", "quantity", "price"],
+				fields: ["_id"],
 
 				// Validator for the `create` & `insert` actions.
-				entityValidator: {
-					name: "string|min:3",
-					price: "number|positive",
-				},
+				entityValidator: {},
 			},
 			hooks: {},
 			actions: {
