@@ -352,6 +352,17 @@ export default class JobQueueService extends Service {
 					console.log(
 						`Uncompression Job ID ${ctx.params.id} completed.`
 					);
+					const job = await this.job(ctx.params.id);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_UNCOMPRESSION_JOB_COMPLETE",
+						args: [
+							{
+								uncompressedArchive: job.returnvalue,
+							},
+						],
+					});
+					return job.returnvalue;
 				},
 				// use the `${QUEUE_NAME}.QUEUE_EVENT` scheme
 				async "enqueue.async.active"(ctx: Context<{ id: Number }>) {

@@ -80,14 +80,19 @@ export default class ImportService extends Service {
 				},
 				walkFolders: {
 					rest: "POST /walkFolders",
-					params: {
-						basePathToWalk: "string",
-					},
-					async handler(ctx: Context<{ basePathToWalk: string }>) {
+					params: {},
+					async handler(
+						ctx: Context<{
+							basePathToWalk: string;
+							extensions: string[];
+						}>
+					) {
+						console.log(ctx.params);
 						return await walkFolder(ctx.params.basePathToWalk, [
 							".cbz",
 							".cbr",
 							".cb7",
+							...ctx.params.extensions,
 						]);
 					},
 				},
