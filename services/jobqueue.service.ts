@@ -57,7 +57,6 @@ export default class JobQueueService extends Service {
 					handler: async (
 						ctx: Context<{ queueName: string; description: string }>
 					) => {
-						console.log(ctx.params);
 						const { queueName, description } = ctx.params;
 						// Enqueue the job
 						const job = await this.localQueue(
@@ -85,7 +84,6 @@ export default class JobQueueService extends Service {
 							console.log(
 								`Recieved Job ID ${ctx.locals.job.id}, processing...`
 							);
-							console.log(ctx.params);
 							// 1. De-structure the job params
 							const { fileObject } = ctx.locals.job.data.params;
 
@@ -315,7 +313,6 @@ export default class JobQueueService extends Service {
 							filePath,
 							options
 						);
-
 						if (Array.isArray(result) && result.length !== 0) {
 							// Get the containing directory of the uncompressed archive
 							const directoryPath = path.dirname(result[0]);
