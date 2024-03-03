@@ -115,13 +115,13 @@ const ComicSchema = mongoose.Schema(
 					default: [],
 				},
 			},
-			torrent: {
-				downloads: [],
-				sourceApplication: String,
-				magnet: String,
-				tracker: String,
-				status: String,
-			},
+			torrent: [
+				{
+					infoHash: String,
+					name: String,
+					announce: [String],
+				},
+			],
 			usenet: {
 				sourceApplication: String,
 			},
