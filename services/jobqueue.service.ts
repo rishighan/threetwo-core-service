@@ -51,9 +51,10 @@ export default class JobQueueService extends Service {
 						}
 					},
 				},
+
 				enqueue: {
 					queue: true,
-					rest: "/GET enqueue",
+					rest: "GET /enqueue",
 					handler: async (
 						ctx: Context<{ queueName: string; description: string }>
 					) => {
@@ -71,6 +72,49 @@ export default class JobQueueService extends Service {
 						console.log(`${description}`);
 
 						return job.id;
+					},
+				},
+				checkForDeletedTorrents: {
+					queue: true,
+					rest: "GET /checkForDeletedTorrents",
+					handler: async (ctx: Context<{}>) => {
+						const job = await this.localQueue(
+							ctx,
+							"deletedTorrents",
+							"bird",
+							{
+								repeat: {
+									every: 10000, // Repeat every 10000 ms
+									limit: 100, // Limit to 100 repeats
+								},
+							}
+						);
+						return job;
+					},
+				},
+				deletedTorrents: {
+					rest: "GET /deletedTorrents",
+					handler: async (
+						ctx: Context<{
+							birdName: String;
+						}>
+					) => {
+						console.info(
+							`Scheduled job for deleting torrents from mongo fired.`
+						);
+						// 1. query mongo for infohashes
+						const infoHashes = await this.broker.call(
+							"library.getInfoHashes",
+							{}
+						);
+						// 2. query qbittorrent to see if they exist
+						const torrents: any = await this.broker.call(
+							"qbittorrent.getTorrentRealTimeStats",
+							{ infoHashes }
+						);
+						console.log("sudarshan", torrents);
+						// 3. If they do, don't do anything
+						// 4. If they don't purge them from mongo
 					},
 				},
 				// Comic Book Import Job Queue
@@ -437,6 +481,7 @@ export default class JobQueueService extends Service {
 					});
 				},
 			},
+			methods: {},
 		});
 	}
 }

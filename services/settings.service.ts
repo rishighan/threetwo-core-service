@@ -38,7 +38,6 @@ export default class SettingsService extends Service {
 						// Find the settings with the dynamic projection
 						const settings = await Settings.find({}, projection);
 
-						// Check if settings are empty
 						if (settings.length === 0) {
 							return {};
 						}

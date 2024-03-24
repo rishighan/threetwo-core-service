@@ -444,20 +444,45 @@ export default class ImportService extends Service {
 							infoHash,
 						} = ctx.params;
 						console.log(JSON.stringify(ctx.params, null, 4));
-
-						return await Comic.findByIdAndUpdate(
-							new ObjectId(comicObjectId),
-							{
-								$push: {
-									"acquisition.torrent": {
-										infoHash,
-										name,
-										announce,
+						try {
+							return await Comic.findByIdAndUpdate(
+								new ObjectId(comicObjectId),
+								{
+									$push: {
+										"acquisition.torrent": {
+											infoHash,
+											name,
+											announce,
+										},
 									},
 								},
-							},
-							{ new: true, safe: true, upsert: true }
-						);
+								{ new: true, safe: true, upsert: true }
+							);
+						} catch (err) {
+							console.log(err);
+						}
+					},
+				},
+				getInfoHashes: {
+					rest: "GET /getInfoHashes",
+					handler: async (ctx: Context<{}>) => {
+						try {
+							return await Comic.aggregate([
+								{
+									$unwind: "$acquisition.torrent",
+								},
+								{
+									$group: {
+										_id: "$_id",
+										infoHashes: {
+											$push: "$acquisition.torrent.infoHash",
+										},
+									},
+								},
+							]);
+						} catch (err) {
+							return err;
+						}
 					},
 				},
 				getComicBooks: {
