@@ -23,6 +23,12 @@ const SettingsScehma = mongoose.Schema({
 			host: HostSchema,
 		},
 	},
+	prowlarr: {
+		client: {
+			host: HostSchema,
+			apiKey: String,
+		},
+	},
 });
 
 const Settings = mongoose.model("Settings", SettingsScehma);

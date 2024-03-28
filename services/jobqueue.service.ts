@@ -12,7 +12,6 @@ import {
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
 import path from "path";
-
 const { MoleculerError } = require("moleculer").Errors;
 
 console.log(process.env.REDIS_URI);
@@ -51,9 +50,10 @@ export default class JobQueueService extends Service {
 						}
 					},
 				},
+
 				enqueue: {
 					queue: true,
-					rest: "/GET enqueue",
+					rest: "GET /enqueue",
 					handler: async (
 						ctx: Context<{ queueName: string; description: string }>
 					) => {
@@ -71,6 +71,69 @@ export default class JobQueueService extends Service {
 						console.log(`${description}`);
 
 						return job.id;
+					},
+				},
+				getTorrentData: {
+					queue: true,
+					rest: "GET /getTorrentData",
+					handler: async (ctx: Context<{ trigger: string }>) => {
+						const { trigger } = ctx.params;
+						console.log(`Recieved ${trigger} as the trigger...`);
+
+						const jobOptions = {
+							jobId: "retrieveTorrentData",
+							name: "bossy",
+							repeat: {
+								every: 10000, // Repeat every 10000 ms
+								limit: 100, // Limit to 100 repeats
+							},
+						};
+
+						const job = await this.localQueue(
+							ctx,
+							"fetchTorrentDataJob",
+							"bird",
+							jobOptions
+						);
+						return job;
+					},
+				},
+				fetchTorrentDataJob: {
+					rest: "GET /fetchTorrentDataJob",
+					handler: async (
+						ctx: Context<{
+							birdName: String;
+						}>
+					) => {
+						const repeatableJob = await this.$resolve(
+							"jobqueue"
+						).getRepeatableJobs();
+						console.info(repeatableJob);
+						console.info(
+							`Scheduled job for fetching torrent data fired.`
+						);
+						// 1. query mongo for infohashes
+						const infoHashes = await this.broker.call(
+							"library.getInfoHashes",
+							{}
+						);
+						// 2. query qbittorrent to see if they exist
+						const torrents: any = await this.broker.call(
+							"qbittorrent.getTorrentRealTimeStats",
+							{ infoHashes }
+						);
+						// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
+						await this.broker.call("socket.broadcast", {
+							namespace: "/",
+							event: "AS_TORRENT_DATA",
+							args: [
+								{
+									torrents,
+								},
+							],
+						});
+						// 3. If they do, don't do anything
+						// 4. If they don't purge them from mongo
 					},
 				},
 				// Comic Book Import Job Queue
@@ -437,6 +500,7 @@ export default class JobQueueService extends Service {
 					});
 				},
 			},
+			methods: {},
 		});
 	}
 }
