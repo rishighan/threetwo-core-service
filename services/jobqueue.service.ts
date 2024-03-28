@@ -12,7 +12,6 @@ import {
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
 import path from "path";
-
 const { MoleculerError } = require("moleculer").Errors;
 
 console.log(process.env.REDIS_URI);
@@ -74,33 +73,44 @@ export default class JobQueueService extends Service {
 						return job.id;
 					},
 				},
-				checkForDeletedTorrents: {
+				getTorrentData: {
 					queue: true,
-					rest: "GET /checkForDeletedTorrents",
-					handler: async (ctx: Context<{}>) => {
+					rest: "GET /getTorrentData",
+					handler: async (ctx: Context<{ trigger: string }>) => {
+						const { trigger } = ctx.params;
+						console.log(`Recieved ${trigger} as the trigger...`);
+
+						const jobOptions = {
+							jobId: "retrieveTorrentData",
+							name: "bossy",
+							repeat: {
+								every: 10000, // Repeat every 10000 ms
+								limit: 100, // Limit to 100 repeats
+							},
+						};
+
 						const job = await this.localQueue(
 							ctx,
-							"deletedTorrents",
+							"fetchTorrentDataJob",
 							"bird",
-							{
-								repeat: {
-									every: 10000, // Repeat every 10000 ms
-									limit: 100, // Limit to 100 repeats
-								},
-							}
+							jobOptions
 						);
 						return job;
 					},
 				},
-				deletedTorrents: {
-					rest: "GET /deletedTorrents",
+				fetchTorrentDataJob: {
+					rest: "GET /fetchTorrentDataJob",
 					handler: async (
 						ctx: Context<{
 							birdName: String;
 						}>
 					) => {
+						const repeatableJob = await this.$resolve(
+							"jobqueue"
+						).getRepeatableJobs();
+						console.info(repeatableJob);
 						console.info(
-							`Scheduled job for deleting torrents from mongo fired.`
+							`Scheduled job for fetching torrent data fired.`
 						);
 						// 1. query mongo for infohashes
 						const infoHashes = await this.broker.call(
@@ -112,7 +122,16 @@ export default class JobQueueService extends Service {
 							"qbittorrent.getTorrentRealTimeStats",
 							{ infoHashes }
 						);
-						console.log("sudarshan", torrents);
+						// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
+						await this.broker.call("socket.broadcast", {
+							namespace: "/",
+							event: "AS_TORRENT_DATA",
+							args: [
+								{
+									torrents,
+								},
+							],
+						});
 						// 3. If they do, don't do anything
 						// 4. If they don't purge them from mongo
 					},
