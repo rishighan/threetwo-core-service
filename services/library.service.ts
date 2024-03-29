@@ -222,7 +222,7 @@ export default class ImportService extends Service {
 											},
 											sessionId,
 											importType: "new",
-											queueName: "enqueue.async",
+											action: "enqueue.async",
 										});
 									} else {
 										console.log(
