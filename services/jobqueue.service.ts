@@ -12,7 +12,6 @@ import {
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
 import path from "path";
-
 const { MoleculerError } = require("moleculer").Errors;
 
 console.log(process.env.REDIS_URI);
@@ -51,17 +50,18 @@ export default class JobQueueService extends Service {
 						}
 					},
 				},
+
 				enqueue: {
 					queue: true,
-					rest: "/GET enqueue",
+					rest: "GET /enqueue",
 					handler: async (
-						ctx: Context<{ queueName: string; description: string }>
+						ctx: Context<{ action: string; description: string }>
 					) => {
-						const { queueName, description } = ctx.params;
+						const { action, description } = ctx.params;
 						// Enqueue the job
 						const job = await this.localQueue(
 							ctx,
-							queueName,
+							action,
 							ctx.params,
 							{
 								priority: 10,
@@ -73,6 +73,7 @@ export default class JobQueueService extends Service {
 						return job.id;
 					},
 				},
+
 				// Comic Book Import Job Queue
 				"enqueue.async": {
 					handler: async (
@@ -437,6 +438,7 @@ export default class JobQueueService extends Service {
 					});
 				},
 			},
+			methods: {},
 		});
 	}
 }

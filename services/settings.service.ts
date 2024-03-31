@@ -28,12 +28,31 @@ export default class SettingsService extends Service {
 					rest: "GET /getAllSettings",
 					params: {},
 					async handler(ctx: Context<{ settingsKey: string }>) {
-						const settings = await Settings.find({});
-						if (isEmpty(settings)) {
+						const { settingsKey } = ctx.params;
+
+						// Initialize a projection object. Include everything by default.
+						let projection = settingsKey
+							? { _id: 0, [settingsKey]: 1 }
+							: {};
+
+						// Find the settings with the dynamic projection
+						const settings = await Settings.find({}, projection);
+
+						if (settings.length === 0) {
 							return {};
 						}
-						console.log(settings[0]);
-						return settings[0];
+
+						// If settingsKey is provided, return the specific part of the settings.
+						// Otherwise, return the entire settings document.
+						if (settingsKey) {
+							// Check if the specific key exists in the settings document.
+							// Since `settings` is an array, we access the first element.
+							// Then, we use the settingsKey to return only that part of the document.
+							return settings[0][settingsKey] || {};
+						} else {
+							// Return the entire settings document
+							return settings[0];
+						}
 					},
 				},
 

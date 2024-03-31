@@ -222,7 +222,7 @@ export default class ImportService extends Service {
 											},
 											sessionId,
 											importType: "new",
-											queueName: "enqueue.async",
+											action: "enqueue.async",
 										});
 									} else {
 										console.log(
@@ -303,6 +303,7 @@ export default class ImportService extends Service {
 							);
 							switch (ctx.params.importType) {
 								case "new":
+									console.log(comicMetadata);
 									return await Comic.create(comicMetadata);
 								case "update":
 									return await Comic.findOneAndUpdate(
@@ -422,6 +423,66 @@ export default class ImportService extends Service {
 								}
 							);
 						});
+					},
+				},
+				applyTorrentDownloadMetadata: {
+					rest: "POST /applyTorrentDownloadMetadata",
+					handler: async (
+						ctx: Context<{
+							torrentToDownload: any;
+							comicObjectId: String;
+							infoHash: String;
+							name: String;
+							announce: [String];
+						}>
+					) => {
+						const {
+							name,
+							torrentToDownload,
+							comicObjectId,
+							announce,
+							infoHash,
+						} = ctx.params;
+						console.log(JSON.stringify(ctx.params, null, 4));
+						try {
+							return await Comic.findByIdAndUpdate(
+								new ObjectId(comicObjectId),
+								{
+									$push: {
+										"acquisition.torrent": {
+											infoHash,
+											name,
+											announce,
+										},
+									},
+								},
+								{ new: true, safe: true, upsert: true }
+							);
+						} catch (err) {
+							console.log(err);
+						}
+					},
+				},
+				getInfoHashes: {
+					rest: "GET /getInfoHashes",
+					handler: async (ctx: Context<{}>) => {
+						try {
+							return await Comic.aggregate([
+								{
+									$unwind: "$acquisition.torrent",
+								},
+								{
+									$group: {
+										_id: "$_id",
+										infoHashes: {
+											$push: "$acquisition.torrent.infoHash",
+										},
+									},
+								},
+							]);
+						} catch (err) {
+							return err;
+						}
 					},
 				},
 				getComicBooks: {
