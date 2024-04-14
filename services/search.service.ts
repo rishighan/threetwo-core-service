@@ -100,12 +100,19 @@ export default class SettingsService extends Service {
 								case "wanted":
 									Object.assign(eSQuery, {
 										bool: {
-											must: {
-												term: {
-													"acquisition.source.wanted":
-														true,
+											should: [
+												{
+													exists: {
+														field: "wanted.issues",
+													},
 												},
-											},
+												{
+													exists: {
+														field: "wanted.volume",
+													},
+												},
+											],
+											minimum_should_match: 1,
 										},
 									});
 									break;

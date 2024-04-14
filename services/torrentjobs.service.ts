@@ -1,5 +1,4 @@
 "use strict";
-import axios from "axios";
 import {
 	Context,
 	Service,
@@ -9,8 +8,6 @@ import {
 } from "moleculer";
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
-const ObjectId = require("mongoose").Types.ObjectId;
-import { isNil, isUndefined } from "lodash";
 import BullMqMixin from "moleculer-bullmq";
 const { MoleculerError } = require("moleculer").Errors;
 

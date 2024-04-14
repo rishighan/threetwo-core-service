@@ -117,7 +117,7 @@ export default class ImportService extends Service {
 							filePath: ctx.params.filePath,
 							comicObjectId: ctx.params.comicObjectId,
 							options: ctx.params.options,
-							queueName: "uncompressFullArchive.async",
+							action: "uncompressFullArchive.async",
 							description: `Job for uncompressing archive at ${ctx.params.filePath}`,
 						});
 					},
@@ -260,11 +260,13 @@ export default class ImportService extends Service {
 								rawFileDetails: {
 									name: string;
 								};
+								wanted: {
+									issues: [];
+									volume: {};
+									source: string;
+									markEntireVolumeWanted: Boolean;
+								};
 								acquisition: {
-									source: {
-										wanted: boolean;
-										name?: string;
-									};
 									directconnect: {
 										downloads: [];
 									};
@@ -275,27 +277,6 @@ export default class ImportService extends Service {
 						try {
 							let volumeDetails;
 							const comicMetadata = ctx.params.payload;
-							// When an issue is added from the search CV feature
-							// we solicit volume information and add that to mongo
-							if (
-								comicMetadata.sourcedMetadata.comicvine &&
-								!isNil(
-									comicMetadata.sourcedMetadata.comicvine
-										.volume
-								)
-							) {
-								volumeDetails = await this.broker.call(
-									"comicvine.getVolumes",
-									{
-										volumeURI:
-											comicMetadata.sourcedMetadata
-												.comicvine.volume
-												.api_detail_url,
-									}
-								);
-								comicMetadata.sourcedMetadata.comicvine.volumeInformation =
-									volumeDetails.results;
-							}
 
 							console.log("Saving to Mongo...");
 							console.log(

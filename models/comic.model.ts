@@ -1,6 +1,5 @@
 const paginate = require("mongoose-paginate-v2");
 const { Client } = require("@elastic/elasticsearch");
-import ComicVineMetadataSchema from "./comicvine.metadata.model";
 import { mongoosastic } from "mongoosastic-ts";
 const mongoose = require("mongoose");
 import {
@@ -56,6 +55,29 @@ const DirectConnectBundleSchema = mongoose.Schema({
 	size: String,
 	type: {},
 });
+const wantedSchema = new mongoose.Schema({
+	source: { type: String, default: null },
+	markEntireVolumeWanted: Boolean,
+	issues: {
+		type: [
+			{
+				id: Number,
+				url: String,
+				image: { type: Array, default: [] },
+			},
+		],
+		default: null, // Set default to null for issues
+	},
+	volume: {
+		type: {
+			id: Number,
+			url: String,
+			image: { type: Array, default: [] },
+			name: String,
+		},
+		default: null, // Set default to null for volume
+	},
+});
 
 const ComicSchema = mongoose.Schema(
 	{
@@ -72,7 +94,7 @@ const ComicSchema = mongoose.Schema(
 		sourcedMetadata: {
 			comicInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
 			comicvine: {
-				type: ComicVineMetadataSchema,
+				type: Object,
 				es_indexed: true,
 				default: {},
 			},
@@ -102,11 +124,9 @@ const ComicSchema = mongoose.Schema(
 				subtitle: { type: String, es_indexed: true },
 			},
 		},
+		wanted: wantedSchema,
+
 		acquisition: {
-			source: {
-				wanted: Boolean,
-				name: String,
-			},
 			release: {},
 			directconnect: {
 				downloads: {
