@@ -55,29 +55,34 @@ const DirectConnectBundleSchema = mongoose.Schema({
 	size: String,
 	type: {},
 });
-const wantedSchema = new mongoose.Schema({
-	source: { type: String, default: null },
-	markEntireVolumeWanted: Boolean,
-	issues: {
-		type: [
-			{
+const wantedSchema = mongoose.Schema(
+	{
+		source: { type: String, default: null },
+		markEntireVolumeWanted: Boolean,
+		issues: {
+			type: [
+				{
+					_id: false, // Disable automatic ObjectId creation for each issue
+					id: Number,
+					url: String,
+					image: { type: Array, default: [] },
+				},
+			],
+			default: null,
+		},
+		volume: {
+			type: {
+				_id: false, // Disable automatic ObjectId creation for volume
 				id: Number,
 				url: String,
 				image: { type: Array, default: [] },
+				name: String,
 			},
-		],
-		default: null, // Set default to null for issues
-	},
-	volume: {
-		type: {
-			id: Number,
-			url: String,
-			image: { type: Array, default: [] },
-			name: String,
+			default: null,
 		},
-		default: null, // Set default to null for volume
 	},
-});
+	{ _id: false }
+); // Disable automatic ObjectId creation for the wanted object itself
 
 const ComicSchema = mongoose.Schema(
 	{
@@ -93,18 +98,12 @@ const ComicSchema = mongoose.Schema(
 		},
 		sourcedMetadata: {
 			comicInfo: { type: mongoose.Schema.Types.Mixed, default: {} },
-			comicvine: {
-				type: Object,
-				es_indexed: true,
-				default: {},
-			},
-			shortboxed: {},
+			comicvine: { type: mongoose.Schema.Types.Mixed, default: {} }, // Set as a freeform object
 			locg: {
 				type: LOCGSchema,
 				es_indexed: true,
 				default: {},
 			},
-			gcd: {},
 		},
 		rawFileDetails: {
 			type: RawFileDetailsSchema,

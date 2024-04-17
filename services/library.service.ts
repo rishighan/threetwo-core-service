@@ -248,10 +248,7 @@ export default class ImportService extends Service {
 							payload: {
 								_id?: string;
 								sourcedMetadata: {
-									comicvine?: {
-										volume: { api_detail_url: string };
-										volumeInformation: {};
-									};
+									comicvine?: any;
 									locg?: {};
 								};
 								inferredMetadata: {
@@ -262,7 +259,7 @@ export default class ImportService extends Service {
 								};
 								wanted: {
 									issues: [];
-									volume: {};
+									volume: { id: number };
 									source: string;
 									markEntireVolumeWanted: Boolean;
 								};
@@ -275,36 +272,106 @@ export default class ImportService extends Service {
 						}>
 					) {
 						try {
-							let volumeDetails;
-							const comicMetadata = ctx.params.payload;
+							console.log(
+								JSON.stringify(ctx.params.payload, null, 4)
+							);
+							const { payload } = ctx.params;
+							const { wanted } = payload;
 
 							console.log("Saving to Mongo...");
-							console.log(
-								`Import type: [${ctx.params.importType}]`
-							);
-							switch (ctx.params.importType) {
-								case "new":
-									console.log(comicMetadata);
-									return await Comic.create(comicMetadata);
-								case "update":
-									return await Comic.findOneAndUpdate(
-										{
-											"acquisition.directconnect.downloads.bundleId":
-												ctx.params.bundleId,
-										},
-										comicMetadata,
-										{
-											upsert: true,
-											new: true,
-										}
-									);
-								default:
-									return false;
+
+							let condition = {};
+							if (wanted.volume && wanted.volume.id) {
+								condition["wanted.volume.id"] =
+									wanted.volume.id;
 							}
+
+							if (Object.keys(condition).length === 0) {
+								console.log("No valid identifier for upsert.");
+								return {
+									success: false,
+									message:
+										"No valid volume identifier provided.",
+								};
+							}
+
+							// Check if the volume or issues already exist
+							const existingVolume = await Comic.findOne(
+								condition
+							);
+							if (existingVolume) {
+								// Check for existing issues
+								let existingIssues = [];
+								if (wanted.issues && wanted.issues.length > 0) {
+									existingIssues = wanted.issues.filter(
+										(issue: any) =>
+											existingVolume.wanted.issues.some(
+												(existing: any) =>
+													existing.id === issue.id
+											)
+									);
+								}
+
+								if (existingIssues.length > 0) {
+									return {
+										success: false,
+										message: `Issue(s) with ID(s) ${existingIssues
+											.map((i) => i.id)
+											.join(", ")} already exist.`,
+									};
+								}
+
+								return {
+									success: false,
+									message:
+										"Volume with this ID already exists.",
+								};
+							}
+
+							// Perform the upsert operation if no existing volume or issues were found
+							let update = {
+								$set: {
+									"wanted.source": payload.wanted.source,
+									"wanted.markEntireVolumeWanted":
+										payload.wanted.markEntireVolumeWanted,
+									"wanted.volume": payload.wanted.volume,
+									"sourcedMetadata.comicvine":
+										payload.sourcedMetadata.comicvine,
+								},
+								$addToSet: {},
+							};
+
+							if (wanted.issues && wanted.issues.length > 0) {
+								update.$addToSet["wanted.issues"] = {
+									$each: wanted.issues,
+								};
+							}
+
+							const updatedDocument =
+								await Comic.findOneAndUpdate(
+									condition,
+									update,
+									{
+										upsert: true,
+										new: true,
+										setDefaultsOnInsert: true,
+										overwrite: false,
+									}
+								);
+
+							console.log(
+								"Document upserted with new issues:",
+								updatedDocument
+							);
+							return {
+								success: true,
+								message: "Document updated successfully.",
+								data: updatedDocument,
+							};
 						} catch (error) {
 							console.log(error);
 							throw new Errors.MoleculerError(
-								"Import failed.",
+								"Operation failed.",
 								500
 							);
 						}
