@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@bluelovers/fast-glob": "https://github.com/rishighan/fast-glob-v2-api.git",
-    "@elastic/elasticsearch": "^8.6.0",
+    "@elastic/elasticsearch": "^8.13.1",
     "@jorgeferrero/stream-to-buffer": "^2.0.6",
     "@npcz/magic": "^1.3.14",
     "@root/walk": "^1.1.0",
@@ -48,7 +48,8 @@
     "@types/mkdirp": "^1.0.0",
     "@types/node": "^13.9.8",
     "@types/string-similarity": "^4.0.0",
-    "axios": "^0.25.0",
+    "airdcpp-apisocket": "^2.4.4",
+    "axios": "^1.6.8",
     "axios-retry": "^3.2.4",
     "bree": "^7.1.5",
     "calibre-opds": "^1.0.7",
@@ -74,15 +75,15 @@
     "mongoose": "^6.10.4",
     "mongoose-paginate-v2": "^1.3.18",
     "nats": "^1.3.2",
-    "opds-extra": "^3.0.9",
+    "opds-extra": "^3.0.10",
     "p7zip-threetwo": "^1.0.4",
     "redis": "^4.6.5",
     "sanitize-filename-ts": "^1.0.2",
-    "sharp": "^0.30.4",
+    "sharp": "^0.33.3",
     "threetwo-ui-typings": "^1.0.14",
     "through2": "^4.0.2",
     "unrar": "^0.2.0",
-    "xml2js": "^0.4.23"
+    "xml2js": "^0.6.2"
   },
   "engines": {
     "node": ">= 18.x.x"
