@@ -32,7 +32,8 @@ class AirDCPPSocket {
 			this.socketInstance &&
 			typeof this.socketInstance.connect === "function"
 		) {
-			await this.socketInstance.connect();
+			const sessionInformation = await this.socketInstance.connect();
+			return sessionInformation;
 		}
 	}
 

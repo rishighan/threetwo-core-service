@@ -54,6 +54,7 @@ const DirectConnectBundleSchema = mongoose.Schema({
 	name: String,
 	size: String,
 	type: {},
+	_id: false,
 });
 const wantedSchema = mongoose.Schema(
 	{

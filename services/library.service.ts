@@ -280,93 +280,69 @@ export default class ImportService extends Service {
 
 							console.log("Saving to Mongo...");
 
-							let condition = {};
-							if (wanted.volume && wanted.volume.id) {
-								condition["wanted.volume.id"] =
-									wanted.volume.id;
-							}
+							if (
+								!wanted ||
+								!wanted.volume ||
+								!wanted.volume.id
+							) {
+								console.log(
+									"No valid identifier for upsert. Attempting to create a new document with minimal data..."
+								);
+								const newDocument = new Comic(payload); // Using the entire payload for the new document
 
-							if (Object.keys(condition).length === 0) {
-								console.log("No valid identifier for upsert.");
+								await newDocument.save();
 								return {
-									success: false,
+									success: true,
 									message:
-										"No valid volume identifier provided.",
+										"New document created due to lack of valid identifiers.",
+									data: newDocument,
 								};
 							}
 
-							// Check if the volume or issues already exist
-							const existingVolume = await Comic.findOne(
-								condition
-							);
-							if (existingVolume) {
-								// Check for existing issues
-								let existingIssues = [];
-								if (wanted.issues && wanted.issues.length > 0) {
-									existingIssues = wanted.issues.filter(
-										(issue: any) =>
-											existingVolume.wanted.issues.some(
-												(existing: any) =>
-													existing.id === issue.id
-											)
-									);
-								}
+							let condition = {
+								"wanted.volume.id": wanted.volume.id,
+							};
 
-								if (existingIssues.length > 0) {
-									return {
-										success: false,
-										message: `Issue(s) with ID(s) ${existingIssues
-											.map((i) => i.id)
-											.join(", ")} already exist.`,
-									};
-								}
-
-								return {
-									success: false,
-									message:
-										"Volume with this ID already exists.",
-								};
-							}
-
-							// Perform the upsert operation if no existing volume or issues were found
-							let update = {
+							let update: any = {
+								// Using 'any' to bypass strict type checks; alternatively, define a more accurate type
 								$set: {
+									rawFileDetails: payload.rawFileDetails,
+									inferredMetadata: payload.inferredMetadata,
+									sourcedMetadata: payload.sourcedMetadata,
+								},
+								$setOnInsert: {
 									"wanted.source": payload.wanted.source,
 									"wanted.markEntireVolumeWanted":
 										payload.wanted.markEntireVolumeWanted,
 									"wanted.volume": payload.wanted.volume,
-									"sourcedMetadata.comicvine":
-										payload.sourcedMetadata.comicvine,
 								},
-								$addToSet: {},
 							};
 
 							if (wanted.issues && wanted.issues.length > 0) {
-								update.$addToSet["wanted.issues"] = {
-									$each: wanted.issues,
+								update.$addToSet = {
+									"wanted.issues": { $each: wanted.issues },
 								};
 							}
 
-							const updatedDocument =
-								await Comic.findOneAndUpdate(
-									condition,
-									update,
-									{
-										upsert: true,
-										new: true,
-										setDefaultsOnInsert: true,
-										overwrite: false,
-									}
-								);
+							const options = {
+								upsert: true,
+								new: true,
+							};
 
-							console.log(
-								"Document upserted with new issues:",
-								updatedDocument
+							const result = await Comic.findOneAndUpdate(
+								condition,
+								update,
+								options
 							);
+							console.log(
+								"Operation completed. Document updated or inserted:",
+								result
+							);
+
 							return {
 								success: true,
-								message: "Document updated successfully.",
-								data: updatedDocument,
+								message: "Document successfully upserted.",
+								data: result,
 							};
 						} catch (error) {
 							console.log(error);
@@ -377,6 +353,28 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				getComicsMarkedAsWanted: {
+					rest: "GET /getComicsMarkedAsWanted",
+					handler: async (ctx: Context<{}>) => {
+						try {
+							// Query to find comics where 'markEntireVolumeAsWanted' is true or 'issues' array is not empty
+							const wantedComics = await Comic.find({
+								wanted: { $exists: true },
+								$or: [
+									{ "wanted.markEntireVolumeWanted": true },
+									{ "wanted.issues": { $not: { $size: 0 } } },
+								],
+							});
+
+							console.log(wantedComics); // Output the found comics
+							return wantedComics;
+						} catch (error) {
+							console.error("Error finding comics:", error);
+							throw error;
+						}
+					},
+				},
+
 				applyComicVineMetadata: {
 					rest: "POST /applyComicVineMetadata",
 					params: {},

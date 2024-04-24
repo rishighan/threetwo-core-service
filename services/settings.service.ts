@@ -76,6 +76,7 @@ export default class SettingsService extends Service {
 						}>
 					) {
 						try {
+							console.log(ctx.params);
 							let query = {};
 							const { settingsKey, settingsObjectId } =
 								ctx.params;
