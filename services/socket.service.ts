@@ -24,10 +24,12 @@ export default class SocketService extends Service {
 				port: process.env.PORT || 3001,
 				io: {
 					namespaces: {
-						"/": {
+						"/automated": {
 							events: {
 								call: {
-									whitelist: ["socket.*"],
+									whitelist: [
+										"socket.*", // Allow 'search' in the automated namespace
+									],
 								},
 							},
 						},
@@ -123,8 +125,12 @@ export default class SocketService extends Service {
 						config: "object",
 					},
 					async handler(ctx) {
-						const { query, config } = ctx.params;
+						console.log("a, a kanha kanha...");
+
+						const { query, config, namespace } = ctx.params;
+						const namespacedInstance = this.io.of(namespace || "/");
 						const ADCPPSocket = new AirDCPPSocket(config);
+						console.log("asdas", ADCPPSocket);
 						try {
 							await ADCPPSocket.connect();
 							const instance = await ADCPPSocket.post(
@@ -133,7 +139,7 @@ export default class SocketService extends Service {
 							);
 
 							// Send the instance to the client
-							await this.io.emit("searchInitiated", {
+							await namespacedInstance.emit("searchInitiated", {
 								instance,
 							});
 
@@ -142,7 +148,7 @@ export default class SocketService extends Service {
 								`search`,
 								`search_result_added`,
 								(groupedResult) => {
-									this.io.emit(
+									namespacedInstance.emit(
 										"searchResultAdded",
 										groupedResult
 									);
@@ -154,8 +160,7 @@ export default class SocketService extends Service {
 								`search`,
 								`search_result_updated`,
 								(updatedResult) => {
-									console.log("hi", updatedResult);
-									this.io.emit(
+									namespacedInstance.emit(
 										"searchResultUpdated",
 										updatedResult
 									);
@@ -173,14 +178,21 @@ export default class SocketService extends Service {
 											`search/${instance.id}`
 										);
 									// Send the instance to the client
-									await this.io.emit("searchesSent", {
-										searchInfo,
-									});
+									await namespacedInstance.emit(
+										"searchesSent",
+										{
+											searchInfo,
+										}
+									);
 									if (currentInstance.result_count === 0) {
 										console.log("No more search results.");
-										this.io.emit("searchComplete", {
-											message: "No more search results.",
-										});
+										namespacedInstance.emit(
+											"searchComplete",
+											{
+												message:
+													"No more search results.",
+											}
+										);
 									}
 								},
 								instance.id
@@ -192,7 +204,10 @@ export default class SocketService extends Service {
 								query
 							);
 						} catch (error) {
-							await this.io.emit("searchError", error.message);
+							await namespacedInstance.emit(
+								"searchError",
+								error.message
+							);
 							throw new MoleculerError(
 								"Search failed",
 								500,
