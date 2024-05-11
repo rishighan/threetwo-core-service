@@ -67,6 +67,8 @@ const wantedSchema = mongoose.Schema(
 					id: Number,
 					url: String,
 					image: { type: Array, default: [] },
+					coverDate: String,
+					issueNumber: String,
 				},
 			],
 			default: null,

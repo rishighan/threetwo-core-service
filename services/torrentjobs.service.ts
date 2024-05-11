@@ -15,7 +15,7 @@ export default class ImageTransformation extends Service {
 	// @ts-ignore
 	public constructor(
 		public broker: ServiceBroker,
-		schema: ServiceSchema<{}> = { name: "imagetransformation" }
+		schema: ServiceSchema<{}> = { name: "torrentjobs" }
 	) {
 		super(broker);
 		this.parseServiceSchema({
@@ -77,7 +77,7 @@ export default class ImageTransformation extends Service {
 							"qbittorrent.getTorrentRealTimeStats",
 							{ infoHashes }
 						);
-						// 4. Emit the LS_COVER_EXTRACTION_FAILED event with the necessary details
+						// 4.
 						await this.broker.call("socket.broadcast", {
 							namespace: "/",
 							event: "AS_TORRENT_DATA",

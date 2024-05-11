@@ -58,6 +58,7 @@ export default class AirDCPPService extends Service {
 				},
 				getHubs: {
 					rest: "POST /getHubs",
+					timeout: 70000,
 					handler: async (
 						ctx: Context<{
 							host: {
@@ -69,7 +70,6 @@ export default class AirDCPPService extends Service {
 							};
 						}>
 					) => {
-						console.log(ctx.params);
 						const {
 							host: {
 								hostname,
@@ -93,8 +93,64 @@ export default class AirDCPPService extends Service {
 						}
 					},
 				},
+				search: {
+					rest: "POST /search",
+					timeout: 20000,
+					handler: async (
+						ctx: Context<{
+							host: {
+								hostname;
+								port;
+								protocol;
+								username;
+								password;
+							};
+							dcppSearchQuery;
+						}>
+					) => {
+						try {
+							const {
+								host: {
+									hostname,
+									port,
+									protocol,
+									username,
+									password,
+								},
+								dcppSearchQuery,
+							} = ctx.params;
+							const airDCPPSocket = new AirDCPPSocket({
+								protocol,
+								hostname: `${hostname}:${port}`,
+								username,
+								password,
+							});
+							await airDCPPSocket.connect();
+							const searchInstance = await airDCPPSocket.post(
+								`search`
+							);
+
+							// Post the search
+							const searchInfo = await airDCPPSocket.post(
+								`search/${searchInstance.id}/hub_search`,
+								dcppSearchQuery
+							);
+							await this.sleep(10000);
+							const results = await airDCPPSocket.get(
+								`search/${searchInstance.id}/results/0/5`
+							);
+							return results;
+						} catch (err) {
+							throw err;
+						}
+					},
+				},
 			},
-			methods: {},
+			methods: {
+				sleep: (ms: number) => {
+					return new Promise((resolve) => setTimeout(resolve, ms));
+				},
+			},
 		});
 	}
 }
