@@ -58,9 +58,11 @@ import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 
-console.log(`MONGO -> ${process.env.MONGO_URI}`);
-export default class ImportService extends Service {
-	public constructor(public broker: ServiceBroker) {
+export default class LibraryService extends Service {
+	public constructor(
+		public broker: ServiceBroker,
+		schema: ServiceSchema<{}> = { name: "library" }
+	) {
 		super(broker);
 		this.parseServiceSchema({
 			name: "library",
