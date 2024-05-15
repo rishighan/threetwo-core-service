@@ -4,7 +4,7 @@ const redisURL = process.env.REDIS_URI;
 if (!redisURL) throw new Error("REDIS_URI environment variable is not set.");
 
 const createRedisClient = (url) => {
-	const client = createClient({ url });
+	const client = createClient(url);
 
 	client.on("error", (err) => console.error("Redis Client Error", err));
 	client.on("connect", () => console.log("Connected to Redis:", url));
