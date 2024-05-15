@@ -42,6 +42,8 @@ RUN node -v && npm -v
 COPY package.json package-lock.json ./
 COPY moleculer.config.ts ./
 COPY tsconfig.json ./
+COPY scripts ./scripts
+RUN chmod +x ./scripts/*
 
 # Install application dependencies
 RUN npm install
@@ -50,9 +52,8 @@ RUN npm install -g typescript ts-node
 # Copy the rest of the application files
 COPY . .
 
-# Build and clean up
-RUN npm run build \
-	&& npm prune
+# clean up
+RUN npm prune
 
 # Expose the application's port
 EXPOSE 3000
