@@ -11,10 +11,10 @@ import {
 } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
+import IORedis from 'ioredis';
 import path from "path";
 const { MoleculerError } = require("moleculer").Errors;
 
-console.log(process.env.REDIS_URI);
 export default class JobQueueService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -24,7 +24,7 @@ export default class JobQueueService extends Service {
 			mixins: [DbMixin("comics", Comic), BullMqMixin],
 			settings: {
 				bullmq: {
-					client: process.env.REDIS_URI,
+					client: new IORedis(process.env.REDIS_URI, { maxRetriesPerRequest: null }),
 				},
 			},
 			actions: {
