@@ -1,47 +1,49 @@
-version: "3.7"
-
 services:
-  zookeeper:
-    image: bitnami/zookeeper:latest
-    container_name: zookeeper
+  zoo1:
+    image: confluentinc/cp-zookeeper:7.3.2
+    hostname: zoo1
+    container_name: zoo1
     ports:
       - "2181:2181"
     environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-      - ZOO_MAX_CLIENT_CNXNS=100
-      - ZOO_MAX_SESSION_TIMEOUT=60000
-      - ZOO_INIT_LIMIT=10
-      - ZOO_SYNC_LIMIT=5
-      - ZOO_MAX_BUFFER=10485760  # Increased buffer size
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: zoo1:2888:3888
     networks:
-      - proxy
+      - kafka-net
 
-  kafka:
-    image: bitnami/kafka:latest
-    container_name: kafka
+  kafka1:
+    image: confluentinc/cp-kafka:7.3.2
+    hostname: kafka1
+    container_name: kafka1
     ports:
       - "9092:9092"
+      - "29092:29092"
+      - "9999:9999"
     environment:
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:19092,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092,DOCKER://host.docker.internal:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: "zoo1:2181"
       KAFKA_BROKER_ID: 1
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENERS: PLAINTEXT://:9092
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      ALLOW_PLAINTEXT_LISTENER: "yes"
-      KAFKA_MAX_REQUEST_SIZE: 10485760  # Increased request size
-      KAFKA_MESSAGE_MAX_BYTES: 10485760  # Increased message size
-      KAFKA_REPLICA_FETCH_MAX_BYTES: 10485760  # Increased fetch size
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: ${DOCKER_HOST_IP:-127.0.0.1}
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
     depends_on:
-      - zookeeper
+      - zoo1
     networks:
-      - proxy
+      - kafka-net
 
   db:
     image: "mongo:latest"
     container_name: database
     networks:
-      - proxy
+      - kafka-net
     ports:
       - "27017:27017"
     volumes:
@@ -53,7 +55,7 @@ services:
     environment:
       ALLOW_EMPTY_PASSWORD: "yes"
     networks:
-      - proxy
+      - kafka-net
     ports:
       - "6379:6379"
 
@@ -73,11 +75,11 @@ services:
     ports:
       - "9200:9200"
     networks:
-      - proxy
+      - kafka-net
 
 networks:
-  proxy:
-    external: true
+  kafka-net:
+    driver: bridge
 
 volumes:
   mongodb_data:
