@@ -11,7 +11,6 @@ import {
 } from "../utils/uncompression.utils";
 import { isNil, isUndefined } from "lodash";
 import { pubClient } from "../config/redis.config";
-import IORedis from 'ioredis';
 import path from "path";
 const { MoleculerError } = require("moleculer").Errors;
 
@@ -22,9 +21,10 @@ export default class JobQueueService extends Service {
 			name: "jobqueue",
 			hooks: {},
 			mixins: [DbMixin("comics", Comic), BullMqMixin],
+
 			settings: {
 				bullmq: {
-					client: new IORedis(process.env.REDIS_URI, { maxRetriesPerRequest: null }),
+					client: pubClient,
 				},
 			},
 			actions: {
@@ -57,20 +57,24 @@ export default class JobQueueService extends Service {
 					handler: async (
 						ctx: Context<{ action: string; description: string }>
 					) => {
-						const { action, description } = ctx.params;
-						// Enqueue the job
-						const job = await this.localQueue(
-							ctx,
-							action,
-							ctx.params,
-							{
-								priority: 10,
-							}
-						);
-						console.log(`Job ${job.id} enqueued`);
-						console.log(`${description}`);
+						try {
+							const { action, description } = ctx.params;
+							// Enqueue the job
+							const job = await this.localQueue(
+								ctx,
+								action,
+								{},
+								{
+									priority: 10,
+								}
+							);
+							console.log(`Job ${job.id} enqueued`);
+							console.log(`${description}`);
 
-						return job.id;
+							return job.id;
+						} catch (error) {
+							console.error("Failed to enqueue job:", error);
+						}
 					},
 				},
 
