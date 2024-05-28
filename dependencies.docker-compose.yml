@@ -39,6 +39,21 @@ services:
     networks:
       - kafka-net
 
+  kafka-ui:
+    container_name: kafka-ui
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - 8087:8080
+    environment:
+      DYNAMIC_CONFIG_ENABLED: true
+    volumes:
+      - /Users/rishi/work/config/kafka-ui/config.yml:/etc/kafkaui/dynamic_config.yaml
+    depends_on:
+      - kafka1
+      - zoo1
+    networks:
+      - kafka-net
+
   db:
     image: "mongo:latest"
     container_name: database
