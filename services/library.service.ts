@@ -331,19 +331,46 @@ export default class LibraryService extends Service {
 				},
 				getComicsMarkedAsWanted: {
 					rest: "GET /getComicsMarkedAsWanted",
-					handler: async (ctx: Context<{}>) => {
+					params: {
+						page: { type: "number", default: 1 },
+						limit: { type: "number", default: 100 },
+					},
+					handler: async (
+						ctx: Context<{ page: number; limit: number }>
+					) => {
+						const { page, limit } = ctx.params;
 						try {
-							// Query to find comics where 'markEntireVolumeAsWanted' is true or 'issues' array is not empty
-							const wantedComics = await Comic.find({
-								wanted: { $exists: true },
-								$or: [
-									{ "wanted.markEntireVolumeWanted": true },
-									{ "wanted.issues": { $not: { $size: 0 } } },
-								],
-							});
+							const options = {
+								page,
+								limit,
+								lean: true,
+							};
 
-							console.log(wantedComics); // Output the found comics
-							return wantedComics;
+							const result = await Comic.paginate(
+								{
+									wanted: { $exists: true },
+									$or: [
+										{
+											"wanted.markEntireVolumeWanted":
+												true,
+										},
+										{
+											"wanted.issues": {
+												$not: { $size: 0 },
+											},
+										},
+									],
+								},
+								options
+							);
+
+							return {
+								wantedComics: result.docs,
+								total: result.totalDocs,
+								page: result.page,
+								limit: result.limit,
+								pages: result.totalPages,
+							};
 						} catch (error) {
 							console.error("Error finding comics:", error);
 							throw error;
