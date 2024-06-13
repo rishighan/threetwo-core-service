@@ -339,6 +339,9 @@ export default class LibraryService extends Service {
 						ctx: Context<{ page: number; limit: number }>
 					) => {
 						const { page, limit } = ctx.params;
+						this.logger.info(
+							`Requesting page ${page} with limit ${limit}`
+						);
 						try {
 							const options = {
 								page,
@@ -364,15 +367,15 @@ export default class LibraryService extends Service {
 								options
 							);
 
-							return {
-								wantedComics: result.docs,
-								total: result.totalDocs,
-								page: result.page,
-								limit: result.limit,
-								pages: result.totalPages,
-							};
+							// Log the raw result from the database
+							this.logger.info(
+								"Paginate result:",
+								JSON.stringify(result, null, 2)
+							);
+
+							return result.docs; // Return just the docs array
 						} catch (error) {
-							console.error("Error finding comics:", error);
+							this.logger.error("Error finding comics:", error);
 							throw error;
 						}
 					},
