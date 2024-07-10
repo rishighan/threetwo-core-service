@@ -122,6 +122,7 @@ export default class SocketService extends Service {
 					params: {
 						query: "object",
 						config: "object",
+						namespace: "string",
 					},
 					async handler(ctx) {
 						const { query, config, namespace } = ctx.params;
@@ -183,6 +184,9 @@ export default class SocketService extends Service {
 										await ADCPPSocket.get(
 											`search/${instance.id}`
 										);
+									console.log(
+										JSON.stringify(currentInstance, null, 4)
+									);
 									// Send the instance to the client
 									await namespacedInstance.emit(
 										"searchesSent",
@@ -190,6 +194,7 @@ export default class SocketService extends Service {
 											searchInfo,
 										}
 									);
+
 									if (currentInstance.result_count === 0) {
 										console.log("No more search results.");
 										namespacedInstance.emit(
@@ -197,6 +202,7 @@ export default class SocketService extends Service {
 											{
 												message:
 													"No more search results.",
+												currentInstance,
 											}
 										);
 									}
@@ -221,7 +227,7 @@ export default class SocketService extends Service {
 								{ error }
 							);
 						} finally {
-							// await ADCPPSocket.disconnect();
+							await ADCPPSocket.disconnect();
 						}
 					},
 				},
