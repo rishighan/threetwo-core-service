@@ -174,7 +174,7 @@ export default class LibraryService extends Service {
 
 							// Convert klaw to use a promise-based approach for better flow control
 							const files = await this.getComicFiles(
-								COMICS_DIRECTORY
+								process.env.COMICS_DIRECTORY
 							);
 							for (const file of files) {
 								console.info(
@@ -187,7 +187,6 @@ export default class LibraryService extends Service {
 										path.extname(file.path)
 									),
 								});
-
 								if (!comicExists) {
 									// Send the extraction job to the queue
 									await this.broker.call("jobqueue.enqueue", {
