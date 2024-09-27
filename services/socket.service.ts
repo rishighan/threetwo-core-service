@@ -125,12 +125,9 @@ export default class SocketService extends Service {
 						config: "object",
 					},
 					async handler(ctx) {
-						console.log("a, a kanha kanha...");
-
 						const { query, config, namespace } = ctx.params;
 						const namespacedInstance = this.io.of(namespace || "/");
 						const ADCPPSocket = new AirDCPPSocket(config);
-						console.log("asdas", ADCPPSocket);
 						try {
 							await ADCPPSocket.connect();
 							const instance = await ADCPPSocket.post(
@@ -148,6 +145,7 @@ export default class SocketService extends Service {
 								`search`,
 								`search_result_added`,
 								(groupedResult) => {
+									console.log(JSON.stringify(groupedResult, null, 4));
 									namespacedInstance.emit(
 										"searchResultAdded",
 										groupedResult

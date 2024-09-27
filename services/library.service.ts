@@ -551,7 +551,8 @@ export default class ImportService extends Service {
 					params: { id: "string" },
 					async handler(ctx: Context<{ id: string }>) {
 						console.log(ctx.params.id);
-						return await Comic.findById(ctx.params.id);
+						return await Comic.findById(new ObjectId(ctx.params.id));
+
 					},
 				},
 				getComicBooksByIds: {
