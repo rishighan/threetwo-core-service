@@ -118,7 +118,11 @@ export default class SocketService extends Service {
 					// );
 				},
 				// AirDCPP Socket actions
-
+				getBundles: {
+					async handler(ctx) {
+					// get bundles bitch
+					}
+				},
 				search: {
 					params: {
 						query: "object",
