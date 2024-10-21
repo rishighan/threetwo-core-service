@@ -105,14 +105,15 @@ export default class SocketService extends Service {
 					// );
 				},
 				// AirDCPP Socket actions
+				// the way this method is called has some unnecessary indirection
 				getBundles: {
-					async handler(
-						ctx: Context<{
-							comicObjectId: string;
-						}>
-					) {
-						// get bundles bitch
-						// 1. Get the comic object Id
+					rest: "GET /getBundles",
+					handler: async (ctx: Context<{ config: any; bundleId: string }>) => {
+						const { config, bundleId } = ctx.params;
+						console.log(config);
+						const ADCPPSocket = new AirDCPPSocket(config);
+
+						return await ADCPPSocket.get(`queue/bundles/${bundleId}`);
 					},
 				},
 				search: {
