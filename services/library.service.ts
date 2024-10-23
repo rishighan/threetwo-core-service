@@ -51,6 +51,7 @@ const through2 = require("through2");
 import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
+import AirDCPPSocket from "../shared/airdcpp.socket";
 
 console.log(`MONGO -> ${process.env.MONGO_URI}`);
 export default class ImportService extends Service {
@@ -707,6 +708,11 @@ export default class ImportService extends Service {
 						};
 					},
 				},
+
+
+				// This method belongs in library service,
+				// because bundles can only exist for comics _in the library_
+				// (wanted or imported)
 				getBundles: {
 					rest: "POST /getBundles",
 					params: {},
@@ -717,30 +723,26 @@ export default class ImportService extends Service {
 						}>
 					) => {
 						// 1. Get the comic object Id
-						console.log("ala re lala");
-						console.log(ctx.params);
 						const { config } = ctx.params;
 						const comicObject = await Comic.findById(
 							new ObjectId(ctx.params.comicObjectId)
 						);
-						console.log(JSON.stringify(comicObject, null, 4));
-
+						// 2. Init AirDC++
+						// 3. Get the bundles for the comic object
+						const ADCPPSocket = new AirDCPPSocket(config);
 						if (comicObject) {
 							const foo = comicObject.acquisition.directconnect.downloads.map(
 								async (bundle) => {
 									// make the call to get the bundles from AirDC++ using the bundleId
-									return await this.broker.call("socket.getBundles", {
-										bundleId: bundle.id,
-										config,
-									});
+									return await ADCPPSocket.get(`queue/bundles/${bundle.id}`);
 								}
 							);
-							console.log(foo);
+							return foo;
 						}
-						return [];
+						return false;
+
 					},
 				},
-
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},
