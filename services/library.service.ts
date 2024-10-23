@@ -57,6 +57,7 @@ const through2 = require("through2");
 import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
+import AirDCPPSocket from "../shared/airdcpp.socket";
 
 export default class LibraryService extends Service {
 	public constructor(
@@ -527,7 +528,9 @@ export default class LibraryService extends Service {
 					params: { id: "string" },
 					async handler(ctx: Context<{ id: string }>) {
 						console.log(ctx.params.id);
-						return await Comic.findById(ctx.params.id);
+						return await Comic.findById(
+							new ObjectId(ctx.params.id)
+						);
 					},
 				},
 				getComicBooksByIds: {
@@ -746,6 +749,46 @@ export default class LibraryService extends Service {
 					},
 				},
 
+				// This method belongs in library service,
+				// because bundles can only exist for comics _in the library_
+				// (wanted or imported)
+				getBundles: {
+					rest: "POST /getBundles",
+					params: {},
+					handler: async (
+						ctx: Context<{
+							comicObjectId: string;
+							config: any;
+						}>
+					) => {
+						try {
+							// 1. Get the comic object Id
+							const { config } = ctx.params;
+							const comicObject = await Comic.findById(
+								new ObjectId(ctx.params.comicObjectId)
+							);
+							// 2. Init AirDC++
+							// 3. Get the bundles for the comic object
+							const ADCPPSocket = new AirDCPPSocket(config);
+							if (comicObject) {
+								// make the call to get the bundles from AirDC++ using the bundleId
+								return comicObject.acquisition.directconnect.downloads.map(
+									async (bundle) =>
+										await ADCPPSocket.get(
+											`queue/bundles/${bundle.id}`
+										)
+								);
+							}
+
+							return false;
+						} catch (error) {
+							throw new Errors.MoleculerError(
+								"Couldn't fetch bundles from AirDC++",
+								500
+							);
+						}
+					},
+				},
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},
