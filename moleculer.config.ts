@@ -5,6 +5,7 @@ import {
 	MetricRegistry,
 	ServiceBroker,
 } from "moleculer";
+const RedisTransporter = require("moleculer").Transporters.Redis;
 
 /**
  * Moleculer ServiceBroker configuration file
@@ -90,7 +91,7 @@ const brokerConfig: BrokerOptions = {
 	// More info: https://moleculer.services/docs/0.14/networking.html
 	// Note: During the development, you don't need to define it because all services will be loaded locally.
 	// In production you can set it via `TRANSPORTER=nats://localhost:4222` environment variable.
-	transporter: process.env.REDIS_URI || "redis://localhost:6379",
+	transporter: new RedisTransporter(process.env.REDIS_URI),
 
 	// Define a cacher.
 	// More info: https://moleculer.services/docs/0.14/caching.html
