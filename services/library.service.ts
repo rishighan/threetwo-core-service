@@ -792,19 +792,21 @@ export default class ImportService extends Service {
 								new ObjectId(ctx.params.comicObjectId)
 							);
 							// 2. Init AirDC++
-							// 3. Get the bundles for the comic object
 							const ADCPPSocket = new AirDCPPSocket(config);
+							await ADCPPSocket.connect();
+							// 3. Get the bundles for the comic object
 							if (comicObject) {
 								// make the call to get the bundles from AirDC++ using the bundleId
-								return comicObject.acquisition.directconnect.downloads.map(
-									async (bundle) =>
-										await ADCPPSocket.get(
-											`queue/bundles/${bundle.id}`
-										)
-								);
+								const bundles =
+									comicObject.acquisition.directconnect.downloads.map(
+										async (bundle) => {
+											return await ADCPPSocket.get(
+												`queue/bundles/${bundle.bundleId}`
+											);
+										}
+									);
+								return Promise.all(bundles);
 							}
-
-							return false;
 						} catch (error) {
 							throw new Errors.MoleculerError(
 								"Couldn't fetch bundles from AirDC++",
