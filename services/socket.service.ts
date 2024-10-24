@@ -1,7 +1,6 @@
 "use strict";
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import { JobType } from "moleculer-bullmq";
-import { createClient } from "redis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Session from "../models/session.model";
 import { pubClient, subClient } from "../config/redis.config";
@@ -274,6 +273,22 @@ export default class SocketService extends Service {
 				},
 			},
 			async started() {
+				this.logger.info("Starting Socket Service...");
+				this.logger.debug("pubClient:", pubClient);
+				this.logger.debug("subClient:", subClient);
+				if (!pubClient || !subClient) {
+					this.logger.error("Redis clients are not initialized!");
+					throw new Error("Redis clients are not initialized!");
+				}
+
+				// Additional checks or logic if necessary
+				if (pubClient.status !== "ready") {
+					await pubClient.connect();
+				}
+
+				if (subClient.status !== "ready") {
+					await subClient.connect();
+				}
 				this.io.on("connection", async (socket) => {
 					console.log(
 						`socket.io server connected to client with session ID: ${socket.id}`

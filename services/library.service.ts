@@ -59,9 +59,11 @@ import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 import AirDCPPSocket from "../shared/airdcpp.socket";
 
-console.log(`MONGO -> ${process.env.MONGO_URI}`);
-export default class ImportService extends Service {
-	public constructor(public broker: ServiceBroker) {
+export default class LibraryService extends Service {
+	public constructor(
+		public broker: ServiceBroker,
+		schema: ServiceSchema<{}> = { name: "library" }
+	) {
 		super(broker);
 		this.parseServiceSchema({
 			name: "library",
@@ -164,78 +166,52 @@ export default class ImportService extends Service {
 				},
 				newImport: {
 					rest: "POST /newImport",
-					// params: {},
-					async handler(
-						ctx: Context<{
-							extractionOptions?: any;
-							sessionId: string;
-						}>
-					) {
+					async handler(ctx) {
+						const { sessionId } = ctx.params;
 						try {
-							// Get params to be passed to the import jobs
-							const { sessionId } = ctx.params;
-							// 1. Walk the Source folder
-							klaw(path.resolve(COMICS_DIRECTORY))
-								// 1.1 Filter on .cb* extensions
-								.pipe(
-									through2.obj(function (item, enc, next) {
-										let fileExtension = path.extname(
-											item.path
-										);
-										if (
-											[".cbz", ".cbr", ".cb7"].includes(
-												fileExtension
-											)
-										) {
-											this.push(item);
-										}
-										next();
-									})
-								)
-								// 1.2 Pipe filtered results to the next step
-								// 	   Enqueue the job in the queue
-								.on("data", async (item) => {
-									console.info(
-										"Found a file at path: %s",
-										item.path
-									);
-									let comicExists = await Comic.exists({
-										"rawFileDetails.name": `${path.basename(
-											item.path,
-											path.extname(item.path)
-										)}`,
-									});
-									if (!comicExists) {
-										// 2.1 Reset the job counters in Redis
-										await pubClient.set(
-											"completedJobCount",
-											0
-										);
-										await pubClient.set(
-											"failedJobCount",
-											0
-										);
-										// 2.2 Send the extraction job to the queue
-										this.broker.call("jobqueue.enqueue", {
-											fileObject: {
-												filePath: item.path,
-												fileSize: item.stats.size,
-											},
-											sessionId,
-											importType: "new",
-											action: "enqueue.async",
-										});
-									} else {
-										console.log(
-											"Comic already exists in the library."
-										);
-									}
-								})
-								.on("end", () => {
-									console.log("All files traversed.");
+							// Initialize Redis counters once at the start of the import
+							await pubClient.set("completedJobCount", 0);
+							await pubClient.set("failedJobCount", 0);
+
+							// Convert klaw to use a promise-based approach for better flow control
+							const files = await this.getComicFiles(
+								COMICS_DIRECTORY
+							);
+							for (const file of files) {
+								console.info(
+									"Found a file at path:",
+									file.path
+								);
+								const comicExists = await Comic.exists({
+									"rawFileDetails.name": path.basename(
+										file.path,
+										path.extname(file.path)
+									),
 								});
+
+								if (!comicExists) {
+									// Send the extraction job to the queue
+									await this.broker.call("jobqueue.enqueue", {
+										fileObject: {
+											filePath: file.path,
+											fileSize: file.stats.size,
+										},
+										sessionId,
+										importType: "new",
+										action: "enqueue.async",
+									});
+								} else {
+									console.log(
+										"Comic already exists in the library."
+									);
+								}
+							}
+							console.log("All files traversed.");
 						} catch (error) {
-							console.log(error);
+							console.error(
+								"Error during newImport processing:",
+								error
+							);
 						}
 					},
 				},
@@ -864,7 +840,35 @@ export default class ImportService extends Service {
 					},
 				},
 			},
-			methods: {},
+			methods: {
+				// Method to walk the directory and filter comic files
+				getComicFiles: (directory) => {
+					return new Promise((resolve, reject) => {
+						const files = [];
+						klaw(directory)
+							.pipe(
+								through2.obj(function (item, enc, next) {
+									const fileExtension = path.extname(
+										item.path
+									);
+									if (
+										[".cbz", ".cbr", ".cb7"].includes(
+											fileExtension
+										)
+									) {
+										this.push(item);
+									}
+									next();
+								})
+							)
+							.on("data", (item) => {
+								files.push(item);
+							})
+							.on("end", () => resolve(files))
+							.on("error", (err) => reject(err));
+					});
+				},
+			},
 		});
 	}
 }
