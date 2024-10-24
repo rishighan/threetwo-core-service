@@ -9,7 +9,6 @@ import {
 import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import BullMqMixin from "moleculer-bullmq";
-import { pubClient } from "../config/redis.config";
 const { MoleculerError } = require("moleculer").Errors;
 
 export default class ImageTransformation extends Service {
@@ -24,7 +23,7 @@ export default class ImageTransformation extends Service {
 			mixins: [DbMixin("comics", Comic), BullMqMixin],
 			settings: {
 				bullmq: {
-					client: pubClient,
+					client: process.env.REDIS_URI,
 				},
 			},
 			hooks: {},

@@ -14,6 +14,7 @@ import { pubClient } from "../config/redis.config";
 import path from "path";
 const { MoleculerError } = require("moleculer").Errors;
 
+console.log(process.env.REDIS_URI);
 export default class JobQueueService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -21,10 +22,9 @@ export default class JobQueueService extends Service {
 			name: "jobqueue",
 			hooks: {},
 			mixins: [DbMixin("comics", Comic), BullMqMixin],
-
 			settings: {
 				bullmq: {
-					client: pubClient,
+					client: process.env.REDIS_URI,
 				},
 			},
 			actions: {
@@ -57,24 +57,20 @@ export default class JobQueueService extends Service {
 					handler: async (
 						ctx: Context<{ action: string; description: string }>
 					) => {
-						try {
-							const { action, description } = ctx.params;
-							// Enqueue the job
-							const job = await this.localQueue(
-								ctx,
-								action,
-								{},
-								{
-									priority: 10,
-								}
-							);
-							console.log(`Job ${job.id} enqueued`);
-							console.log(`${description}`);
+						const { action, description } = ctx.params;
+						// Enqueue the job
+						const job = await this.localQueue(
+							ctx,
+							action,
+							ctx.params,
+							{
+								priority: 10,
+							}
+						);
+						console.log(`Job ${job.id} enqueued`);
+						console.log(`${description}`);
 
-							return job.id;
-						} catch (error) {
-							console.error("Failed to enqueue job:", error);
-						}
+						return job.id;
 					},
 				},
 

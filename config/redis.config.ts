@@ -1,30 +1,10 @@
-// Import the Redis library
-import IORedis from "ioredis";
+import { createClient } from "redis";
+const redisURL = new URL(process.env.REDIS_URI);
 
-// Environment variable for Redis URI
-const redisURI = process.env.REDIS_URI || "redis://localhost:6379";
-console.log(`process.env.REDIS_URI is ${process.env.REDIS_URI}`);
-// Creating the publisher client
-const pubClient = new IORedis(redisURI);
+const pubClient = createClient({ url: `redis://${redisURL.hostname}:6379` });
+(async () => {
+	await pubClient.connect();
+})();
+const subClient = pubClient.duplicate();
 
-// Creating the subscriber client
-const subClient = new IORedis(redisURI);
-
-// Handle connection events for the publisher
-pubClient.on("connect", () => {
-	console.log("Publisher client connected to Redis.");
-});
-pubClient.on("error", (err) => {
-	console.error("Publisher client failed to connect to Redis:", err);
-});
-
-// Handle connection events for the subscriber
-subClient.on("connect", () => {
-	console.log("Subscriber client connected to Redis.");
-});
-subClient.on("error", (err) => {
-	console.error("Subscriber client failed to connect to Redis:", err);
-});
-
-// Export the clients for use in other parts of the application
-export { pubClient, subClient };
+export { subClient, pubClient };
