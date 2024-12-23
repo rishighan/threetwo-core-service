@@ -127,9 +127,10 @@ export default class SocketService extends Service {
 							await ADCPPSocket.addListener(
 								`search`,
 								`search_result_added`,
-								(groupedResult) => {
-									console.log(JSON.stringify(groupedResult, null, 4));
-									namespacedInstance.emit("searchResultAdded", groupedResult);
+								(groupedResult, entityId: number) => {
+									namespacedInstance.emit("searchResultAdded", {
+										groupedResult: { entityId, payload: groupedResult?.result },
+									});
 								},
 								instance.id
 							);
@@ -137,8 +138,10 @@ export default class SocketService extends Service {
 							await ADCPPSocket.addListener(
 								`search`,
 								`search_result_updated`,
-								(updatedResult) => {
-									namespacedInstance.emit("searchResultUpdated", updatedResult);
+								(updatedResult, entityId: number) => {
+									namespacedInstance.emit("searchResultUpdated", {
+										updatedResult: { entityId, payload: updatedResult?.result },
+									});
 								},
 								instance.id
 							);
