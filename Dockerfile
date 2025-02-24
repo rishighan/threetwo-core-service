@@ -51,7 +51,7 @@ RUN npm install
 
 # Clear npm cache and install sharp with build-from-source
 RUN npm cache clean --force
-RUN npm install sharp --build-from-source
+RUN npm install --platform=linux --arch=arm64 sharp --build-from-source
 
 # Install global dependencies
 RUN npm install -g typescript ts-node
