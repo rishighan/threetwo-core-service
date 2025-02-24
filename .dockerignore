@@ -2,6 +2,7 @@ node_modules
 comics/*
 userdata/*
 npm-debug.log
+logs/*
 Dockerfile
 .dockerignore
 .git

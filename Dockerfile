@@ -5,7 +5,7 @@ FROM node:22.1.0
 LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
 
 # Set environment variables
-ENV NPM_CONFIG_LOGLEVEL warn
+ENV NPM_CONFIG_LOGLEVEL=warn
 ENV NODE_ENV=production
 
 # Set the working directory
