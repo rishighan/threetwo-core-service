@@ -49,8 +49,9 @@ COPY tsconfig.json ./
 # Install application dependencies
 RUN npm install
 
-# Install sharp with platform-specific flags
-RUN npm install --platform=linux --arch=x64 sharp
+# Clear npm cache and install sharp with build-from-source
+RUN npm cache clean --force
+RUN npm install sharp --build-from-source
 
 # Install global dependencies
 RUN npm install -g typescript ts-node
