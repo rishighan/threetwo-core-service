@@ -21,7 +21,10 @@ RUN apt-get update && apt-get install -y \
 	xz-utils \
 	curl \
 	bash \
-	software-properties-common
+	software-properties-common \
+	build-essential \
+	g++ \
+	python3-dev
 
 # Install p7zip
 RUN apt-get update && apt-get install -y p7zip
@@ -45,6 +48,11 @@ COPY tsconfig.json ./
 
 # Install application dependencies
 RUN npm install
+
+# Install sharp with platform-specific flags
+RUN npm install --platform=linux --arch=x64 sharp
+
+# Install global dependencies
 RUN npm install -g typescript ts-node
 
 # Copy the rest of the application files
