@@ -1,14 +1,17 @@
-# Stage 1: Build Stage (Builder)
-FROM node:21-alpine3.18 AS builder
+# Use a non-ARM image (x86_64) for Node.js
+FROM --platform=linux/amd64 node:21-alpine3.18 AS builder
 
-# Set environment variables for build
+# Set metadata for contact
+LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
+
+# Set environment variables
 ENV NPM_CONFIG_LOGLEVEL=warn
 ENV NODE_ENV=production
 
 # Set the working directory
 WORKDIR /core-services
 
-# Install build dependencies using apk
+# Install required dependencies using apk
 RUN apk update && apk add --no-cache \
     bash \
     wget \
@@ -43,7 +46,10 @@ RUN wget https://www.rarlab.com/rar/rarlinux-x64-621.tar.gz \
     && cp rar/unrar /usr/bin/ \
     && rm -rf rarlinux-x64-621.tar.gz rar
 
-# Copy application configuration files to build environment
+# Verify Node.js installation
+RUN node -v && npm -v
+
+# Copy application configuration files
 COPY package.json package-lock.json ./
 COPY moleculer.config.ts ./
 COPY tsconfig.json ./
@@ -51,25 +57,31 @@ COPY tsconfig.json ./
 # Install application dependencies
 RUN npm install
 
-# Install sharp with platform-specific binaries
-RUN npm install sharp --build-from-source
+# Install sharp with proper platform configuration
+RUN npm install --force sharp --platform=linux/amd64
 
 # Install global dependencies
 RUN npm install -g typescript ts-node
 
-# Stage 2: Final Stage (Run Environment)
-FROM node:21-alpine3.18 AS runtime
+# Copy the rest of the application files (e.g., source code)
+COPY . .
 
-# Set environment variables for runtime
+# Build the app
+RUN npm run build
+
+# Final image
+FROM --platform=linux/amd64 node:21-alpine3.18
+
+# Set environment variables
 ENV NODE_ENV=production
-ENV NPM_CONFIG_LOGLEVEL=warn
 
 # Set the working directory
 WORKDIR /core-services
 
-# Install runtime dependencies using apk (keep only what is needed to run the app)
+# Install runtime dependencies
 RUN apk update && apk add --no-cache \
     bash \
+    wget \
     imagemagick \
     python3 \
     xvfb \
@@ -82,11 +94,11 @@ RUN apk update && apk add --no-cache \
     icu-dev \
     pkgconfig
 
-# Copy only necessary files from the builder stage
+# Copy necessary files from the builder image
 COPY --from=builder /core-services /core-services
 
 # Expose the application's port
 EXPOSE 3000
 
-# Command to run the application
+# Command to run the application (this will now work)
 CMD ["npm", "start"]
