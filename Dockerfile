@@ -1,4 +1,5 @@
-FROM node:21-alpine3.18
+# Use a non-ARM image (x86_64) for Node.js
+FROM --platform=linux/amd64 node:21-alpine3.18
 
 # Set metadata for contact
 LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
@@ -57,7 +58,7 @@ COPY tsconfig.json ./
 RUN npm install
 
 # Install sharp with proper platform configuration
-RUN npm install --force --sharp --platform=linux/arm64
+RUN npm install --force sharp --platform=linux/amd64
 
 # Install global dependencies
 RUN npm install -g typescript ts-node
