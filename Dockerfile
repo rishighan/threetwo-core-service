@@ -1,4 +1,4 @@
-FROM node:22.1.0-bullseye
+FROM node:21-alpine3.18
 
 # Set metadata for contact
 LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
@@ -10,32 +10,40 @@ ENV NODE_ENV=production
 # Set the working directory
 WORKDIR /core-services
 
-# Install required packages
-RUN apt-get update && apt-get install -y \
-	libvips-tools \
-	wget \
-	imagemagick \
-	python3 \
-	xvfb \
-	xz-utils \
-	curl \
-	bash \
-	software-properties-common \
-	build-essential \
-	g++ \
-	python3-dev
+# Install required dependencies using apk
+RUN apk update && apk add --no-cache \
+    bash \
+    wget \
+    imagemagick \
+    python3 \
+    xvfb \
+    build-base \
+    g++ \
+    python3-dev \
+    p7zip \
+    curl \
+    git \
+    glib \
+    cairo-dev \
+    pango-dev \
+    icu-dev \
+    pkgconfig
 
-# Install p7zip
-RUN apt-get update && apt-get install -y p7zip
+# Install libvips from source
+RUN wget https://github.com/libvips/libvips/releases/download/v8.13.0/vips-8.13.0.tar.gz \
+    && tar -zxvf vips-8.13.0.tar.gz \
+    && cd vips-8.13.0 \
+    && ./configure --disable-python \
+    && make -j$(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf vips-8.13.0.tar.gz vips-8.13.0
 
 # Install unrar directly from RARLAB
 RUN wget https://www.rarlab.com/rar/rarlinux-x64-621.tar.gz \
-	&& tar -zxvf rarlinux-x64-621.tar.gz \
-	&& cp rar/unrar /usr/bin/ \
-	&& rm -rf rarlinux-x64-621.tar.gz rar
-
-# Clean up package lists
-RUN rm -rf /var/lib/apt/lists/*
+    && tar -zxvf rarlinux-x64-621.tar.gz \
+    && cp rar/unrar /usr/bin/ \
+    && rm -rf rarlinux-x64-621.tar.gz rar
 
 # Verify Node.js installation
 RUN node -v && npm -v
@@ -50,7 +58,7 @@ RUN npm install
 
 # Clear npm cache and install sharp with build-from-source
 RUN npm cache clean --force
-RUN npm install --force --arch=arm64 --platform=linux sharp --build-from-source
+RUN npm install --force @img/sharp-linuxmusl-arm64    
 
 # Install global dependencies
 RUN npm install -g typescript ts-node
@@ -60,7 +68,7 @@ COPY . .
 
 # Build and clean up
 RUN npm run build \
-	&& npm prune
+    && npm prune
 
 # Expose the application's port
 EXPOSE 3000
