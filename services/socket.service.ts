@@ -9,6 +9,11 @@ const { MoleculerError } = require("moleculer").Errors;
 const SocketIOService = require("moleculer-io");
 const { v4: uuidv4 } = require("uuid");
 import AirDCPPSocket from "../shared/airdcpp.socket";
+import type { Socket as IOSocket } from "socket.io";
+import { namespace } from "../moleculer.config";
+
+// Context type carrying the Socket.IO socket in meta
+type SocketCtx<P> = Context<P, { socket: IOSocket }>;
 
 export default class SocketService extends Service {
 	// @ts-ignore
@@ -130,7 +135,6 @@ export default class SocketService extends Service {
 					},
 					async handler(ctx) {
 						const { query, config, namespace } = ctx.params;
-						console.log("NAMESPACE", namespace)
 						const namespacedInstance = this.io.of(namespace || "/");
 						const ADCPPSocket = new AirDCPPSocket(config);
 						try {
@@ -297,34 +301,28 @@ export default class SocketService extends Service {
 					},
 				},
 
-				listenBundleTick: {
-					async handler(ctx) {
-						const { config } = ctx.params;
+				listenFileProgress: {
+					params: { config: "object", namespace: "string" },
+					async handler(
+						ctx: SocketCtx<{ config: any; namespace: string }>
+					) {
+						const { config, namespace } = ctx.params;
+						const namespacedInstance = this.io.of(namespace || "/");
 						const ADCPPSocket = new AirDCPPSocket(config);
-
 						try {
+							// Connect once
 							await ADCPPSocket.connect();
-							console.log("Connected to AirDCPP successfully.");
-
-							ADCPPSocket.addListener(
+							await ADCPPSocket.addListener(
 								"queue",
 								"queue_bundle_tick",
-								(tickData) => {
+								async (data) => {
 									console.log(
-										"Received tick data: ",
-										tickData
+										`is mulk ne har shakz ko jo kaam tha saupa \nus shakz ne us kaam ki maachis jala di`
 									);
-									this.io.emit("bundleTickUpdate", tickData);
-								},
-								null
-							); // Assuming no specific ID is needed here
-						} catch (error) {
-							console.error(
-								"Error connecting to AirDCPP or setting listener:",
-								error
+									namespacedInstance.emit("downloadTick", data)	
+								}
 							);
-							throw error;
-						}
+						} catch {}
 					},
 				},
 			},
@@ -333,15 +331,19 @@ export default class SocketService extends Service {
 					return new Promise((resolve) => setTimeout(resolve, ms));
 				},
 				handleSocketConnection: async function (socket: any) {
-					this.logger.info(`Socket connected with session ID: ${socket.id}`);
+					this.logger.info(
+						`Socket connected with session ID: ${socket.id}`
+					);
 					console.log("Looking up sessionId in Mongo...");
-				
+
 					const sessionIdExists = await Session.find({
 						sessionId: socket.handshake.query.sessionId,
 					});
-				
+
 					if (sessionIdExists.length === 0) {
-						console.log(`Socket Id ${socket.id} not found in Mongo, creating a new session...`);
+						console.log(
+							`Socket Id ${socket.id} not found in Mongo, creating a new session...`
+						);
 						const sessionId = uuidv4();
 						socket.sessionId = sessionId;
 						console.log(`Saving session ${sessionId} to Mongo...`);
@@ -353,12 +355,14 @@ export default class SocketService extends Service {
 					} else {
 						console.log(`Found socketId ${socket.id}, no-op.`);
 					}
-				}
+				},
 			},
 			async started() {
 				this.io.of("/manual").on("connection", async (socket) => {
-					console.log(`socket.io server connected to /manual namespace`);
-				})
+					console.log(
+						`socket.io server connected to /manual namespace`
+					);
+				});
 				this.io.on("connection", async (socket) => {
 					console.log(
 						`socket.io server connected to client with session ID: ${socket.id}`

@@ -59,7 +59,7 @@ class AirDCPPSocket {
 	}
 
 	// Method to add listeners to the socket instance for handling real-time updates or events
-	async addListener(event: any, handlerName: any, callback: any, id: any) {
+	async addListener(event: any, handlerName: any, callback: any, id?: any) {
 		// Attach a listener to the socket instance
 		return await this.socketInstance.addListener(
 			event,
