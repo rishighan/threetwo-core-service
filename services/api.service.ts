@@ -1,190 +1,160 @@
-import chokidar from "chokidar";
+import chokidar, { FSWatcher } from "chokidar";
 import fs from "fs";
-import { Service, ServiceBroker } from "moleculer";
-import ApiGateway from "moleculer-web";
 import path from "path";
+import { Service, ServiceBroker, ServiceSchema } from "moleculer";
+import ApiGateway from "moleculer-web";
+import debounce from "lodash/debounce";
 import { IFolderData } from "threetwo-ui-typings";
 
+/**
+ * ApiService exposes REST endpoints and watches the comics directory for changes.
+ * Uses chokidar to watch the directory and broadcasts file events via Moleculer.
+ */
 export default class ApiService extends Service {
-	public constructor(broker: ServiceBroker) {
-		super(broker);
-		this.parseServiceSchema({
-			name: "api",
-			mixins: [ApiGateway],
-			// More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
-			settings: {
-				port: process.env.PORT || 3000,
-				routes: [
-					{
-						path: "/api",
-						whitelist: ["**"],
-						cors: {
-							origin: "*",
-							methods: [
-								"GET",
-								"OPTIONS",
-								"POST",
-								"PUT",
-								"DELETE",
-							],
-							allowedHeaders: ["*"],
-							exposedHeaders: [],
-							credentials: false,
-							maxAge: 3600,
-						},
-						use: [],
-						mergeParams: true,
-						authentication: false,
-						authorization: false,
-						autoAliases: true,
-						aliases: {},
-						callingOptions: {},
+  public constructor(broker: ServiceBroker) {
+    super(broker);
+    this.parseServiceSchema({
+      name: "api",
+      mixins: [ApiGateway],
+      // More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
+      settings: {
+        port: process.env.PORT || 3000,
+        routes: [
+          {
+            path: "/api",
+            whitelist: ["**"],
+            cors: {
+              origin: "*",
+              methods: ["GET", "OPTIONS", "POST", "PUT", "DELETE"],
+              allowedHeaders: ["*"],
+              exposedHeaders: [],
+              credentials: false,
+              maxAge: 3600,
+            },
+            use: [],
+            mergeParams: true,
+            authentication: false,
+            authorization: false,
+            autoAliases: true,
+            aliases: {},
+            callingOptions: {},
 
-						bodyParsers: {
-							json: {
-								strict: false,
-								limit: "1MB",
-							},
-							urlencoded: {
-								extended: true,
-								limit: "1MB",
-							},
-						},
-						mappingPolicy: "all", // Available values: "all", "restrict"
-						logging: true,
-					},
-					{
-						path: "/userdata",
-						use: [
-							ApiGateway.serveStatic(path.resolve("./userdata")),
-						],
-					},
-					{
-						path: "/comics",
-						use: [ApiGateway.serveStatic(path.resolve("./comics"))],
-					},
-					{
-						path: "/logs",
-						use: [ApiGateway.serveStatic("logs")],
-					},
-				],
-				log4XXResponses: false,
-				logRequestParams: true,
-				logResponseData: true,
-				assets: {
-					folder: "public",
-					// Options to `server-static` module
-					options: {},
-				},
-			},
-			events: {
+            bodyParsers: {
+              json: { strict: false, limit: "1MB" },
+              urlencoded: { extended: true, limit: "1MB" },
+            },
+            mappingPolicy: "all",
+            logging: true,
+          },
+          {
+            path: "/userdata",
+            use: [ApiGateway.serveStatic(path.resolve("./userdata"))],
+          },
+          {
+            path: "/comics",
+            use: [ApiGateway.serveStatic(path.resolve("./comics"))],
+          },
+          {
+            path: "/logs",
+            use: [ApiGateway.serveStatic("logs")],
+          },
+        ],
+        log4XXResponses: false,
+        logRequestParams: true,
+        logResponseData: true,
+        assets: { folder: "public", options: {} },
+      },
+      events: {},
+      methods: {},
+      started: this.startWatcher,
+      stopped: this.stopWatcher,
+    });
+  }
 
-			},
+  /** Active file system watcher instance. */
+private fileWatcher?: any;
 
-			methods: {},
-			started(): any {
-				// 	Filewatcher
-				const fileWatcher = chokidar.watch(
-					path.resolve("/comics"),
-					{
-						ignored: (filePath) =>
-							path.extname(filePath) === ".dctmp",
-						persistent: true,
-						usePolling: true,
-						interval: 5000,
-						ignoreInitial: true,
-						followSymlinks: true,
-						atomic: true,
-						awaitWriteFinish: {
-							stabilityThreshold: 2000,
-							pollInterval: 100,
-						},
-					}
-				);
-				const fileCopyDelaySeconds = 3;
-				const checkEnd = (path, prev) => {
-					fs.stat(path, async (err, stat) => {
-						// Replace error checking with something appropriate for your app.
-						if (err) throw err;
-						if (stat.mtime.getTime() === prev.mtime.getTime()) {
-							console.log("finished");
-							// Move on: call whatever needs to be called to process the file.
-							console.log(
-								"File detected, starting import..."
-							);
-							const walkedFolder: IFolderData =
-								await broker.call("library.walkFolders", {
-									basePathToWalk: path,
-								});
-							await this.broker.call(
-								"importqueue.processImport",
-								{
-									fileObject: {
-										filePath: path,
-										fileSize: walkedFolder[0].fileSize,
-									},
-								}
-							);
-						} else
-							setTimeout(
-								checkEnd,
-								fileCopyDelaySeconds,
-								path,
-								stat
-							);
-					});
-				};
+  /**
+   * Starts watching the comics directory with debounced, robust handlers.
+   */
+  private startWatcher(): void {
+    const watchDir = path.resolve(process.env.COMICS_PATH || "/comics");
+    this.logger.info(`Watching comics folder: ${watchDir}`);
 
-				fileWatcher
-					.on("add", (path, stats) => {
-						console.log("Watcher detected new files.");
-						console.log(
-							`File ${path} has been added with stats: ${JSON.stringify(
-								stats,
-								null,
-								2
-							)}`
-						);
+    this.fileWatcher = chokidar.watch(watchDir, {
+      persistent: true,
+      ignoreInitial: true,
+      followSymlinks: true,
+      depth: 10,
+      usePolling: true,
+      interval: 5000,
+      atomic: true,
+      awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 },
+      ignored: (p) => p.endsWith(".dctmp") || p.includes("/.git/"),
+    });
 
-						console.log("File", path, "has been added");
+    const debouncedEvent = debounce(
+      (event: string, p: string, stats?: fs.Stats) => {
+        try {
+          this.handleFileEvent(event, p, stats);
+        } catch (err) {
+          this.logger.error(`Error handling file event [${event}] for ${p}:`, err);
+        }
+      },
+      200,
+      { leading: true, trailing: true }
+    );
 
-						fs.stat(path, function(err, stat) {
-							// Replace error checking with something appropriate for your app.
-							if (err) throw err;
-							setTimeout(
-								checkEnd,
-								fileCopyDelaySeconds,
-								path,
-								stat
-							);
-						});
-					})
-					// .once(
-					// 	"change",
+    this.fileWatcher
+      .on("ready", () => this.logger.info("Initial scan complete."))
+      .on("error", (err) => this.logger.error("Watcher error:", err))
+      .on("add", (p, stats) => debouncedEvent("add", p, stats))
+      .on("change", (p, stats) => debouncedEvent("change", p, stats))
+      .on("unlink", (p) => debouncedEvent("unlink", p))
+      .on("addDir", (p) => debouncedEvent("addDir", p))
+      .on("unlinkDir", (p) => debouncedEvent("unlinkDir", p));
+  }
 
-					// 	(path, stats) =>
-					// 		console.log(
-					// 			`File ${path} has been changed. Stats: ${JSON.stringify(
-					// 				stats,
-					// 				null,
-					// 				2
-					// 			)}`
-					// 		)
-					// )
-					.on(
-						"unlink",
+  /**
+   * Stops the file watcher and frees resources.
+   */
+  private async stopWatcher(): Promise<void> {
+    if (this.fileWatcher) {
+      this.logger.info("Stopping file watcher...");
+      await this.fileWatcher.close();
+      this.fileWatcher = undefined;
+    }
+  }
 
-						(path) =>
-							console.log(`File ${path} has been removed`)
-					)
-					.on(
-						"addDir",
-
-						(path) =>
-							console.log(`Directory ${path} has been added`)
-					);
-
-			},
-		});
-	}
+  /**
+   * Handles and broadcasts file system events.
+   * @param event - Event type (add, change, etc.)
+   * @param filePath - Path of the file or directory
+   * @param stats - Optional file stats
+   */
+  private async handleFileEvent(
+    event: string,
+    filePath: string,
+    stats?: fs.Stats
+  ): Promise<void> {
+    this.logger.info(`File event [${event}]: ${filePath}`);
+    if (event === "add" && stats) {
+      // Wait for write to stabilize
+      setTimeout(async () => {
+        const newStats = await fs.promises.stat(filePath);
+        if (newStats.mtime.getTime() === stats.mtime.getTime()) {
+          this.logger.info(`Stable file detected: ${filePath}, importing.`);
+          const folderData: IFolderData = await this.broker.call(
+            "library.walkFolders",
+            { basePathToWalk: filePath }
+          );
+          await this.broker.call("importqueue.processImport", {
+            fileObject: { filePath, fileSize: folderData[0].fileSize },
+          });
+        }
+      }, 3000);
+    }
+    // Broadcast to other services or clients
+    this.broker.broadcast(event, { path: filePath });
+  }
 }

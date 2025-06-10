@@ -4,6 +4,7 @@
 		"esModuleInterop": true,
 		"noImplicitAny": false,
 		"removeComments": true,
+		"allowSyntheticDefaultImports": true,
 		"preserveConstEnums": true,
 		"sourceMap": true,
 		"pretty": true,

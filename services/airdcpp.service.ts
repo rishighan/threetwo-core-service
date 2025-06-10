@@ -50,7 +50,7 @@ export default class AirDCPPService extends Service {
 								username,
 								password,
 							});
-							return await airDCPPSocket.connect();
+							 return await airDCPPSocket.connect();
 						} catch (err) {
 							console.error(err);
 						}
