@@ -8,15 +8,25 @@ import { IFolderData } from "threetwo-ui-typings";
 
 /**
  * ApiService exposes REST endpoints and watches the comics directory for changes.
- * Uses chokidar to watch the directory and broadcasts file events via Moleculer.
+ * It uses chokidar to monitor filesystem events and broadcasts them via the Moleculer broker.
+ * @extends Service
  */
 export default class ApiService extends Service {
+  /**
+   * The chokidar file system watcher instance.
+   * @private
+   */
+  private fileWatcher?: any;
+
+  /**
+   * Creates an instance of ApiService.
+   * @param {ServiceBroker} broker - The Moleculer service broker instance.
+   */
   public constructor(broker: ServiceBroker) {
     super(broker);
     this.parseServiceSchema({
       name: "api",
       mixins: [ApiGateway],
-      // More info about settings: https://moleculer.services/docs/0.14/moleculer-web.html
       settings: {
         port: process.env.PORT || 3000,
         routes: [
@@ -38,7 +48,6 @@ export default class ApiService extends Service {
             autoAliases: true,
             aliases: {},
             callingOptions: {},
-
             bodyParsers: {
               json: { strict: false, limit: "1MB" },
               urlencoded: { extended: true, limit: "1MB" },
@@ -71,15 +80,23 @@ export default class ApiService extends Service {
     });
   }
 
-  /** Active file system watcher instance. */
-private fileWatcher?: any;
-
   /**
-   * Starts watching the comics directory with debounced, robust handlers.
+   * Initializes and starts the chokidar watcher on the COMICS_DIRECTORY.
+   * Debounces rapid events and logs initial scan completion.
+   * @private
    */
   private startWatcher(): void {
-    const watchDir = path.resolve(process.env.COMICS_PATH || "/comics");
-    this.logger.info(`Watching comics folder: ${watchDir}`);
+    const rawDir = process.env.COMICS_DIRECTORY;
+    if (!rawDir) {
+      this.logger.error("COMICS_DIRECTORY not set; cannot start watcher");
+      return;
+    }
+    const watchDir = path.resolve(rawDir);
+    this.logger.info(`Watching comics folder at: ${watchDir}`);
+    if (!fs.existsSync(watchDir)) {
+      this.logger.error(`✖ Comics folder does not exist: ${watchDir}`);
+      return;
+    }
 
     this.fileWatcher = chokidar.watch(watchDir, {
       persistent: true,
@@ -93,12 +110,22 @@ private fileWatcher?: any;
       ignored: (p) => p.endsWith(".dctmp") || p.includes("/.git/"),
     });
 
+    /**
+     * Debounced handler for file system events, batching rapid triggers
+     * into a 200ms window. Leading and trailing calls invoked.
+     * @param {string} event - Type of file event (add, change, etc.).
+     * @param {string} p - Path of the file or directory.
+     * @param {fs.Stats} [stats] - Optional file stats for add/change events.
+     */
     const debouncedEvent = debounce(
       (event: string, p: string, stats?: fs.Stats) => {
         try {
           this.handleFileEvent(event, p, stats);
         } catch (err) {
-          this.logger.error(`Error handling file event [${event}] for ${p}:`, err);
+          this.logger.error(
+            `Error handling file event [${event}] for ${p}:`,
+            err
+          );
         }
       },
       200,
@@ -116,7 +143,8 @@ private fileWatcher?: any;
   }
 
   /**
-   * Stops the file watcher and frees resources.
+   * Stops and closes the chokidar watcher, freeing resources.
+   * @private
    */
   private async stopWatcher(): Promise<void> {
     if (this.fileWatcher) {
@@ -127,10 +155,11 @@ private fileWatcher?: any;
   }
 
   /**
-   * Handles and broadcasts file system events.
-   * @param event - Event type (add, change, etc.)
-   * @param filePath - Path of the file or directory
-   * @param stats - Optional file stats
+   * Handles a filesystem event by logging and optionally importing new files.
+   * @param event - The type of chokidar event ('add', 'change', 'unlink', etc.).
+   * @param filePath - The full path of the file or directory that triggered the event.
+   * @param stats - Optional fs.Stats data for 'add' or 'change' events.
+   * @private
    */
   private async handleFileEvent(
     event: string,
@@ -139,7 +168,6 @@ private fileWatcher?: any;
   ): Promise<void> {
     this.logger.info(`File event [${event}]: ${filePath}`);
     if (event === "add" && stats) {
-      // Wait for write to stabilize
       setTimeout(async () => {
         const newStats = await fs.promises.stat(filePath);
         if (newStats.mtime.getTime() === stats.mtime.getTime()) {
@@ -149,12 +177,14 @@ private fileWatcher?: any;
             { basePathToWalk: filePath }
           );
           await this.broker.call("importqueue.processImport", {
-            fileObject: { filePath, fileSize: folderData[0].fileSize },
+            fileObject: {
+              filePath,
+              fileSize: folderData[0].fileSize,
+            },
           });
         }
       }, 3000);
     }
-    // Broadcast to other services or clients
     this.broker.broadcast(event, { path: filePath });
   }
 }
