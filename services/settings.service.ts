@@ -24,6 +24,23 @@ export default class SettingsService extends Service {
 			settings: {},
 			hooks: {},
 			actions: {
+				getEnvironmentVariables: {
+					rest: "GET /getEnvironmentVariables",
+					params: {},
+					handler: async (ctx: Context<{}>) => {
+						return {
+							comicsDirectory: process.env.COMICS_DIRECTORY,
+							userdataDirectory: process.env.USERDATA_DIRECTORY,
+							redisURI: process.env.REDIS_URI,
+							elasticsearchURI: process.env.ELASTICSEARCH_URI,
+							mongoURI: process.env.MONGO_URI,
+							kafkaBroker: process.env.KAFKA_BROKER,
+							unrarBinPath: process.env.UNRAR_BIN_PATH,
+							sevenzBinPath: process.env.SEVENZ_BINARY_PATH,
+							comicvineAPIKey: process.env.COMICVINE_API_KEY,
+						}
+					}
+				},
 				getSettings: {
 					rest: "GET /getAllSettings",
 					params: {},

@@ -176,6 +176,7 @@ export default class ApiService extends Service {
             "library.walkFolders",
             { basePathToWalk: filePath }
           );
+          // this would have to be a call to importDownloadedComic
           await this.broker.call("importqueue.processImport", {
             fileObject: {
               filePath,

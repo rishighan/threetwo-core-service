@@ -38,6 +38,7 @@
     "uuid": "^9.0.0"
   },
   "dependencies": {
+    "@apollo/server": "^4.12.2",
     "@bluelovers/fast-glob": "https://github.com/rishighan/fast-glob-v2-api.git",
     "@elastic/elasticsearch": "^8.13.1",
     "@jorgeferrero/stream-to-buffer": "^2.0.6",
@@ -58,6 +59,8 @@
     "dotenv": "^10.0.0",
     "filename-parser": "^1.0.4",
     "fs-extra": "^10.0.0",
+    "graphql": "^16.11.0",
+    "graphql-tag": "^2.12.6",
     "http-response-stream": "^1.0.9",
     "image-js": "^0.34.0",
     "imghash": "^0.0.9",
