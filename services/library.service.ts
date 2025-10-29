@@ -863,8 +863,57 @@ export default class ImportService extends Service {
 						console.log(ctx.params);
 					},
 				},
+
+				/**
+				 * Enhanced import from job queue - works with enhanced Comic model
+				 */
+				importFromJob: {
+					params: {
+						importType: "string",
+						bundleId: { type: "string", optional: true },
+						payload: "object"
+					},
+					async handler(ctx: Context<{
+						importType: string;
+						bundleId?: string;
+						payload: any;
+					}>) {
+						try {
+							const { importType, bundleId, payload } = ctx.params;
+							console.log(`Importing comic with enhanced metadata processing...`);
+
+							// Create comic with enhanced metadata structure
+							const comic = new Comic({
+								...payload,
+								importStatus: {
+									isImported: true,
+									tagged: false,
+									lastProcessed: new Date()
+								}
+							});
+
+							await comic.save();
+							
+							console.log(`Successfully imported comic: ${comic._id}`);
+							console.log(`Resolved metadata: ${JSON.stringify(comic.resolvedMetadata)}`);
+
+							return {
+								success: true,
+								comic: comic._id,
+								metadata: {
+									sources: Object.keys(comic.sourcedMetadata || {}),
+									resolvedFields: Object.keys(comic.resolvedMetadata || {}),
+									primarySource: comic.resolvedMetadata?.primarySource || 'inferred'
+								}
+							};
+						} catch (error) {
+							console.error("Error importing comic:", error);
+							throw error;
+						}
+					}
+				}
 			},
-			methods: {},
+			methods: {}
 		});
 	}
 }

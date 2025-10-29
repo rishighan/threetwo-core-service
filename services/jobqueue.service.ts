@@ -74,7 +74,7 @@ export default class JobQueueService extends Service {
 					},
 				},
 
-				// Comic Book Import Job Queue
+				// Comic Book Import Job Queue - Enhanced for better metadata handling
 				"enqueue.async": {
 					handler: async (
 						ctx: Context<{
@@ -83,7 +83,7 @@ export default class JobQueueService extends Service {
 					) => {
 						try {
 							console.log(
-								`Recieved Job ID ${ctx.locals.job.id}, processing...`
+								`Received Job ID ${ctx.locals.job.id}, processing...`
 							);
 							// 1. De-structure the job params
 							const { fileObject } = ctx.locals.job.data.params;
@@ -112,15 +112,43 @@ export default class JobQueueService extends Service {
 								JSON.stringify(inferredIssueDetails, null, 2)
 							);
 
-							// 3b. Orchestrate the payload
-							const payload = {
-								importStatus: {
-									isImported: true,
-									tagged: false,
-									matchedResult: {
-										score: "0",
-									},
+							// 3b. Prepare sourced metadata from various sources
+							let sourcedMetadata = {
+								comicInfo: comicInfoJSON || {},
+								comicvine: {},
+								metron: {},
+								gcd: {},
+								locg: {}
+							};
+
+							// Include any external metadata if provided
+							if (!isNil(ctx.locals.job.data.params.sourcedMetadata)) {
+								const providedMetadata = ctx.locals.job.data.params.sourcedMetadata;
+								sourcedMetadata = {
+									...sourcedMetadata,
+									...providedMetadata
+								};
+							}
+
+							// 3c. Prepare inferred metadata matching Comic model structure
+							const inferredMetadata = {
+								series: inferredIssueDetails?.name || "Unknown Series",
+								issue: {
+									name: inferredIssueDetails?.name || "Unknown Series",
+									number: inferredIssueDetails?.number || 1,
+									subtitle: inferredIssueDetails?.subtitle || "",
+									year: inferredIssueDetails?.year || new Date().getFullYear().toString()
 								},
+								volume: 1, // Default volume since not available in inferredIssueDetails
+								title: inferredIssueDetails?.name || path.basename(filePath, path.extname(filePath))
+							};
+
+							// 3d. Create canonical metadata - user-curated values with source attribution
+							const canonicalMetadata = this.createCanonicalMetadata(sourcedMetadata, inferredMetadata);
+
+							// 3e. Create comic payload with canonical metadata structure
+							const comicPayload = {
+								// File details
 								rawFileDetails: {
 									name,
 									filePath,
@@ -130,58 +158,37 @@ export default class JobQueueService extends Service {
 									containedIn,
 									cover,
 								},
-								inferredMetadata: {
-									issue: inferredIssueDetails,
-								},
-								sourcedMetadata: {
-									// except for ComicInfo.xml, everything else should be copied over from the
-									// parent comic
-									comicInfo: comicInfoJSON,
-								},
-								// since we already have at least 1 copy
-								// mark it as not wanted by default
+								
+								// Enhanced sourced metadata (now supports more sources)
+								sourcedMetadata,
+								
+								// Original inferred metadata
+								inferredMetadata,
+
+								// New canonical metadata - user-curated values with source attribution
+								canonicalMetadata,
+
+								// Import status
 								"acquisition.source.wanted": false,
-
-								// clear out the downloads array
-								// "acquisition.directconnect.downloads": [],
-
-								// mark the metadata source
-								"acquisition.source.name":
-									ctx.locals.job.data.params.sourcedFrom,
+								"acquisition.source.name": ctx.locals.job.data.params.sourcedFrom,
 							};
 
-							// 3c. Add the bundleId, if present to the payload
+							// 3f. Add bundleId if present
 							let bundleId = null;
 							if (!isNil(ctx.locals.job.data.params.bundleId)) {
 								bundleId = ctx.locals.job.data.params.bundleId;
 							}
 
-							// 3d. Add the sourcedMetadata, if present
-							if (
-								!isNil(
-									ctx.locals.job.data.params.sourcedMetadata
-								) &&
-								!isUndefined(
-									ctx.locals.job.data.params.sourcedMetadata
-										.comicvine
-								)
-							) {
-								Object.assign(
-									payload.sourcedMetadata,
-									ctx.locals.job.data.params.sourcedMetadata
-								);
-							}
-
-							// 4. write to mongo
+							// 4. Use library service to import with enhanced metadata
 							const importResult = await this.broker.call(
-								"library.rawImportToDB",
+								"library.importFromJob",
 								{
-									importType:
-										ctx.locals.job.data.params.importType,
+									importType: ctx.locals.job.data.params.importType,
 									bundleId,
-									payload,
+									payload: comicPayload,
 								}
 							);
+
 							return {
 								data: {
 									importResult,
@@ -196,7 +203,7 @@ export default class JobQueueService extends Service {
 							throw new MoleculerError(
 								error,
 								500,
-								"IMPORT_JOB_ERROR",
+								"ENHANCED_IMPORT_JOB_ERROR",
 								{
 									data: ctx.params.sessionId,
 								}
@@ -303,7 +310,7 @@ export default class JobQueueService extends Service {
 						}>
 					) => {
 						console.log(
-							`Recieved Job ID ${JSON.stringify(
+							`Received Job ID ${JSON.stringify(
 								ctx.locals
 							)}, processing...`
 						);
@@ -438,7 +445,239 @@ export default class JobQueueService extends Service {
 					});
 				},
 			},
-			methods: {},
+			methods: {
+				/**
+				 * Create canonical metadata structure with source attribution for user-driven curation
+				 * @param sourcedMetadata - Metadata from various external sources
+				 * @param inferredMetadata - Metadata inferred from filename/file analysis
+				 */
+				createCanonicalMetadata(sourcedMetadata: any, inferredMetadata: any) {
+					const currentTime = new Date();
+					
+					// Priority order: comicInfo -> comicvine -> metron -> gcd -> locg -> inferred
+					const sourcePriority = ['comicInfo', 'comicvine', 'metron', 'gcd', 'locg'];
+
+					// Helper function to extract actual value from metadata (handle arrays, etc.)
+					const extractValue = (value: any) => {
+						if (Array.isArray(value)) {
+							return value.length > 0 ? value[0] : null;
+						}
+						return value;
+					};
+
+					// Helper function to find the best value and its source
+					const findBestValue = (fieldName: string, defaultValue: any = null, defaultSource: string = 'inferred') => {
+						for (const source of sourcePriority) {
+							const rawValue = sourcedMetadata[source]?.[fieldName];
+							if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+								const extractedValue = extractValue(rawValue);
+								if (extractedValue !== null && extractedValue !== '') {
+									return {
+										value: extractedValue,
+										source: source,
+										userSelected: false,
+										lastModified: currentTime
+									};
+								}
+							}
+						}
+						return {
+							value: defaultValue,
+							source: defaultSource,
+							userSelected: false,
+							lastModified: currentTime
+						};
+					};
+
+					// Helper function for series-specific field resolution
+					const findSeriesValue = (fieldNames: string[], defaultValue: any = null) => {
+						for (const source of sourcePriority) {
+							const metadata = sourcedMetadata[source];
+							if (metadata) {
+								for (const fieldName of fieldNames) {
+									const rawValue = metadata[fieldName];
+									if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+										const extractedValue = extractValue(rawValue);
+										if (extractedValue !== null && extractedValue !== '') {
+											return {
+												value: extractedValue,
+												source: source,
+												userSelected: false,
+												lastModified: currentTime
+											};
+										}
+									}
+								}
+							}
+						}
+						return {
+							value: defaultValue,
+							source: 'inferred',
+							userSelected: false,
+							lastModified: currentTime
+						};
+					};
+
+					const canonical: any = {
+						// Core identifying information
+						title: findBestValue('title', inferredMetadata.title),
+
+						// Series information
+						series: {
+							name: findSeriesValue(['series', 'seriesName', 'name'], inferredMetadata.series),
+							volume: findBestValue('volume', inferredMetadata.volume || 1),
+							startYear: findBestValue('startYear', inferredMetadata.issue?.year ? parseInt(inferredMetadata.issue.year) : new Date().getFullYear())
+						},
+
+						// Issue information
+						issueNumber: findBestValue('issueNumber', inferredMetadata.issue?.number?.toString() || "1"),
+
+						// Publishing information
+						publisher: findBestValue('publisher', null),
+						publicationDate: findBestValue('publicationDate', null),
+						coverDate: findBestValue('coverDate', null),
+
+						// Content information
+						pageCount: findBestValue('pageCount', null),
+						summary: findBestValue('summary', null),
+
+						// Creator information - collect from all sources for richer data
+						creators: [],
+
+						// Character and genre arrays with source tracking
+						characters: {
+							values: [],
+							source: 'inferred',
+							userSelected: false,
+							lastModified: currentTime
+						},
+
+						genres: {
+							values: [],
+							source: 'inferred',
+							userSelected: false,
+							lastModified: currentTime
+						},
+
+						// Canonical metadata tracking
+						lastCanonicalUpdate: currentTime,
+						hasUserModifications: false,
+
+						// Quality and completeness tracking
+						completeness: {
+							score: 0,
+							missingFields: [],
+							lastCalculated: currentTime
+						}
+					};
+
+					// Handle creators - combine from all sources but track source attribution
+					const allCreators: any[] = [];
+					for (const source of sourcePriority) {
+						const metadata = sourcedMetadata[source];
+						if (metadata?.creators) {
+							metadata.creators.forEach((creator: any) => {
+								allCreators.push({
+									name: extractValue(creator.name),
+									role: extractValue(creator.role),
+									source: source,
+									userSelected: false,
+									lastModified: currentTime
+								});
+							});
+						} else {
+							// Handle legacy writer/artist fields
+							if (metadata?.writer) {
+								allCreators.push({
+									name: extractValue(metadata.writer),
+									role: 'Writer',
+									source: source,
+									userSelected: false,
+									lastModified: currentTime
+								});
+							}
+							if (metadata?.artist) {
+								allCreators.push({
+									name: extractValue(metadata.artist),
+									role: 'Artist',
+									source: source,
+									userSelected: false,
+									lastModified: currentTime
+								});
+							}
+						}
+					}
+					canonical.creators = allCreators;
+
+					// Handle characters - combine from all sources
+					const allCharacters = new Set();
+					let characterSource = 'inferred';
+					for (const source of sourcePriority) {
+						if (sourcedMetadata[source]?.characters && sourcedMetadata[source].characters.length > 0) {
+							sourcedMetadata[source].characters.forEach((char: string) => allCharacters.add(char));
+							if (characterSource === 'inferred') characterSource = source; // Use the first source found
+						}
+					}
+					canonical.characters = {
+						values: Array.from(allCharacters),
+						source: characterSource,
+						userSelected: false,
+						lastModified: currentTime
+					};
+
+					// Handle genres - combine from all sources
+					const allGenres = new Set();
+					let genreSource = 'inferred';
+					for (const source of sourcePriority) {
+						if (sourcedMetadata[source]?.genres && sourcedMetadata[source].genres.length > 0) {
+							sourcedMetadata[source].genres.forEach((genre: string) => allGenres.add(genre));
+							if (genreSource === 'inferred') genreSource = source; // Use the first source found
+						}
+					}
+					canonical.genres = {
+						values: Array.from(allGenres),
+						source: genreSource,
+						userSelected: false,
+						lastModified: currentTime
+					};
+
+					// Calculate completeness score
+					const requiredFields = ['title', 'series.name', 'issueNumber', 'publisher'];
+					const optionalFields = ['publicationDate', 'coverDate', 'pageCount', 'summary'];
+					const missingFields = [];
+					let filledCount = 0;
+
+					// Check required fields
+					requiredFields.forEach(field => {
+						const fieldPath = field.split('.');
+						let value = canonical;
+						for (const path of fieldPath) {
+							value = value?.[path];
+						}
+						if (value?.value) {
+							filledCount++;
+						} else {
+							missingFields.push(field);
+						}
+					});
+
+					// Check optional fields
+					optionalFields.forEach(field => {
+						if (canonical[field]?.value) {
+							filledCount++;
+						}
+					});
+
+					const totalFields = requiredFields.length + optionalFields.length;
+					canonical.completeness = {
+						score: Math.round((filledCount / totalFields) * 100),
+						missingFields: missingFields,
+						lastCalculated: currentTime
+					};
+
+					return canonical;
+				}
+			},
 		});
 	}
 }
