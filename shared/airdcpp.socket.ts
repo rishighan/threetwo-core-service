@@ -1,6 +1,4 @@
 import WebSocket from "ws";
-// const { Socket } = require("airdcpp-apisocket");
-import { Socket } from "airdcpp-apisocket";
 
 /**
  * Wrapper around the AirDC++ WebSocket API socket.
@@ -21,11 +19,17 @@ class AirDCPPSocket {
 		password: string;
 	};
 
-	/**	
+	/**
 	 * Instance of the AirDC++ API socket.
 	 * @private
 	 */
 	private socketInstance: any;
+
+	/**
+	 * Promise that resolves when the Socket module is loaded
+	 * @private
+	 */
+	private socketModulePromise: Promise<any>;
 
 	/**
 	 * Constructs a new AirDCPPSocket wrapper.
@@ -53,8 +57,13 @@ class AirDCPPSocket {
 			username: configuration.username,
 			password: configuration.password,
 		};
-		// Initialize the AirDC++ socket instance
-		this.socketInstance = Socket(this.options, WebSocket);
+		
+		// Use dynamic import to load the ES module
+		this.socketModulePromise = import("airdcpp-apisocket").then(module => {
+			const { Socket } = module;
+			this.socketInstance = Socket(this.options, WebSocket);
+			return this.socketInstance;
+		});
 	}
 
 	/**
@@ -63,6 +72,7 @@ class AirDCPPSocket {
 	 * @returns {Promise<any>} Session information returned by the server.
 	 */
 	async connect(): Promise<any> {
+		await this.socketModulePromise;
 		if (
 			this.socketInstance &&
 			typeof this.socketInstance.connect === "function"
@@ -80,6 +90,7 @@ class AirDCPPSocket {
 	 * @returns {Promise<void>}
 	 */
 	async disconnect(): Promise<void> {
+		await this.socketModulePromise;
 		if (
 			this.socketInstance &&
 			typeof this.socketInstance.disconnect === "function"
@@ -96,6 +107,7 @@ class AirDCPPSocket {
 	 * @returns {Promise<any>} Response from the AirDC++ server.
 	 */
 	async post(endpoint: string, data: object = {}): Promise<any> {
+		await this.socketModulePromise;
 		return await this.socketInstance.post(endpoint, data);
 	}
 
@@ -107,6 +119,7 @@ class AirDCPPSocket {
 	 * @returns {Promise<any>} Response from the AirDC++ server.
 	 */
 	async get(endpoint: string, data: object = {}): Promise<any> {
+		await this.socketModulePromise;
 		return await this.socketInstance.get(endpoint, data);
 	}
 
@@ -125,6 +138,7 @@ class AirDCPPSocket {
 		callback: (...args: any[]) => void,
 		id?: string | number
 	): Promise<any> {
+		await this.socketModulePromise;
 		return await this.socketInstance.addListener(
 			event,
 			handlerName,
