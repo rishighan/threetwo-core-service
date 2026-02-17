@@ -191,7 +191,9 @@ export default class JobQueueService extends Service {
 							};
 						} catch (error) {
 							console.error(
-								`An error occurred processing Job ID ${ctx.locals.job.id}`
+								`An error occurred processing Job ID ${ctx.locals.job.id}:`,
+								error instanceof Error ? error.message : error,
+								error instanceof Error ? error.stack : ""
 							);
 							throw new MoleculerError(
 								error,

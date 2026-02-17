@@ -129,6 +129,10 @@ const ComicSchema = mongoose.Schema(
 		wanted: wantedSchema,
 
 		acquisition: {
+			source: {
+				wanted: { type: Boolean, default: false },
+				name: { type: String, default: null },
+			},
 			release: {},
 			directconnect: {
 				downloads: {

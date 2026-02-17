@@ -174,14 +174,16 @@ export const getMimeType = async (filePath: string) => {
  */
 export const createDirectory = async (options: any, directoryPath: string) => {
 	try {
-		await fse.ensureDir(directoryPath, options);
+		await fse.ensureDir(directoryPath);
 		console.info(`Directory [ %s ] was created.`, directoryPath);
 	} catch (error) {
+		const errMsg = error instanceof Error ? error.message : String(error);
+		console.error(`Failed to create directory [ ${directoryPath} ]:`, error);
 		throw new Errors.MoleculerError(
-			"Failed to create directory",
+			`Failed to create directory: ${directoryPath} - ${errMsg}`,
 			500,
 			"FileOpsError",
-			error
+			{ directoryPath, originalError: errMsg }
 		);
 	}
 };

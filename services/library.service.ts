@@ -174,8 +174,13 @@ export default class ImportService extends Service {
 						try {
 							// Get params to be passed to the import jobs
 							const { sessionId } = ctx.params;
+							const resolvedPath = path.resolve(COMICS_DIRECTORY);
+							console.log(`Walking comics directory: ${resolvedPath}`);
 							// 1. Walk the Source folder
-							klaw(path.resolve(COMICS_DIRECTORY))
+							klaw(resolvedPath)
+								.on("error", (err) => {
+									console.error(`Error walking directory ${resolvedPath}:`, err);
+								})
 								// 1.1 Filter on .cb* extensions
 								.pipe(
 									through2.obj(function (item, enc, next) {

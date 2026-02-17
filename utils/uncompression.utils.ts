@@ -32,6 +32,7 @@ SOFTWARE.
  */
 
 import { createReadStream, createWriteStream, existsSync, statSync } from "fs";
+import { execFile } from "child_process";
 import { isEmpty, isNil, isUndefined, remove, each, map, reject } from "lodash";
 import * as p7zip from "p7zip-threetwo";
 import path from "path";
@@ -88,124 +89,335 @@ export const extractComicInfoXMLFromRar = async (
 		)}`;
 		await createDirectory(directoryOptions, targetDirectory);
 
-		const archive = new Unrar({
-			path: path.resolve(filePath),
-			bin: `${UNRAR_BIN_PATH}`, // this will change depending on Docker base OS
-			arguments: ["-v"],
-		});
-		const filesInArchive: [RarFile] = await new Promise(
-			(resolve, reject) => {
-				return archive.list((err, entries) => {
-					if (err) {
-						console.log(`DEBUG: ${JSON.stringify(err, null, 2)}`);
-						reject(err);
-					}
-					resolve(entries);
-				});
-			}
-		);
+		// Try unrar-based extraction first, fall back to p7zip if it fails
+		let unrarError: Error | null = null;
+		try {
+			const result = await extractComicInfoXMLFromRarUsingUnrar(
+				filePath,
+				mimeType,
+				targetDirectory,
+				fileNameWithoutExtension,
+				extension
+			);
+			return result;
+		} catch (err) {
+			unrarError = err;
+			console.warn(
+				`unrar-based extraction failed for ${filePath}: ${err.message}. Falling back to p7zip.`
+			);
+		}
 
-		remove(filesInArchive, ({ type }) => type === "Directory");
-		const comicInfoXML = remove(
-			filesInArchive,
-			({ name }) => path.basename(name).toLowerCase() === "comicinfo.xml"
-		);
+		try {
+			const result = await extractComicInfoXMLFromRarUsingP7zip(
+				filePath,
+				mimeType,
+				targetDirectory,
+				fileNameWithoutExtension,
+				extension
+			);
+			return result;
+		} catch (p7zipError) {
+			console.error(
+				`p7zip-based extraction also failed for ${filePath}: ${p7zipError.message}`
+			);
+			throw new Error(
+				`Failed to extract RAR archive: ${filePath}. ` +
+				`unrar error: ${unrarError?.message}. ` +
+				`p7zip error: ${p7zipError.message}. ` +
+				`Ensure 'unrar' is installed at ${UNRAR_BIN_PATH} or '7z' is available via SEVENZ_BINARY_PATH.`
+			);
+		}
+	} catch (err) {
+		throw err;
+	}
+};
 
-		remove(
-			filesInArchive,
-			({ name }) =>
-				!IMPORT_IMAGE_FILE_FORMATS.includes(
-					path.extname(name).toLowerCase()
-				)
-		);
-		const files = filesInArchive.sort((a, b) => {
-			if (!isUndefined(a) && !isUndefined(b)) {
-				return path
-					.basename(a.name)
-					.toLowerCase()
-					.localeCompare(path.basename(b.name).toLowerCase());
-			}
-		});
-		const comicInfoXMLFilePromise = new Promise((resolve, reject) => {
-			let comicinfostring = "";
-			if (!isUndefined(comicInfoXML[0])) {
-				const comicInfoXMLFileName = path.basename(
-					comicInfoXML[0].name
-				);
-				const writeStream = createWriteStream(
-					`${targetDirectory}/${comicInfoXMLFileName}`
-				);
-
-				archive.stream(comicInfoXML[0]["name"]).pipe(writeStream);
-				writeStream.on("finish", async () => {
-					console.log(`Attempting to write comicInfo.xml...`);
-					const readStream = createReadStream(
-						`${targetDirectory}/${comicInfoXMLFileName}`
-					);
-					readStream.on("data", (data) => {
-						comicinfostring += data;
-					});
-					readStream.on("error", (error) => reject(error));
-					readStream.on("end", async () => {
-						if (
-							existsSync(
-								`${targetDirectory}/${comicInfoXMLFileName}`
-							)
-						) {
-							const comicInfoJSON = await convertXMLToJSON(
-								comicinfostring.toString()
-							);
-							console.log(
-								`comicInfo.xml successfully written: ${comicInfoJSON.comicinfo}`
-							);
-							resolve({ comicInfoJSON: comicInfoJSON.comicinfo });
-						}
-					});
-				});
-			} else {
-				resolve({ comicInfoJSON: null });
-			}
-		});
-
-		const coverFilePromise = new Promise((resolve, reject) => {
-			const coverFile = path.basename(files[0].name);
-			const sharpStream = sharp().resize(275).toFormat("png");
-			const coverExtractionStream = archive.stream(files[0].name);
-			const resizeStream = coverExtractionStream.pipe(sharpStream);
-			resizeStream.toFile(
-				`${targetDirectory}/${coverFile}`,
-				(err, info) => {
-					if (err) {
-						reject(err);
-					}
-					checkFileExists(`${targetDirectory}/${coverFile}`).then(
-						(bool) => {
-							console.log(`${coverFile} exists: ${bool}`);
-							// orchestrate result
-							resolve({
-								filePath,
-								name: fileNameWithoutExtension,
-								extension,
-								containedIn: targetDirectory,
-								fileSize: fse.statSync(filePath).size,
-								mimeType,
-								cover: {
-									filePath: path.relative(
-										process.cwd(),
-										`${targetDirectory}/${coverFile}`
-									),
-								},
-							});
-						}
+/**
+ * List files in a RAR archive using the unrar binary directly.
+ * Uses `unrar lb` (bare list) for reliable output — one filename per line.
+ */
+const listRarFiles = (filePath: string): Promise<string[]> => {
+	return new Promise((resolve, reject) => {
+		execFile(
+			UNRAR_BIN_PATH,
+			["lb", path.resolve(filePath)],
+			{ maxBuffer: 10 * 1024 * 1024 },
+			(err, stdout, stderr) => {
+				if (err) {
+					return reject(
+						new Error(
+							`unrar lb failed for ${filePath}: ${err.message}${stderr ? ` (stderr: ${stderr})` : ""}`
+						)
 					);
 				}
-			);
-		});
+				const files = stdout
+					.split(/\r?\n/)
+					.map((line) => line.trim())
+					.filter((line) => line.length > 0);
+				resolve(files);
+			}
+		);
+	});
+};
 
-		return Promise.all([comicInfoXMLFilePromise, coverFilePromise]);
-	} catch (err) {
-		reject(err);
+/**
+ * Extract a single file from a RAR archive to stdout as a Buffer.
+ * Uses `unrar p -inul` (print to stdout, no messages).
+ */
+const extractRarFileToBuffer = (
+	filePath: string,
+	entryName: string
+): Promise<Buffer> => {
+	return new Promise((resolve, reject) => {
+		execFile(
+			UNRAR_BIN_PATH,
+			["p", "-inul", path.resolve(filePath), entryName],
+			{ maxBuffer: 50 * 1024 * 1024, encoding: "buffer" },
+			(err, stdout, stderr) => {
+				if (err) {
+					return reject(
+						new Error(
+							`unrar p failed for ${entryName} in ${filePath}: ${err.message}`
+						)
+					);
+				}
+				resolve(stdout as unknown as Buffer);
+			}
+		);
+	});
+};
+
+/**
+ * Extract comic info and cover from a RAR archive using the unrar binary directly.
+ * Bypasses the `unrar` npm package which has parsing bugs.
+ */
+const extractComicInfoXMLFromRarUsingUnrar = async (
+	filePath: string,
+	mimeType: string,
+	targetDirectory: string,
+	fileNameWithoutExtension: string,
+	extension: string
+): Promise<any> => {
+	// List all files in the archive using bare listing
+	const allFiles = await listRarFiles(filePath);
+
+	console.log(
+		`RAR (unrar direct): ${allFiles.length} total entries in ${filePath}`
+	);
+
+	// Find ComicInfo.xml
+	const comicInfoXMLEntry = allFiles.find(
+		(name) => path.basename(name).toLowerCase() === "comicinfo.xml"
+	);
+
+	// Filter to image files only
+	const imageFiles = allFiles
+		.filter((name) =>
+			IMPORT_IMAGE_FILE_FORMATS.includes(
+				path.extname(name).toLowerCase()
+			)
+		)
+		.sort((a, b) =>
+			path
+				.basename(a)
+				.toLowerCase()
+				.localeCompare(path.basename(b).toLowerCase())
+		);
+
+	if (imageFiles.length === 0) {
+		throw new Error(
+			`No image files found via unrar in RAR archive: ${filePath}`
+		);
 	}
+
+	// Extract and parse ComicInfo.xml if present
+	let comicInfoResult: { comicInfoJSON: any } = { comicInfoJSON: null };
+	if (comicInfoXMLEntry) {
+		try {
+			const xmlBuffer = await extractRarFileToBuffer(
+				filePath,
+				comicInfoXMLEntry
+			);
+			const comicInfoJSON = await convertXMLToJSON(
+				xmlBuffer.toString("utf-8")
+			);
+			console.log(
+				`comicInfo.xml successfully extracted: ${comicInfoJSON.comicinfo}`
+			);
+			comicInfoResult = { comicInfoJSON: comicInfoJSON.comicinfo };
+		} catch (xmlErr) {
+			console.warn(
+				`Failed to extract ComicInfo.xml from ${filePath}: ${xmlErr.message}`
+			);
+		}
+	}
+
+	// Extract and resize cover image (first image file)
+	const coverEntryName = imageFiles[0];
+	const coverFile = path.basename(coverEntryName);
+	const coverBaseName = sanitize(path.basename(coverFile, path.extname(coverFile)));
+	const coverOutputFile = `${targetDirectory}/${coverBaseName}.png`;
+
+	const coverBuffer = await extractRarFileToBuffer(
+		filePath,
+		coverEntryName
+	);
+
+	await sharp(coverBuffer)
+		.resize(275)
+		.toFormat("png")
+		.toFile(coverOutputFile);
+
+	console.log(`${coverFile} cover written to: ${coverOutputFile}`);
+
+	const relativeCoverPath = path.relative(process.cwd(), coverOutputFile);
+	console.log(`RAR cover path (relative): ${relativeCoverPath}`);
+	console.log(`RAR cover file exists: ${existsSync(coverOutputFile)}`);
+
+	const coverResult = {
+		filePath,
+		name: fileNameWithoutExtension,
+		extension,
+		containedIn: targetDirectory,
+		fileSize: fse.statSync(filePath).size,
+		mimeType,
+		cover: {
+			filePath: relativeCoverPath,
+		},
+	};
+
+	return [comicInfoResult, coverResult];
+};
+
+/**
+ * Fallback: Extract comic info and cover from a RAR archive using p7zip (7z).
+ * Uses the same approach as extractComicInfoXMLFromZip since p7zip handles RAR files.
+ */
+const extractComicInfoXMLFromRarUsingP7zip = async (
+	filePath: string,
+	mimeType: string,
+	targetDirectory: string,
+	fileNameWithoutExtension: string,
+	extension: string
+): Promise<any> => {
+	let filesToWriteToDisk = { coverFile: null, comicInfoXML: null };
+	const extractionTargets = [];
+
+	// read the archive using p7zip (supports RAR)
+	let filesFromArchive = await p7zip.read(path.resolve(filePath));
+
+	console.log(
+		`RAR (p7zip): ${filesFromArchive.files.length} total entries in ${filePath}`
+	);
+
+	// detect ComicInfo.xml
+	const comicInfoXMLFileObject = remove(
+		filesFromArchive.files,
+		(file) => path.basename(file.name.toLowerCase()) === "comicinfo.xml"
+	);
+	// only allow allowed image formats
+	remove(
+		filesFromArchive.files,
+		({ name }) =>
+			!IMPORT_IMAGE_FILE_FORMATS.includes(
+				path.extname(name).toLowerCase()
+			)
+	);
+
+	// Natural sort
+	const files = filesFromArchive.files.sort((a, b) => {
+		if (!isUndefined(a) && !isUndefined(b)) {
+			return path
+				.basename(a.name)
+				.toLowerCase()
+				.localeCompare(path.basename(b.name).toLowerCase());
+		}
+	});
+
+	if (files.length === 0) {
+		throw new Error(`No image files found in RAR archive: ${filePath}`);
+	}
+
+	// Push the first file (cover) to our extraction target
+	extractionTargets.push(files[0].name);
+	filesToWriteToDisk.coverFile = path.basename(files[0].name);
+
+	if (!isEmpty(comicInfoXMLFileObject)) {
+		filesToWriteToDisk.comicInfoXML = comicInfoXMLFileObject[0].name;
+		extractionTargets.push(filesToWriteToDisk.comicInfoXML);
+	}
+	// Extract the files.
+	await p7zip.extract(
+		filePath,
+		targetDirectory,
+		extractionTargets,
+		"",
+		false
+	);
+
+	// ComicInfoXML detection, parsing and conversion to JSON
+	const comicInfoXMLPromise = new Promise((resolve, reject) => {
+		if (
+			!isNil(filesToWriteToDisk.comicInfoXML) &&
+			existsSync(
+				`${targetDirectory}/${path.basename(
+					filesToWriteToDisk.comicInfoXML
+				)}`
+			)
+		) {
+			let comicinfoString = "";
+			const comicInfoXMLStream = createReadStream(
+				`${targetDirectory}/${path.basename(
+					filesToWriteToDisk.comicInfoXML
+				)}`
+			);
+			comicInfoXMLStream.on(
+				"data",
+				(data) => (comicinfoString += data)
+			);
+			comicInfoXMLStream.on("end", async () => {
+				const comicInfoJSON = await convertXMLToJSON(
+					comicinfoString.toString()
+				);
+				resolve({
+					comicInfoJSON: comicInfoJSON.comicinfo,
+				});
+			});
+		} else {
+			resolve({
+				comicInfoJSON: null,
+			});
+		}
+	});
+
+	// Write the cover to disk
+	const coverBaseName = sanitize(path.basename(
+		filesToWriteToDisk.coverFile,
+		path.extname(filesToWriteToDisk.coverFile)
+	));
+	const coverOutputFile = `${targetDirectory}/${coverBaseName}.png`;
+	const coverInputFile = `${targetDirectory}/${filesToWriteToDisk.coverFile}`;
+
+	await sharp(coverInputFile)
+		.resize(275)
+		.toFormat("png")
+		.toFile(coverOutputFile);
+
+	const comicInfoResult = await comicInfoXMLPromise;
+
+	const coverResult = {
+		filePath,
+		name: fileNameWithoutExtension,
+		extension,
+		mimeType,
+		containedIn: targetDirectory,
+		fileSize: fse.statSync(filePath).size,
+		cover: {
+			filePath: path.relative(process.cwd(), coverOutputFile),
+		},
+	};
+
+	return [comicInfoResult, coverResult];
 };
 
 export const extractComicInfoXMLFromZip = async (
@@ -252,6 +464,11 @@ export const extractComicInfoXMLFromZip = async (
 					.localeCompare(path.basename(b.name).toLowerCase());
 			}
 		});
+
+		if (files.length === 0) {
+			throw new Error(`No image files found in ZIP archive: ${filePath}`);
+		}
+
 		// Push the first file (cover) to our extraction target
 		extractionTargets.push(files[0].name);
 		filesToWriteToDisk.coverFile = path.basename(files[0].name);
@@ -306,45 +523,32 @@ export const extractComicInfoXMLFromZip = async (
 			}
 		});
 		// Write the cover to disk
-		const coverFilePromise = new Promise((resolve, reject) => {
-			const sharpStream = sharp().resize(275).toFormat("png");
-			const coverStream = createReadStream(
-				`${targetDirectory}/${filesToWriteToDisk.coverFile}`
-			);
-			coverStream
-				.pipe(sharpStream)
-				.toFile(
-					`${targetDirectory}/${path.basename(
-						filesToWriteToDisk.coverFile
-					)}`,
-					(err, info) => {
-						if (err) {
-							reject(err);
-						}
-						// Update metadata
-						resolve({
-							filePath,
-							name: fileNameWithoutExtension,
-							extension,
-							mimeType,
-							containedIn: targetDirectory,
-							fileSize: fse.statSync(filePath).size,
-							cover: {
-								filePath: path.relative(
-									process.cwd(),
-									`${targetDirectory}/${path.basename(
-										filesToWriteToDisk.coverFile
-									)}`
-								),
-							},
-						});
-					}
-				);
-		});
+		const coverBaseName = sanitize(path.basename(filesToWriteToDisk.coverFile, path.extname(filesToWriteToDisk.coverFile)));
+		const coverOutputFile = `${targetDirectory}/${coverBaseName}.png`;
+		const coverInputFile = `${targetDirectory}/${filesToWriteToDisk.coverFile}`;
 
-		return Promise.all([comicInfoXMLPromise, coverFilePromise]);
+		await sharp(coverInputFile)
+			.resize(275)
+			.toFormat("png")
+			.toFile(coverOutputFile);
+
+		const comicInfoResult = await comicInfoXMLPromise;
+
+		const coverResult = {
+			filePath,
+			name: fileNameWithoutExtension,
+			extension,
+			mimeType,
+			containedIn: targetDirectory,
+			fileSize: fse.statSync(filePath).size,
+			cover: {
+				filePath: path.relative(process.cwd(), coverOutputFile),
+			},
+		};
+
+		return [comicInfoResult, coverResult];
 	} catch (err) {
-		reject(err);
+		throw err;
 	}
 };
 
@@ -361,6 +565,9 @@ export const extractFromArchive = async (filePath: string) => {
 				filePath,
 				mimeType
 			);
+			if (!Array.isArray(cbzResult)) {
+				throw new Error(`extractComicInfoXMLFromZip returned a non-iterable result for: ${filePath}`);
+			}
 			return Object.assign({}, ...cbzResult);
 
 		case "application/x-rar; charset=binary":
@@ -368,6 +575,9 @@ export const extractFromArchive = async (filePath: string) => {
 				filePath,
 				mimeType
 			);
+			if (!Array.isArray(cbrResult)) {
+				throw new Error(`extractComicInfoXMLFromRar returned a non-iterable result for: ${filePath}`);
+			}
 			return Object.assign({}, ...cbrResult);
 
 		default:
@@ -419,7 +629,7 @@ export const uncompressZipArchive = async (filePath: string, options: any) => {
 		mode: 0o2775,
 	};
 	const { fileNameWithoutExtension } = getFileConstituents(filePath);
-	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${fileNameWithoutExtension}`;
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${sanitize(fileNameWithoutExtension)}`;
 	await createDirectory(directoryOptions, targetDirectory);
 	await p7zip.extract(filePath, targetDirectory, [], "", false);
 
@@ -433,7 +643,7 @@ export const uncompressRarArchive = async (filePath: string, options: any) => {
 	};
 	const { fileNameWithoutExtension, extension } =
 		getFileConstituents(filePath);
-	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${fileNameWithoutExtension}`;
+	const targetDirectory = `${USERDATA_DIRECTORY}/expanded/${options.purpose}/${sanitize(fileNameWithoutExtension)}`;
 	await createDirectory(directoryOptions, targetDirectory);
 
 	const archive = new Unrar({
