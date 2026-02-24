@@ -58,6 +58,7 @@ import klaw from "klaw";
 import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 import AirDCPPSocket from "../shared/airdcpp.socket";
+import { importComicViaGraphQL } from "../utils/import.graphql.utils";
 
 console.log(`MONGO -> ${process.env.MONGO_URI}`);
 export default class ImportService extends Service {
@@ -256,22 +257,42 @@ export default class ImportService extends Service {
 								sourcedMetadata: {
 									comicvine?: any;
 									locg?: {};
+									comicInfo?: any;
+									metron?: any;
+									gcd?: any;
 								};
 								inferredMetadata: {
 									issue: Object;
 								};
 								rawFileDetails: {
 									name: string;
+									filePath: string;
+									fileSize?: number;
+									extension?: string;
+									mimeType?: string;
+									containedIn?: string;
+									cover?: any;
 								};
-								wanted: {
+								wanted?: {
 									issues: [];
 									volume: { id: number };
 									source: string;
 									markEntireVolumeWanted: Boolean;
 								};
-								acquisition: {
-									directconnect: {
+								acquisition?: {
+									source?: {
+										wanted?: boolean;
+										name?: string;
+									};
+									directconnect?: {
 										downloads: [];
+									};
+								};
+								importStatus?: {
+									isImported: boolean;
+									tagged: boolean;
+									matchedResult?: {
+										score: string;
 									};
 								};
 							};
@@ -279,38 +300,76 @@ export default class ImportService extends Service {
 					) {
 						try {
 							console.log(
+								"[GraphQL Import] Processing import via GraphQL..."
+							);
+							console.log(
 								JSON.stringify(ctx.params.payload, null, 4)
 							);
 							const { payload } = ctx.params;
 							const { wanted } = payload;
 
-							console.log("Saving to Mongo...");
-
+							// Use GraphQL import for new comics
 							if (
 								!wanted ||
 								!wanted.volume ||
 								!wanted.volume.id
 							) {
 								console.log(
-									"No valid identifier for upsert. Attempting to create a new document with minimal data..."
+									"[GraphQL Import] No valid identifier - creating new comic via GraphQL"
 								);
-								const newDocument = new Comic(payload); // Using the entire payload for the new document
 
-								await newDocument.save();
-								return {
-									success: true,
-									message:
-										"New document created due to lack of valid identifiers.",
-									data: newDocument,
-								};
+								// Import via GraphQL
+								const result = await importComicViaGraphQL(
+									this.broker,
+									{
+										filePath: payload.rawFileDetails.filePath,
+										fileSize: payload.rawFileDetails.fileSize,
+										rawFileDetails: payload.rawFileDetails,
+										inferredMetadata: payload.inferredMetadata,
+										sourcedMetadata: payload.sourcedMetadata,
+										wanted: payload.wanted ? {
+											...payload.wanted,
+											markEntireVolumeWanted: Boolean(payload.wanted.markEntireVolumeWanted)
+										} : undefined,
+										acquisition: payload.acquisition,
+									}
+								);
+
+								if (result.success) {
+									console.log(
+										`[GraphQL Import] Comic imported successfully: ${result.comic.id}`
+									);
+									console.log(
+										`[GraphQL Import] Canonical metadata resolved: ${result.canonicalMetadataResolved}`
+									);
+
+									return {
+										success: true,
+										message: result.message,
+										data: result.comic,
+									};
+								} else {
+									console.log(
+										`[GraphQL Import] Import returned success=false: ${result.message}`
+									);
+									return {
+										success: false,
+										message: result.message,
+										data: result.comic,
+									};
+								}
 							}
+
+							// For comics with wanted.volume.id, use upsert logic
+							console.log(
+								"[GraphQL Import] Comic has wanted.volume.id - using upsert logic"
+							);
 
 							let condition = {
 								"wanted.volume.id": wanted.volume.id,
 							};
 
 							let update: any = {
-								// Using 'any' to bypass strict type checks; alternatively, define a more accurate type
 								$set: {
 									rawFileDetails: payload.rawFileDetails,
 									inferredMetadata: payload.inferredMetadata,
@@ -340,10 +399,37 @@ export default class ImportService extends Service {
 								update,
 								options
 							);
+
 							console.log(
-								"Operation completed. Document updated or inserted:",
-								result
+								"[GraphQL Import] Document upserted:",
+								result._id
 							);
+
+							// Trigger canonical metadata resolution via GraphQL
+							try {
+								console.log(
+									"[GraphQL Import] Triggering metadata resolution..."
+								);
+								await this.broker.call("graphql.query", {
+									query: `
+										mutation ResolveMetadata($comicId: ID!) {
+											resolveMetadata(comicId: $comicId) {
+												id
+											}
+										}
+									`,
+									variables: { comicId: result._id.toString() },
+								});
+								console.log(
+									"[GraphQL Import] Metadata resolution triggered"
+								);
+							} catch (resolveError) {
+								console.error(
+									"[GraphQL Import] Error resolving metadata:",
+									resolveError
+								);
+								// Don't fail the import if resolution fails
+							}
 
 							return {
 								success: true,
@@ -351,7 +437,7 @@ export default class ImportService extends Service {
 								data: result,
 							};
 						} catch (error) {
-							console.log(error);
+							console.error("[GraphQL Import] Error:", error);
 							throw new Errors.MoleculerError(
 								"Operation failed.",
 								500
