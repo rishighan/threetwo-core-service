@@ -280,17 +280,69 @@ export default class ApiService extends Service {
         const newStats = await fs.promises.stat(filePath);
         if (newStats.mtime.getTime() === stats.mtime.getTime()) {
           this.logger.info(`Stable file detected: ${filePath}, importing.`);
-          const folderData: IFolderData = await this.broker.call(
-            "library.walkFolders",
-            { basePathToWalk: filePath }
-          );
-          // this would have to be a call to importDownloadedComic
-          await this.broker.call("importqueue.processImport", {
-            fileObject: {
-              filePath,
-              fileSize: folderData[0].fileSize,
-            },
-          });
+          
+          try {
+            const folderData: IFolderData[] = await this.broker.call(
+              "library.walkFolders",
+              { basePathToWalk: filePath }
+            );
+            
+            if (folderData && folderData.length > 0) {
+              const fileData = folderData[0];
+              const fileName = path.basename(filePath, path.extname(filePath));
+              const extension = path.extname(filePath);
+              
+              // Determine mimeType based on extension
+              let mimeType = "application/octet-stream";
+              if (extension === ".cbz") {
+                mimeType = "application/zip; charset=binary";
+              } else if (extension === ".cbr") {
+                mimeType = "application/x-rar-compressed; charset=binary";
+              }
+              
+              // Prepare payload for rawImportToDB
+              const payload = {
+                rawFileDetails: {
+                  name: fileName,
+                  filePath: filePath,
+                  fileSize: fileData.fileSize,
+                  extension: extension,
+                  mimeType: mimeType,
+                },
+                inferredMetadata: {
+                  issue: {
+                    name: fileName,
+                    number: 0,
+                  },
+                },
+                sourcedMetadata: {
+                  comicInfo: null,
+                },
+                importStatus: {
+                  isImported: true,
+                  tagged: false,
+                  matchedResult: {
+                    score: "0",
+                  },
+                },
+                acquisition: {
+                  source: {
+                    wanted: false,
+                  },
+                },
+              };
+              
+              // Call the library service to import the comic
+              await this.broker.call("library.rawImportToDB", {
+                importType: "new",
+                payload: payload,
+              });
+              
+              this.logger.info(`Successfully queued import for: ${filePath}`);
+            }
+          } catch (error) {
+            this.logger.error(`Error importing file ${filePath}:`, error);
+          }
         }
       }, 3000);
     }
