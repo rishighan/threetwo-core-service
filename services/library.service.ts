@@ -59,6 +59,7 @@ import path from "path";
 import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 import AirDCPPSocket from "../shared/airdcpp.socket";
 import { importComicViaGraphQL } from "../utils/import.graphql.utils";
+import { getImportStatistics as getImportStats } from "../utils/import.utils";
 
 console.log(`MONGO -> ${process.env.MONGO_URI}`);
 export default class ImportService extends Service {
@@ -86,7 +87,7 @@ export default class ImportService extends Service {
 					async handler(
 						ctx: Context<{
 							basePathToWalk: string;
-							extensions: string[];
+							extensions?: string[];
 						}>
 					) {
 						console.log(ctx.params);
@@ -94,7 +95,7 @@ export default class ImportService extends Service {
 							".cbz",
 							".cbr",
 							".cb7",
-							...ctx.params.extensions,
+							...(ctx.params.extensions || []),
 						]);
 					},
 				},
@@ -242,6 +243,218 @@ export default class ImportService extends Service {
 								});
 						} catch (error) {
 							console.log(error);
+						}
+					},
+				},
+				getImportStatistics: {
+					rest: "POST /getImportStatistics",
+					timeout: 300000, // 5 minute timeout for large libraries
+					async handler(
+						ctx: Context<{
+							directoryPath?: string;
+						}>
+					) {
+						try {
+							const { directoryPath } = ctx.params;
+							const resolvedPath = path.resolve(directoryPath || COMICS_DIRECTORY);
+							console.log(`[Import Statistics] Analyzing directory: ${resolvedPath}`);
+
+							// Collect all comic files from the directory
+							const localFiles: string[] = [];
+							
+							await new Promise<void>((resolve, reject) => {
+								klaw(resolvedPath)
+									.on("error", (err) => {
+										console.error(`Error walking directory ${resolvedPath}:`, err);
+										reject(err);
+									})
+									.pipe(
+										through2.obj(function (item, enc, next) {
+											const fileExtension = path.extname(item.path);
+											if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
+												localFiles.push(item.path);
+											}
+											next();
+										})
+									)
+									.on("data", () => {}) // Required for stream to work
+									.on("end", () => {
+										console.log(`[Import Statistics] Found ${localFiles.length} comic files`);
+										resolve();
+									});
+							});
+
+							// Get statistics by comparing with database
+							const stats = await getImportStats(localFiles);
+							const percentageImported = stats.total > 0
+								? ((stats.alreadyImported / stats.total) * 100).toFixed(2)
+								: "0.00";
+
+							return {
+								success: true,
+								directory: resolvedPath,
+								stats: {
+									totalLocalFiles: stats.total,
+									alreadyImported: stats.alreadyImported,
+									newFiles: stats.newFiles,
+									percentageImported: `${percentageImported}%`,
+								},
+							};
+						} catch (error) {
+							console.error("[Import Statistics] Error:", error);
+							throw new Errors.MoleculerError(
+								"Failed to calculate import statistics",
+								500,
+								"IMPORT_STATS_ERROR",
+								{ error: error.message }
+							);
+						}
+					},
+				},
+				incrementalImport: {
+					rest: "POST /incrementalImport",
+					timeout: 60000, // 60 second timeout
+					async handler(
+						ctx: Context<{
+							sessionId: string;
+							directoryPath?: string;
+						}>
+					) {
+						try {
+							const { sessionId, directoryPath } = ctx.params;
+							const resolvedPath = path.resolve(directoryPath || COMICS_DIRECTORY);
+							console.log(`[Incremental Import] Starting for directory: ${resolvedPath}`);
+
+							// Emit start event
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_STARTED", {
+								message: "Starting incremental import analysis...",
+								directory: resolvedPath,
+							});
+
+							// Step 1: Fetch imported files from database
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
+								message: "Fetching imported files from database...",
+							});
+
+							const importedFileNames = new Set<string>();
+							const comics = await Comic.find(
+								{ "rawFileDetails.name": { $exists: true, $ne: null } },
+								{ "rawFileDetails.name": 1, _id: 0 }
+							).lean();
+
+							for (const comic of comics) {
+								if (comic.rawFileDetails?.name) {
+									importedFileNames.add(comic.rawFileDetails.name);
+								}
+							}
+
+							console.log(`[Incremental Import] Found ${importedFileNames.size} imported files in database`);
+
+							// Step 2: Scan directory for comic files
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
+								message: "Scanning directory for comic files...",
+							});
+
+							const localFiles: Array<{ path: string; name: string; size: number }> = [];
+
+							await new Promise<void>((resolve, reject) => {
+								klaw(resolvedPath)
+									.on("error", (err) => {
+										console.error(`Error walking directory ${resolvedPath}:`, err);
+										reject(err);
+									})
+									.pipe(
+										through2.obj(function (item, enc, next) {
+											const fileExtension = path.extname(item.path);
+											if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
+												const fileName = path.basename(item.path, fileExtension);
+												localFiles.push({
+													path: item.path,
+													name: fileName,
+													size: item.stats.size,
+												});
+											}
+											next();
+										})
+									)
+									.on("data", () => {}) // Required for stream to work
+									.on("end", () => {
+										console.log(`[Incremental Import] Found ${localFiles.length} comic files in directory`);
+										resolve();
+									});
+							});
+
+							// Step 3: Filter to only new files
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
+								message: `Found ${localFiles.length} comic files, filtering...`,
+							});
+
+							const newFiles = localFiles.filter(file => !importedFileNames.has(file.name));
+
+							console.log(`[Incremental Import] ${newFiles.length} new files to import`);
+
+							// Step 4: Reset job counters and queue new files
+							if (newFiles.length > 0) {
+								this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
+									message: `Queueing ${newFiles.length} new files for import...`,
+								});
+
+								// Reset counters once at the start
+								await pubClient.set("completedJobCount", 0);
+								await pubClient.set("failedJobCount", 0);
+								console.log("[Incremental Import] Job counters reset");
+
+								// Queue all new files
+								for (const file of newFiles) {
+									await this.broker.call("jobqueue.enqueue", {
+										fileObject: {
+											filePath: file.path,
+											fileSize: file.size,
+										},
+										sessionId,
+										importType: "new",
+										sourcedFrom: "library",
+										action: "enqueue.async",
+									});
+								}
+							}
+
+							// Emit completion event
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_COMPLETE", {
+								message: `Successfully queued ${newFiles.length} files for import`,
+								stats: {
+									total: localFiles.length,
+									alreadyImported: localFiles.length - newFiles.length,
+									newFiles: newFiles.length,
+									queued: newFiles.length,
+								},
+							});
+
+							return {
+								success: true,
+								message: `Incremental import complete: ${newFiles.length} new files queued`,
+								stats: {
+									total: localFiles.length,
+									alreadyImported: localFiles.length - newFiles.length,
+									newFiles: newFiles.length,
+									queued: newFiles.length,
+								},
+							};
+						} catch (error) {
+							console.error("[Incremental Import] Error:", error);
+							
+							// Emit error event
+							this.broker.broadcast("LS_INCREMENTAL_IMPORT_ERROR", {
+								message: error.message || "Unknown error during incremental import",
+								error: error,
+							});
+
+							throw new Errors.MoleculerError(
+								"Failed to perform incremental import",
+								500,
+								"INCREMENTAL_IMPORT_ERROR",
+								{ error: error.message }
+							);
 						}
 					},
 				},

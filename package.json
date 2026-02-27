@@ -12,7 +12,8 @@
     "lint": "eslint --ext .js,.ts .",
     "dc:up": "docker-compose up --build -d",
     "dc:logs": "docker-compose logs -f",
-    "dc:down": "docker-compose down"
+    "dc:down": "docker-compose down",
+    "migrate:indexes": "ts-node migrations/add-import-indexes.ts"
   },
   "keywords": [
     "microservices",

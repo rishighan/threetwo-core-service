@@ -55,7 +55,7 @@ services:
       - "27017:27017"
     volumes:
       - "mongodb_data:/bitnami/mongodb"
-
+  
   redis:
     image: "bitnami/redis:latest"
     container_name: queue

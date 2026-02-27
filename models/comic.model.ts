@@ -387,5 +387,10 @@ ComicSchema.plugin(mongoosastic, {
 } as MongoosasticPluginOpts);
 ComicSchema.plugin(paginate);
 
+// Add indexes for performance
+ComicSchema.index({ "rawFileDetails.filePath": 1 }); // For import statistics queries
+ComicSchema.index({ "rawFileDetails.name": 1 }); // For duplicate detection
+ComicSchema.index({ "wanted.volume.id": 1 }); // For wanted comics queries
+
 const Comic = mongoose.model("Comic", ComicSchema);
 export default Comic;
