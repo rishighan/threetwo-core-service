@@ -621,6 +621,99 @@ export const resolvers = {
 				throw new Error("Failed to preview canonical metadata");
 			}
 		},
+
+		/**
+			* Get cached import statistics (fast, real-time)
+			* @async
+			* @function getCachedImportStatistics
+			* @param {any} _ - Parent resolver (unused)
+			* @param {Object} args - Query arguments (none)
+			* @param {Object} context - GraphQL context with broker
+			* @returns {Promise<Object>} Cached import statistics
+			* @throws {Error} If statistics service is unavailable
+			* @description Retrieves cached import statistics from the API service.
+			* This is a fast, real-time query that doesn't require filesystem scanning.
+			*
+			* @example
+			* ```graphql
+			* query {
+			*   getCachedImportStatistics {
+			*     success
+			*     stats {
+			*       totalLocalFiles
+			*       alreadyImported
+			*       newFiles
+			*       percentageImported
+			*       pendingFiles
+			*     }
+			*     lastUpdated
+			*   }
+			* }
+			* ```
+			*/
+		getCachedImportStatistics: async (
+			_: any,
+			args: {},
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				const result = await broker.call("api.getCachedImportStatistics");
+				return result;
+			} catch (error) {
+				console.error("Error fetching cached import statistics:", error);
+				throw new Error(`Failed to fetch cached import statistics: ${error.message}`);
+			}
+		},
+
+		/**
+			* Get job result statistics grouped by session
+			* @async
+			* @function getJobResultStatistics
+			* @param {any} _ - Parent resolver (unused)
+			* @param {Object} args - Query arguments (none)
+			* @param {Object} context - GraphQL context with broker
+			* @returns {Promise<Array>} Array of job result statistics by session
+			* @throws {Error} If job queue service is unavailable
+			* @description Retrieves job result statistics grouped by session ID,
+			* including counts of completed and failed jobs and earliest timestamp.
+			*
+			* @example
+			* ```graphql
+			* query {
+			*   getJobResultStatistics {
+			*     sessionId
+			*     completedJobs
+			*     failedJobs
+			*     earliestTimestamp
+			*   }
+			* }
+			* ```
+			*/
+		getJobResultStatistics: async (
+			_: any,
+			args: {},
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				const result = await broker.call("jobqueue.getJobResultStatistics");
+				return result;
+			} catch (error) {
+				console.error("Error fetching job result statistics:", error);
+				throw new Error(`Failed to fetch job result statistics: ${error.message}`);
+			}
+		},
 	},
 
 	Mutation: {

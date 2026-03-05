@@ -344,6 +344,15 @@ export const typeDefs = gql`
 			comicId: ID!
 			preferences: UserPreferencesInput
 		): CanonicalMetadata
+
+		# Get import statistics for a directory
+		getImportStatistics(directoryPath: String): ImportStatistics!
+
+		# Get cached import statistics (fast, real-time)
+		getCachedImportStatistics: CachedImportStatistics!
+
+		# Get job result statistics grouped by session
+		getJobResultStatistics: [JobResultStatistics!]!
 	}
 
 	# Mutations
@@ -385,6 +394,15 @@ export const typeDefs = gql`
 			source: MetadataSource!
 			metadata: String!
 		): Comic!
+
+		# Start a new full import of the comics directory
+		startNewImport(sessionId: String!): ImportJobResult!
+
+		# Start an incremental import (only new files)
+		startIncrementalImport(
+			sessionId: String!
+			directoryPath: String
+		): IncrementalImportResult!
 	}
 
 	# Input types
@@ -702,5 +720,64 @@ export const typeDefs = gql`
 		_id: String!
 		_score: Float
 		_source: Comic!
+	}
+
+	# Import statistics
+	type ImportStatistics {
+		success: Boolean!
+		directory: String!
+		stats: ImportStats!
+	}
+
+	type ImportStats {
+		totalLocalFiles: Int!
+		alreadyImported: Int!
+		newFiles: Int!
+		percentageImported: String!
+	}
+
+	# Cached import statistics (real-time)
+	type CachedImportStatistics {
+		success: Boolean!
+		message: String
+		stats: CachedImportStats
+		lastUpdated: String
+	}
+
+	type CachedImportStats {
+		totalLocalFiles: Int!
+		alreadyImported: Int!
+		newFiles: Int!
+		percentageImported: String!
+		pendingFiles: Int!
+	}
+
+	# Import job result
+	type ImportJobResult {
+		success: Boolean!
+		message: String!
+		jobsQueued: Int!
+	}
+
+	# Incremental import result
+	type IncrementalImportResult {
+		success: Boolean!
+		message: String!
+		stats: IncrementalImportStats!
+	}
+
+	type IncrementalImportStats {
+		total: Int!
+		alreadyImported: Int!
+		newFiles: Int!
+		queued: Int!
+	}
+
+	# Job result statistics
+	type JobResultStatistics {
+		sessionId: String!
+		completedJobs: Int!
+		failedJobs: Int!
+		earliestTimestamp: String!
 	}
 `;
