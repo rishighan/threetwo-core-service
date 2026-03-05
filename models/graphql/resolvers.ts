@@ -861,6 +861,19 @@ export const resolvers = {
 		}),
 	},
 
+	// Field resolvers for statistics types
+	FileTypeStats: {
+		id: (stats: any) => stats._id || stats.id,
+	},
+
+	PublisherStats: {
+		id: (stats: any) => stats._id || stats.id,
+	},
+
+	IssueStats: {
+		id: (stats: any) => stats._id || stats.id,
+	},
+
 	UserPreferences: {
 		id: (prefs: any) => prefs._id.toString(),
 		fieldPreferences: (prefs: any) => {

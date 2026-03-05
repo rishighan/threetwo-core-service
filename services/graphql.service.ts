@@ -1,213 +1,278 @@
-import { Service, ServiceBroker } from "moleculer";
-import { ApolloServer } from "@apollo/server";
+import { ServiceBroker, Context } from "moleculer";
+import { graphql, GraphQLSchema, parse, validate, execute } from "graphql";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { stitchSchemas } from "@graphql-tools/stitch";
+import { wrapSchema } from "@graphql-tools/wrap";
+import { print, getIntrospectionQuery, buildClientSchema, IntrospectionQuery } from "graphql";
+import { fetch } from "undici";
 import { typeDefs } from "../models/graphql/typedef";
 import { resolvers } from "../models/graphql/resolvers";
 
 /**
+ * Fetch remote GraphQL schema via introspection
+ */
+async function fetchRemoteSchema(url: string) {
+	const introspectionQuery = getIntrospectionQuery();
+	
+	const response = await fetch(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ query: introspectionQuery }),
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to introspect remote schema: ${response.statusText}`);
+	}
+
+	const result = await response.json() as { data?: IntrospectionQuery; errors?: any[] };
+	
+	if (result.errors) {
+		throw new Error(`Introspection errors: ${JSON.stringify(result.errors)}`);
+	}
+
+	if (!result.data) {
+		throw new Error("No data returned from introspection query");
+	}
+
+	return buildClientSchema(result.data);
+}
+
+/**
+ * Create executor for remote GraphQL endpoint
+ */
+function createRemoteExecutor(url: string) {
+	return async ({ document, variables }: any) => {
+		const query = print(document);
+		
+		try {
+			const response = await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ query, variables }),
+			});
+
+			if (!response.ok) {
+				throw new Error(`Remote GraphQL request failed: ${response.statusText}`);
+			}
+
+			return await response.json();
+		} catch (error) {
+			console.error("Error executing remote GraphQL query:", error);
+			throw error;
+		}
+	};
+}
+
+/**
  * GraphQL Service
  * Provides a GraphQL API for canonical metadata queries and mutations
- * Integrates Apollo Server with Moleculer
+ * Standalone service that exposes a graphql action for moleculer-web
+ * Stitches remote metadata-graphql schema from port 3080
  */
-export default class GraphQLService extends Service {
-	private apolloServer?: ApolloServer;
+export default {
+	name: "graphql",
+	
+	settings: {
+		// Remote metadata GraphQL endpoint
+		metadataGraphqlUrl: process.env.METADATA_GRAPHQL_URL || "http://localhost:3080/metadata-graphql",
+	},
 
-	public constructor(broker: ServiceBroker) {
-		super(broker);
-
-		this.parseServiceSchema({
-			name: "graphql",
-			
-			settings: {
-				// GraphQL endpoint path
-				path: "/graphql",
+	actions: {
+		/**
+		 * Execute GraphQL queries and mutations
+		 * This action is called by moleculer-web from the /graphql route
+		 */
+		graphql: {
+			params: {
+				query: { type: "string" },
+				variables: { type: "object", optional: true },
+				operationName: { type: "string", optional: true },
 			},
-
-			actions: {
-				/**
-				 * Execute a GraphQL query
-				 */
-				query: {
-					params: {
-						query: "string",
-						variables: { type: "object", optional: true },
-						operationName: { type: "string", optional: true },
-					},
-					async handler(ctx: any) {
-						try {
-							if (!this.apolloServer) {
-								throw new Error("Apollo Server not initialized");
-							}
-
-							const { query, variables, operationName } = ctx.params;
-
-							const response = await this.apolloServer.executeOperation(
-								{
-									query,
-									variables,
-									operationName,
-								},
-								{
-									contextValue: {
-										broker: this.broker,
-										ctx,
-									},
-								}
-							);
-
-							if (response.body.kind === "single") {
-								return response.body.singleResult;
-							}
-
-							return response;
-						} catch (error) {
-							this.logger.error("GraphQL query error:", error);
-							throw error;
-						}
-					},
-				},
-
-				/**
-				 * Get GraphQL schema
-				 */
-				getSchema: {
-					async handler() {
-						return {
-							typeDefs: typeDefs.loc?.source.body || "",
-						};
-					},
-				},
-			},
-
-			methods: {
-				/**
-				 * Initialize Apollo Server
-				 */
-				async initApolloServer() {
-					this.logger.info("Initializing Apollo Server...");
-
-					this.apolloServer = new ApolloServer({
-						typeDefs,
-						resolvers,
-						introspection: true, // Enable GraphQL Playground in development
-						formatError: (error) => {
-							this.logger.error("GraphQL Error:", error);
-							return {
-								message: error.message,
-								locations: error.locations,
-								path: error.path,
-								extensions: {
-									code: error.extensions?.code,
-								},
-							};
+			async handler(ctx: Context<{ query: string; variables?: any; operationName?: string }>) {
+				try {
+					const { query, variables, operationName } = ctx.params;
+					
+					// Execute the GraphQL query
+					const result = await graphql({
+						schema: this.schema,
+						source: query,
+						variableValues: variables,
+						operationName,
+						contextValue: {
+							broker: this.broker,
+							ctx,
 						},
 					});
 
-					await this.apolloServer.start();
-					this.logger.info("Apollo Server started successfully");
-				},
-
-				/**
-				 * Stop Apollo Server
-				 */
-				async stopApolloServer() {
-					if (this.apolloServer) {
-						this.logger.info("Stopping Apollo Server...");
-						await this.apolloServer.stop();
-						this.apolloServer = undefined;
-						this.logger.info("Apollo Server stopped");
-					}
-				},
+					return result;
+				} catch (error: any) {
+					this.logger.error("GraphQL execution error:", error);
+					return {
+						errors: [{
+							message: error.message,
+							extensions: {
+								code: "INTERNAL_SERVER_ERROR",
+							},
+						}],
+					};
+				}
 			},
+		},
 
-			events: {
-				/**
-				 * Trigger metadata resolution when new metadata is imported
-				 */
-				"metadata.imported": {
-					async handler(ctx: any) {
-						const { comicId, source } = ctx.params;
+		/**
+		 * Get GraphQL schema
+		 */
+		getSchema: {
+			async handler() {
+				return {
+					typeDefs: typeDefs.loc?.source.body || "",
+				};
+			},
+		},
+	},
+
+	events: {
+		/**
+		 * Trigger metadata resolution when new metadata is imported
+		 */
+		"metadata.imported": {
+			async handler(ctx: any) {
+				const { comicId, source } = ctx.params;
+				this.logger.info(
+					`Metadata imported for comic ${comicId} from ${source}`
+				);
+
+				// Optionally trigger auto-resolution if enabled
+				try {
+					const UserPreferences = require("../models/userpreferences.model").default;
+					const preferences = await UserPreferences.findOne({
+						userId: "default",
+					});
+
+					if (
+						preferences?.autoMerge?.enabled &&
+						preferences?.autoMerge?.onMetadataUpdate
+					) {
 						this.logger.info(
-							`Metadata imported for comic ${comicId} from ${source}`
+							`Auto-resolving metadata for comic ${comicId}`
 						);
-
-						// Optionally trigger auto-resolution if enabled
-						try {
-							const UserPreferences = require("../models/userpreferences.model").default;
-							const preferences = await UserPreferences.findOne({
-								userId: "default",
-							});
-
-							if (
-								preferences?.autoMerge?.enabled &&
-								preferences?.autoMerge?.onMetadataUpdate
-							) {
-								this.logger.info(
-									`Auto-resolving metadata for comic ${comicId}`
-								);
-								await this.broker.call("graphql.query", {
-									query: `
-										mutation ResolveMetadata($comicId: ID!) {
-											resolveMetadata(comicId: $comicId) {
-												id
-											}
-										}
-									`,
-									variables: { comicId },
-								});
-							}
-						} catch (error) {
-							this.logger.error("Error in auto-resolution:", error);
-						}
-					},
-				},
-
-				/**
-				 * Trigger metadata resolution when comic is imported
-				 */
-				"comic.imported": {
-					async handler(ctx: any) {
-						const { comicId } = ctx.params;
-						this.logger.info(`Comic imported: ${comicId}`);
-
-						// Optionally trigger auto-resolution if enabled
-						try {
-							const UserPreferences = require("../models/userpreferences.model").default;
-							const preferences = await UserPreferences.findOne({
-								userId: "default",
-							});
-
-							if (
-								preferences?.autoMerge?.enabled &&
-								preferences?.autoMerge?.onImport
-							) {
-								this.logger.info(
-									`Auto-resolving metadata for newly imported comic ${comicId}`
-								);
-								await this.broker.call("graphql.query", {
-									query: `
-										mutation ResolveMetadata($comicId: ID!) {
-											resolveMetadata(comicId: $comicId) {
-												id
-											}
-										}
-									`,
-									variables: { comicId },
-								});
-							}
-						} catch (error) {
-							this.logger.error("Error in auto-resolution on import:", error);
-						}
-					},
-				},
+						// Call the graphql action
+						await this.broker.call("graphql.graphql", {
+							query: `
+								mutation ResolveMetadata($comicId: ID!) {
+									resolveMetadata(comicId: $comicId) {
+										id
+									}
+								}
+							`,
+							variables: { comicId },
+						});
+					}
+				} catch (error) {
+					this.logger.error("Error in auto-resolution:", error);
+				}
 			},
+		},
 
-			started: async function (this: any) {
-				await this.initApolloServer();
-			},
+		/**
+		 * Trigger metadata resolution when comic is imported
+		 */
+		"comic.imported": {
+			async handler(ctx: any) {
+				const { comicId } = ctx.params;
+				this.logger.info(`Comic imported: ${comicId}`);
 
-			stopped: async function (this: any) {
-				await this.stopApolloServer();
+				// Optionally trigger auto-resolution if enabled
+				try {
+					const UserPreferences = require("../models/userpreferences.model").default;
+					const preferences = await UserPreferences.findOne({
+						userId: "default",
+					});
+
+					if (
+						preferences?.autoMerge?.enabled &&
+						preferences?.autoMerge?.onImport
+					) {
+						this.logger.info(
+							`Auto-resolving metadata for newly imported comic ${comicId}`
+						);
+						// Call the graphql action
+						await this.broker.call("graphql.graphql", {
+							query: `
+								mutation ResolveMetadata($comicId: ID!) {
+									resolveMetadata(comicId: $comicId) {
+										id
+									}
+								}
+							`,
+							variables: { comicId },
+						});
+					}
+				} catch (error) {
+					this.logger.error("Error in auto-resolution on import:", error);
+				}
 			},
+		},
+	},
+
+	async started() {
+		this.logger.info("GraphQL service starting...");
+		
+		// Create local schema
+		const localSchema = makeExecutableSchema({
+			typeDefs,
+			resolvers,
 		});
-	}
-}
+
+		// Try to stitch remote schema if available
+		try {
+			this.logger.info(`Attempting to introspect remote schema at ${this.settings.metadataGraphqlUrl}`);
+			
+			// Fetch and build the remote schema
+			const remoteSchema = await fetchRemoteSchema(this.settings.metadataGraphqlUrl);
+			
+			this.logger.info("Successfully introspected remote metadata schema");
+			
+			// Create executor for remote schema
+			const remoteExecutor = createRemoteExecutor(this.settings.metadataGraphqlUrl);
+			
+			// Wrap the remote schema with executor
+			const wrappedRemoteSchema = wrapSchema({
+				schema: remoteSchema,
+				executor: remoteExecutor,
+			});
+			
+			// Stitch schemas together
+			this.schema = stitchSchemas({
+				subschemas: [
+					{
+						schema: localSchema,
+					},
+					{
+						schema: wrappedRemoteSchema,
+					},
+				],
+			});
+			
+			this.logger.info("Successfully stitched local and remote schemas");
+		} catch (remoteError: any) {
+			this.logger.warn(
+				`Could not connect to remote metadata GraphQL at ${this.settings.metadataGraphqlUrl}: ${remoteError.message}`
+			);
+			this.logger.warn("Continuing with local schema only");
+			
+			// Use local schema only
+			this.schema = localSchema;
+		}
+		
+		this.logger.info("GraphQL service started successfully");
+	},
+
+	stopped() {
+		this.logger.info("GraphQL service stopped");
+	},
+};

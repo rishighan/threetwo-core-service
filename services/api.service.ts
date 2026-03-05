@@ -66,81 +66,8 @@ export default class ApiService extends Service {
               maxAge: 3600,
             },
             aliases: {
-              "POST /": async (req: any, res: any) => {
-                try {
-                  const { query, variables, operationName } = req.body;
-                  const result = await req.$service.broker.call("graphql.query", {
-                    query,
-                    variables,
-                    operationName,
-                  });
-                  res.setHeader("Content-Type", "application/json");
-                  res.end(JSON.stringify(result));
-                } catch (error: any) {
-                  res.statusCode = 500;
-                  res.setHeader("Content-Type", "application/json");
-                  res.end(
-                    JSON.stringify({
-                      errors: [{ message: error.message }],
-                    })
-                  );
-                }
-              },
-              "GET /": async (req: any, res: any) => {
-                // Support GraphQL Playground or introspection queries via GET
-                const query = req.$params.query;
-                const variables = req.$params.variables
-                  ? JSON.parse(req.$params.variables)
-                  : undefined;
-                const operationName = req.$params.operationName;
-
-                if (query) {
-                  try {
-                    const result = await req.$service.broker.call("graphql.query", {
-                      query,
-                      variables,
-                      operationName,
-                    });
-                    res.setHeader("Content-Type", "application/json");
-                    res.end(JSON.stringify(result));
-                  } catch (error: any) {
-                    res.statusCode = 500;
-                    res.setHeader("Content-Type", "application/json");
-                    res.end(
-                      JSON.stringify({
-                        errors: [{ message: error.message }],
-                      })
-                    );
-                  }
-                } else {
-                  // Return GraphQL Playground HTML
-                  res.setHeader("Content-Type", "text/html");
-                  res.end(`
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                      <title>GraphQL Playground</title>
-                      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/css/index.css" />
-                      <link rel="shortcut icon" href="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/favicon.png" />
-                      <script src="https://cdn.jsdelivr.net/npm/graphql-playground-react/build/static/js/middleware.js"></script>
-                    </head>
-                    <body>
-                      <div id="root"></div>
-                      <script>
-                        window.addEventListener('load', function (event) {
-                          GraphQLPlayground.init(document.getElementById('root'), {
-                            endpoint: '/graphql',
-                            settings: {
-                              'request.credentials': 'same-origin',
-                            },
-                          })
-                        })
-                      </script>
-                    </body>
-                    </html>
-                  `);
-                }
-              },
+              "POST /": "graphql.graphql",
+              "GET /": "graphql.graphql",
             },
             mappingPolicy: "restrict",
             bodyParsers: {

@@ -133,6 +133,9 @@ export const typeDefs = gql`
 		# Raw sourced metadata (for transparency)
 		sourcedMetadata: SourcedMetadata
 		
+		# Inferred metadata (from filename parsing)
+		inferredMetadata: InferredMetadata
+		
 		# File information
 		rawFileDetails: RawFileDetails
 		
@@ -381,6 +384,18 @@ export const typeDefs = gql`
 	}
 
 	input IssueInput {
+		name: String
+		number: Int
+		year: String
+		subtitle: String
+	}
+
+	# Inferred metadata output type
+	type InferredMetadata {
+		issue: Issue
+	}
+
+	type Issue {
 		name: String
 		number: Int
 		year: String

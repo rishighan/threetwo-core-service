@@ -98,10 +98,17 @@ export const getSizeOfDirectory = async (
 	const files = await readdir(directoryPath);
 	const stats = files.map((file) => stat(path.join(directoryPath, file)));
 
-	return (await Promise.all(stats)).reduce(
+	const totalSizeInBytes = (await Promise.all(stats)).reduce(
 		(accumulator, { size }) => accumulator + size,
 		0
 	);
+
+	return {
+		totalSize: totalSizeInBytes,
+		totalSizeInMB: totalSizeInBytes / (1024 * 1024),
+		totalSizeInGB: totalSizeInBytes / (1024 * 1024 * 1024),
+		fileCount: files.length,
+	};
 };
 
 export const isValidImageFileExtension = (fileName: string): boolean => {
