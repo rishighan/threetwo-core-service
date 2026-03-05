@@ -1,5 +1,77 @@
+/**
+ * @fileoverview GraphQL schema type definitions
+ * @module models/graphql/typedef
+ * @description Defines the complete GraphQL schema for the comic library management system.
+ * Includes types for:
+ * - Canonical metadata with provenance tracking
+ * - Comic books with multi-source metadata
+ * - User preferences for metadata resolution
+ * - Library statistics and search functionality
+ * - Mutations for metadata management and comic import
+ *
+ * The schema supports a sophisticated metadata resolution system that merges data from
+ * multiple sources (ComicVine, Metron, ComicInfo.xml, etc.) with configurable priorities
+ * and conflict resolution strategies.
+ *
+ * @see {@link module:models/graphql/resolvers} for resolver implementations
+ * @see {@link module:utils/metadata.resolution.utils} for metadata resolution logic
+ */
+
 import { gql } from "graphql-tag";
 
+/**
+ * GraphQL schema type definitions
+ * @constant {DocumentNode} typeDefs
+ * @description Complete GraphQL schema including:
+ *
+ * **Core Types:**
+ * - `Comic` - Main comic book type with canonical and sourced metadata
+ * - `CanonicalMetadata` - Resolved metadata from multiple sources
+ * - `SourcedMetadata` - Raw metadata from each source
+ * - `UserPreferences` - User configuration for metadata resolution
+ *
+ * **Metadata Types:**
+ * - `MetadataField` - Single field with provenance information
+ * - `MetadataArrayField` - Array field with provenance
+ * - `Provenance` - Source, confidence, and timestamp information
+ * - `Creator` - Creator information with role and provenance
+ *
+ * **Enums:**
+ * - `MetadataSource` - Available metadata sources
+ * - `ConflictResolutionStrategy` - Strategies for resolving conflicts
+ * - `SearchType` - Types of search operations
+ *
+ * **Queries:**
+ * - `comic(id)` - Get single comic by ID
+ * - `comics(...)` - List comics with pagination and filtering
+ * - `getComicBooks(...)` - Advanced comic listing with predicates
+ * - `getLibraryStatistics` - Library statistics and aggregations
+ * - `searchIssue(...)` - Elasticsearch-powered search
+ * - `userPreferences(userId)` - Get user preferences
+ * - `analyzeMetadataConflicts(comicId)` - Analyze metadata conflicts
+ * - `previewCanonicalMetadata(...)` - Preview resolution without saving
+ *
+ * **Mutations:**
+ * - `updateUserPreferences(...)` - Update resolution preferences
+ * - `setMetadataField(...)` - Manually override a field
+ * - `resolveMetadata(comicId)` - Trigger metadata resolution
+ * - `bulkResolveMetadata(comicIds)` - Bulk resolution
+ * - `removeMetadataOverride(...)` - Remove manual override
+ * - `importComic(input)` - Import new comic with auto-resolution
+ * - `updateSourcedMetadata(...)` - Update source data and re-resolve
+ *
+ * @example
+ * ```graphql
+ * query GetComic {
+ *   comic(id: "507f1f77bcf86cd799439011") {
+ *     canonicalMetadata {
+ *       title { value provenance { source confidence } }
+ *       series { value provenance { source confidence } }
+ *     }
+ *   }
+ * }
+ * ```
+ */
 export const typeDefs = gql`
 	# Metadata source enumeration
 	enum MetadataSource {

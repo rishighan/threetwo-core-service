@@ -1,3 +1,15 @@
+/**
+ * @fileoverview GraphQL resolvers for comic metadata operations
+ * @module models/graphql/resolvers
+ * @description Implements all GraphQL query and mutation resolvers for the comic library system.
+ * Handles comic retrieval, metadata resolution, user preferences, library statistics,
+ * and search operations. Integrates with the metadata resolution system to provide
+ * sophisticated multi-source metadata merging.
+ *
+ * @see {@link module:models/graphql/typedef} for schema definitions
+ * @see {@link module:utils/metadata.resolution.utils} for metadata resolution logic
+ */
+
 import Comic, { MetadataSource } from "../comic.model";
 import UserPreferences, {
 	ConflictResolutionStrategy,
@@ -10,12 +22,32 @@ import {
 } from "../../utils/metadata.resolution.utils";
 
 /**
- * GraphQL Resolvers for canonical metadata queries and mutations
+ * GraphQL resolvers for canonical metadata queries and mutations
+ * @constant {Object} resolvers
+ * @description Complete resolver map implementing all queries, mutations, and field resolvers
+ * defined in the GraphQL schema. Organized into Query, Mutation, and type-specific resolvers.
  */
 export const resolvers = {
 	Query: {
 		/**
 		 * Get a single comic by ID
+		 * @async
+		 * @function comic
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {string} args.id - Comic ID (MongoDB ObjectId)
+		 * @returns {Promise<Comic|null>} Comic document or null if not found
+		 * @throws {Error} If database query fails
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   comic(id: "507f1f77bcf86cd799439011") {
+		 *     id
+		 *     canonicalMetadata { title { value } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		comic: async (_: any, { id }: { id: string }) => {
 			try {
@@ -29,6 +61,28 @@ export const resolvers = {
 
 		/**
 		 * Get comic books with advanced pagination and filtering
+		 * @async
+		 * @function getComicBooks
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {Object} args.paginationOptions - Pagination configuration (page, limit, sort, etc.)
+		 * @param {Object} [args.predicate={}] - MongoDB query predicate for filtering
+		 * @returns {Promise<PaginatedResult>} Paginated comic results with metadata
+		 * @throws {Error} If database query fails
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   getComicBooks(
+		 *     paginationOptions: { page: 1, limit: 20, sort: "createdAt" }
+		 *     predicate: {}
+		 *   ) {
+		 *     docs { id canonicalMetadata { title { value } } }
+		 *     totalDocs
+		 *     hasNextPage
+		 *   }
+		 * }
+		 * ```
 		 */
 		getComicBooks: async (
 			_: any,
@@ -51,6 +105,22 @@ export const resolvers = {
 
 		/**
 		 * Get comic book groups (volumes with multiple issues)
+		 * @async
+		 * @function getComicBookGroups
+		 * @returns {Promise<Array>} Array of volume groups with issue information
+		 * @throws {Error} If aggregation fails
+		 * @description Aggregates comics by volume using ComicVine volume information.
+		 * Returns the 5 most recently updated volumes with their metadata.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   getComicBookGroups {
+		 *     id
+		 *     volumes { name publisher { name } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		getComicBookGroups: async () => {
 			try {
@@ -92,6 +162,28 @@ export const resolvers = {
 
 		/**
 		 * Get library statistics
+		 * @async
+		 * @function getLibraryStatistics
+		 * @returns {Promise<Object>} Library statistics including counts, sizes, and aggregations
+		 * @throws {Error} If statistics calculation fails
+		 * @description Calculates comprehensive library statistics including:
+		 * - Total document count
+		 * - Directory size and file count
+		 * - File type distribution
+		 * - Volume/issue groupings
+		 * - Comics with/without ComicInfo.xml
+		 * - Publisher statistics
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   getLibraryStatistics {
+		 *     totalDocuments
+		 *     comicDirectorySize { totalSizeInGB }
+		 *     statistics { publisherWithMostComicsInLibrary { id count } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		getLibraryStatistics: async () => {
 			try {
@@ -187,6 +279,31 @@ export const resolvers = {
 
 		/**
 		 * Search issues using Elasticsearch
+		 * @async
+		 * @function searchIssue
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {Object} [args.query] - Search query with volumeName and issueNumber
+		 * @param {Object} [args.pagination={size:10,from:0}] - Pagination options
+		 * @param {string} args.type - Search type (all, volumeName, wanted, volumes)
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Elasticsearch search results
+		 * @throws {Error} If search service is unavailable or search fails
+		 * @description Delegates to the search service via Moleculer broker to perform
+		 * Elasticsearch queries for comic issues.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   searchIssue(
+		 *     query: { volumeName: "Batman", issueNumber: "1" }
+		 *     pagination: { size: 10, from: 0 }
+		 *     type: all
+		 *   ) {
+		 *     hits { hits { _source { id } } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		searchIssue: async (
 			_: any,
@@ -225,6 +342,30 @@ export const resolvers = {
 
 		/**
 		 * List comics with pagination and filtering
+		 * @async
+		 * @function comics
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {number} [args.limit=10] - Items per page
+		 * @param {number} [args.page=1] - Page number
+		 * @param {string} [args.search] - Search term for title/series/filename
+		 * @param {string} [args.publisher] - Filter by publisher
+		 * @param {string} [args.series] - Filter by series
+		 * @returns {Promise<Object>} Paginated comics with page info
+		 * @throws {Error} If database query fails
+		 * @description Lists comics with optional text search and filtering.
+		 * Searches across canonical metadata title, series, and raw filename.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   comics(limit: 20, page: 1, search: "Batman", publisher: "DC Comics") {
+		 *     comics { id canonicalMetadata { title { value } } }
+		 *     totalCount
+		 *     pageInfo { hasNextPage currentPage totalPages }
+		 *   }
+		 * }
+		 * ```
 		 */
 		comics: async (
 			_: any,
@@ -290,7 +431,27 @@ export const resolvers = {
 		},
 
 		/**
-		 * Get user preferences
+		 * Get user preferences for metadata resolution
+		 * @async
+		 * @function userPreferences
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {string} [args.userId='default'] - User ID
+		 * @returns {Promise<UserPreferences>} User preferences document
+		 * @throws {Error} If database query fails
+		 * @description Retrieves user preferences for metadata resolution.
+		 * Creates default preferences if none exist for the user.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   userPreferences(userId: "default") {
+		 *     conflictResolution
+		 *     minConfidenceThreshold
+		 *     sourcePriorities { source priority enabled }
+		 *   }
+		 * }
+		 * ```
 		 */
 		userPreferences: async (
 			_: any,
@@ -313,6 +474,28 @@ export const resolvers = {
 
 		/**
 		 * Analyze metadata conflicts for a comic
+		 * @async
+		 * @function analyzeMetadataConflicts
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {string} args.comicId - Comic ID to analyze
+		 * @returns {Promise<Array>} Array of metadata conflicts with candidates and resolution
+		 * @throws {Error} If comic or preferences not found, or analysis fails
+		 * @description Analyzes metadata conflicts by comparing values from different sources
+		 * for key fields (title, series, issueNumber, description, publisher).
+		 * Returns conflicts with all candidates and the resolved value.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   analyzeMetadataConflicts(comicId: "507f1f77bcf86cd799439011") {
+		 *     field
+		 *     candidates { value provenance { source confidence } }
+		 *     resolved { value provenance { source } }
+		 *     resolutionReason
+		 *   }
+		 * }
+		 * ```
 		 */
 		analyzeMetadataConflicts: async (
 			_: any,
@@ -377,6 +560,29 @@ export const resolvers = {
 
 		/**
 		 * Preview canonical metadata resolution without saving
+		 * @async
+		 * @function previewCanonicalMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {string} args.comicId - Comic ID to preview
+		 * @param {Object} [args.preferences] - Optional preference overrides for preview
+		 * @returns {Promise<CanonicalMetadata>} Preview of resolved canonical metadata
+		 * @throws {Error} If comic or preferences not found
+		 * @description Previews how canonical metadata would be resolved with current
+		 * or provided preferences without saving to the database. Useful for testing
+		 * different resolution strategies.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   previewCanonicalMetadata(
+		 *     comicId: "507f1f77bcf86cd799439011"
+		 *     preferences: { conflictResolution: CONFIDENCE }
+		 *   ) {
+		 *     title { value provenance { source confidence } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		previewCanonicalMetadata: async (
 			_: any,
@@ -419,7 +625,35 @@ export const resolvers = {
 
 	Mutation: {
 		/**
-		 * Update user preferences
+		 * Update user preferences for metadata resolution
+		 * @async
+		 * @function updateUserPreferences
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} [args.userId='default'] - User ID
+		 * @param {Object} args.preferences - Preferences to update
+		 * @returns {Promise<UserPreferences>} Updated preferences document
+		 * @throws {Error} If update fails
+		 * @description Updates user preferences for metadata resolution including
+		 * source priorities, conflict resolution strategy, confidence thresholds,
+		 * field preferences, and auto-merge settings.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   updateUserPreferences(
+		 *     userId: "default"
+		 *     preferences: {
+		 *       conflictResolution: CONFIDENCE
+		 *       minConfidenceThreshold: 0.8
+		 *       autoMerge: { enabled: true, onImport: true }
+		 *     }
+		 *   ) {
+		 *     id
+		 *     conflictResolution
+		 *   }
+		 * }
+		 * ```
 		 */
 		updateUserPreferences: async (
 			_: any,
@@ -490,6 +724,31 @@ export const resolvers = {
 
 		/**
 		 * Manually set a metadata field (creates user override)
+		 * @async
+		 * @function setMetadataField
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.comicId - Comic ID
+		 * @param {string} args.field - Field name to set
+		 * @param {any} args.value - New value for the field
+		 * @returns {Promise<Comic>} Updated comic document
+		 * @throws {Error} If comic not found or update fails
+		 * @description Manually sets a metadata field value, creating a user override
+		 * that takes precedence over all source data. Marks the field with userOverride flag.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   setMetadataField(
+		 *     comicId: "507f1f77bcf86cd799439011"
+		 *     field: "title"
+		 *     value: "Batman: The Dark Knight Returns"
+		 *   ) {
+		 *     id
+		 *     canonicalMetadata { title { value userOverride } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		setMetadataField: async (
 			_: any,
@@ -530,6 +789,25 @@ export const resolvers = {
 
 		/**
 		 * Trigger metadata resolution for a comic
+		 * @async
+		 * @function resolveMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.comicId - Comic ID to resolve
+		 * @returns {Promise<Comic>} Comic with resolved canonical metadata
+		 * @throws {Error} If comic or preferences not found, or resolution fails
+		 * @description Triggers metadata resolution for a comic, building canonical
+		 * metadata from all available sources using current user preferences.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   resolveMetadata(comicId: "507f1f77bcf86cd799439011") {
+		 *     id
+		 *     canonicalMetadata { title { value provenance { source } } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		resolveMetadata: async (_: any, { comicId }: { comicId: string }) => {
 			try {
@@ -564,6 +842,25 @@ export const resolvers = {
 
 		/**
 		 * Bulk resolve metadata for multiple comics
+		 * @async
+		 * @function bulkResolveMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string[]} args.comicIds - Array of comic IDs to resolve
+		 * @returns {Promise<Comic[]>} Array of comics with resolved metadata
+		 * @throws {Error} If preferences not found or resolution fails
+		 * @description Resolves metadata for multiple comics in bulk using current
+		 * user preferences. Skips comics that don't exist.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   bulkResolveMetadata(comicIds: ["507f...", "507f..."]) {
+		 *     id
+		 *     canonicalMetadata { title { value } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		bulkResolveMetadata: async (
 			_: any,
@@ -602,6 +899,29 @@ export const resolvers = {
 
 		/**
 		 * Remove user override for a field
+		 * @async
+		 * @function removeMetadataOverride
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.comicId - Comic ID
+		 * @param {string} args.field - Field name to remove override from
+		 * @returns {Promise<Comic>} Updated comic document
+		 * @throws {Error} If comic or preferences not found, or update fails
+		 * @description Removes a user override for a field and re-resolves it from
+		 * source data using current preferences.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   removeMetadataOverride(
+		 *     comicId: "507f1f77bcf86cd799439011"
+		 *     field: "title"
+		 *   ) {
+		 *     id
+		 *     canonicalMetadata { title { value userOverride } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		removeMetadataOverride: async (
 			_: any,
@@ -649,6 +969,16 @@ export const resolvers = {
 
 		/**
 		 * Refresh metadata from a specific source
+		 * @async
+		 * @function refreshMetadataFromSource
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.comicId - Comic ID
+		 * @param {MetadataSource} args.source - Source to refresh from
+		 * @returns {Promise<Comic>} Updated comic document
+		 * @throws {Error} Not implemented - requires integration with metadata services
+		 * @description Placeholder for refreshing metadata from a specific external source.
+		 * Would trigger a re-fetch from the specified source and update sourced metadata.
 		 */
 		refreshMetadataFromSource: async (
 			_: any,
@@ -666,6 +996,32 @@ export const resolvers = {
 
 		/**
 		 * Import a new comic with automatic metadata resolution
+		 * @async
+		 * @function importComic
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {Object} args.input - Comic import data including file details and metadata
+		 * @returns {Promise<Object>} Import result with success status and comic
+		 * @throws {Error} If import fails
+		 * @description Imports a new comic into the library with all metadata sources.
+		 * Automatically resolves canonical metadata if auto-merge is enabled in preferences.
+		 * Checks for duplicates before importing.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   importComic(input: {
+		 *     filePath: "/comics/batman-1.cbz"
+		 *     rawFileDetails: { name: "batman-1.cbz", fileSize: 12345 }
+		 *     sourcedMetadata: { comicInfo: "{...}" }
+		 *   }) {
+		 *     success
+		 *     comic { id }
+		 *     message
+		 *     canonicalMetadataResolved
+		 *   }
+		 * }
+		 * ```
 		 */
 		importComic: async (_: any, { input }: { input: any }) => {
 			try {
@@ -787,6 +1143,31 @@ export const resolvers = {
 
 		/**
 		 * Update sourced metadata and trigger resolution
+		 * @async
+		 * @function updateSourcedMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.comicId - Comic ID
+		 * @param {MetadataSource} args.source - Source being updated
+		 * @param {string} args.metadata - JSON string of new metadata
+		 * @returns {Promise<Comic>} Updated comic with re-resolved canonical metadata
+		 * @throws {Error} If comic not found, JSON invalid, or update fails
+		 * @description Updates sourced metadata from a specific source and automatically
+		 * re-resolves canonical metadata if auto-merge on update is enabled.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   updateSourcedMetadata(
+		 *     comicId: "507f1f77bcf86cd799439011"
+		 *     source: COMICVINE
+		 *     metadata: "{\"name\": \"Batman #1\", ...}"
+		 *   ) {
+		 *     id
+		 *     canonicalMetadata { title { value } }
+		 *   }
+		 * }
+		 * ```
 		 */
 		updateSourcedMetadata: async (
 			_: any,
@@ -849,9 +1230,24 @@ export const resolvers = {
 		},
 	},
 
-	// Field resolvers
+	/**
+	 * Field resolvers for Comic type
+	 * @description Custom field resolvers for transforming Comic data
+	 */
 	Comic: {
+		/**
+		 * Resolve Comic ID field
+		 * @param {any} comic - Comic document
+		 * @returns {string} String representation of MongoDB ObjectId
+		 */
 		id: (comic: any) => comic._id.toString(),
+		
+		/**
+		 * Resolve sourced metadata field
+		 * @param {any} comic - Comic document
+		 * @returns {Object} Sourced metadata with JSON-stringified sources
+		 * @description Converts sourced metadata objects to JSON strings for GraphQL transport
+		 */
 		sourcedMetadata: (comic: any) => ({
 			comicInfo: JSON.stringify(comic.sourcedMetadata?.comicInfo || {}),
 			comicvine: JSON.stringify(comic.sourcedMetadata?.comicvine || {}),
@@ -861,21 +1257,63 @@ export const resolvers = {
 		}),
 	},
 
-	// Field resolvers for statistics types
+	/**
+	 * Field resolvers for FileTypeStats type
+	 * @description Resolves ID field for file type statistics
+	 */
 	FileTypeStats: {
+		/**
+		 * Resolve FileTypeStats ID
+		 * @param {any} stats - Statistics document
+		 * @returns {string} ID value
+		 */
 		id: (stats: any) => stats._id || stats.id,
 	},
 
+	/**
+	 * Field resolvers for PublisherStats type
+	 * @description Resolves ID field for publisher statistics
+	 */
 	PublisherStats: {
+		/**
+		 * Resolve PublisherStats ID
+		 * @param {any} stats - Statistics document
+		 * @returns {string} ID value
+		 */
 		id: (stats: any) => stats._id || stats.id,
 	},
 
+	/**
+	 * Field resolvers for IssueStats type
+	 * @description Resolves ID field for issue statistics
+	 */
 	IssueStats: {
+		/**
+		 * Resolve IssueStats ID
+		 * @param {any} stats - Statistics document
+		 * @returns {string} ID value
+		 */
 		id: (stats: any) => stats._id || stats.id,
 	},
 
+	/**
+	 * Field resolvers for UserPreferences type
+	 * @description Custom resolvers for transforming UserPreferences data
+	 */
 	UserPreferences: {
+		/**
+		 * Resolve UserPreferences ID
+		 * @param {any} prefs - Preferences document
+		 * @returns {string} String representation of MongoDB ObjectId
+		 */
 		id: (prefs: any) => prefs._id.toString(),
+		
+		/**
+		 * Resolve field preferences
+		 * @param {any} prefs - Preferences document
+		 * @returns {Array} Array of field preference objects
+		 * @description Converts Map to array of {field, preferredSource} objects
+		 */
 		fieldPreferences: (prefs: any) => {
 			if (!prefs.fieldPreferences) return [];
 			return Array.from(prefs.fieldPreferences.entries()).map(
@@ -885,6 +1323,13 @@ export const resolvers = {
 				})
 			);
 		},
+		
+		/**
+		 * Resolve source priorities
+		 * @param {any} prefs - Preferences document
+		 * @returns {Array} Array of source priority objects with field overrides
+		 * @description Converts fieldOverrides Map to array format for GraphQL
+		 */
 		sourcePriorities: (prefs: any) => {
 			return prefs.sourcePriorities.map((sp: any) => ({
 				...sp,
@@ -900,7 +1345,14 @@ export const resolvers = {
 };
 
 /**
- * Helper: Extract candidates for a field from sourced metadata
+ * Extract metadata field candidates from sourced metadata
+ * @private
+ * @function extractCandidatesForField
+ * @param {string} field - Field name to extract
+ * @param {any} sourcedMetadata - Sourced metadata object
+ * @returns {MetadataField[]} Array of metadata field candidates with provenance
+ * @description Extracts all available values for a field from different metadata sources.
+ * Maps field names to source-specific paths and extracts values with provenance information.
  */
 function extractCandidatesForField(
 	field: string,
@@ -957,14 +1409,26 @@ function extractCandidatesForField(
 }
 
 /**
- * Helper: Get nested value from object
+ * Get nested value from object using dot notation path
+ * @private
+ * @function getNestedValue
+ * @param {any} obj - Object to traverse
+ * @param {string} path - Dot-notation path (e.g., "volumeInformation.name")
+ * @returns {any} Value at path or undefined
+ * @description Safely traverses nested object properties using dot notation.
  */
 function getNestedValue(obj: any, path: string): any {
 	return path.split(".").reduce((current, key) => current?.[key], obj);
 }
 
 /**
- * Helper: Convert UserPreferences model to ResolutionPreferences
+ * Convert UserPreferences model to ResolutionPreferences format
+ * @private
+ * @function convertPreferences
+ * @param {any} prefs - UserPreferences document
+ * @returns {ResolutionPreferences} Preferences in resolution utility format
+ * @description Transforms UserPreferences model to the format expected by
+ * metadata resolution utilities.
  */
 function convertPreferences(prefs: any): ResolutionPreferences {
 	return {
@@ -982,7 +1446,14 @@ function convertPreferences(prefs: any): ResolutionPreferences {
 }
 
 /**
- * Helper: Get resolution reason for display
+ * Get human-readable resolution reason
+ * @private
+ * @function getResolutionReason
+ * @param {MetadataField|null} resolved - Resolved metadata field
+ * @param {MetadataField[]} candidates - All candidate fields
+ * @param {any} preferences - User preferences
+ * @returns {string} Human-readable explanation of resolution
+ * @description Generates explanation for why a particular field value was chosen.
  */
 function getResolutionReason(
 	resolved: MetadataField | null,
@@ -1000,7 +1471,13 @@ function getResolutionReason(
 }
 
 /**
- * Helper: Apply preferences input to existing preferences
+ * Apply preference input overrides to existing preferences
+ * @private
+ * @function applyPreferencesInput
+ * @param {any} prefs - Existing preferences document
+ * @param {any} input - Input preferences to apply
+ * @returns {any} Updated preferences object
+ * @description Merges input preferences with existing preferences for preview operations.
  */
 function applyPreferencesInput(prefs: any, input: any): any {
 	const updated = { ...prefs.toObject() };
