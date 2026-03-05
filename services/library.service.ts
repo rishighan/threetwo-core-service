@@ -177,7 +177,21 @@ export default class ImportService extends Service {
 							// Get params to be passed to the import jobs
 							const { sessionId } = ctx.params;
 							const resolvedPath = path.resolve(COMICS_DIRECTORY);
+							
+							// Start import session
+							await this.broker.call("importstate.startSession", {
+								sessionId,
+								type: "full",
+								directoryPath: resolvedPath,
+							});
+							
 							console.log(`Walking comics directory: ${resolvedPath}`);
+							
+							// Update session status
+							await this.broker.call("importstate.updateSession", {
+								sessionId,
+								status: "scanning",
+							});
 							// 1. Walk the Source folder
 							klaw(resolvedPath)
 								.on("error", (err) => {
@@ -186,15 +200,18 @@ export default class ImportService extends Service {
 								// 1.1 Filter on .cb* extensions
 								.pipe(
 									through2.obj(function (item, enc, next) {
-										let fileExtension = path.extname(
-											item.path
-										);
-										if (
-											[".cbz", ".cbr", ".cb7"].includes(
-												fileExtension
-											)
-										) {
-											this.push(item);
+										// Only process files, not directories
+										if (item.stats.isFile()) {
+											let fileExtension = path.extname(
+												item.path
+											);
+											if (
+												[".cbz", ".cbr", ".cb7"].includes(
+													fileExtension
+												)
+											) {
+												this.push(item);
+											}
 										}
 										next();
 									})
@@ -213,16 +230,7 @@ export default class ImportService extends Service {
 										)}`,
 									});
 									if (!comicExists) {
-										// 2.1 Reset the job counters in Redis
-										await pubClient.set(
-											"completedJobCount",
-											0
-										);
-										await pubClient.set(
-											"failedJobCount",
-											0
-										);
-										// 2.2 Send the extraction job to the queue
+										// Send the extraction job to the queue
 										this.broker.call("jobqueue.enqueue", {
 											fileObject: {
 												filePath: item.path,
@@ -238,11 +246,24 @@ export default class ImportService extends Service {
 										);
 									}
 								})
-								.on("end", () => {
+								.on("end", async () => {
 									console.log("All files traversed.");
+									// Update session to active (jobs are now being processed)
+									await this.broker.call("importstate.updateSession", {
+										sessionId,
+										status: "active",
+									});
 								});
 						} catch (error) {
 							console.log(error);
+							// Mark session as failed
+							const { sessionId } = ctx.params;
+							if (sessionId) {
+								await this.broker.call("importstate.completeSession", {
+									sessionId,
+									success: false,
+								});
+							}
 						}
 					},
 				},
@@ -270,9 +291,12 @@ export default class ImportService extends Service {
 									})
 									.pipe(
 										through2.obj(function (item, enc, next) {
-											const fileExtension = path.extname(item.path);
-											if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
-												localFiles.push(item.path);
+											// Only process files, not directories
+											if (item.stats.isFile()) {
+												const fileExtension = path.extname(item.path);
+												if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
+													localFiles.push(item.path);
+												}
 											}
 											next();
 										})
@@ -325,6 +349,13 @@ export default class ImportService extends Service {
 							const resolvedPath = path.resolve(directoryPath || COMICS_DIRECTORY);
 							console.log(`[Incremental Import] Starting for directory: ${resolvedPath}`);
 
+							// Start import session
+							await this.broker.call("importstate.startSession", {
+								sessionId,
+								type: "incremental",
+								directoryPath: resolvedPath,
+							});
+
 							// Emit start event
 							this.broker.broadcast("LS_INCREMENTAL_IMPORT_STARTED", {
 								message: "Starting incremental import analysis...",
@@ -332,6 +363,11 @@ export default class ImportService extends Service {
 							});
 
 							// Step 1: Fetch imported files from database
+							await this.broker.call("importstate.updateSession", {
+								sessionId,
+								status: "scanning",
+							});
+							
 							this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
 								message: "Fetching imported files from database...",
 							});
@@ -365,14 +401,17 @@ export default class ImportService extends Service {
 									})
 									.pipe(
 										through2.obj(function (item, enc, next) {
-											const fileExtension = path.extname(item.path);
-											if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
-												const fileName = path.basename(item.path, fileExtension);
-												localFiles.push({
-													path: item.path,
-													name: fileName,
-													size: item.stats.size,
-												});
+											// Only process files, not directories
+											if (item.stats.isFile()) {
+												const fileExtension = path.extname(item.path);
+												if ([".cbz", ".cbr", ".cb7"].includes(fileExtension)) {
+													const fileName = path.basename(item.path, fileExtension);
+													localFiles.push({
+														path: item.path,
+														name: fileName,
+														size: item.stats.size,
+													});
+												}
 											}
 											next();
 										})
@@ -393,16 +432,20 @@ export default class ImportService extends Service {
 
 							console.log(`[Incremental Import] ${newFiles.length} new files to import`);
 
-							// Step 4: Reset job counters and queue new files
+							// Step 4: Queue new files
 							if (newFiles.length > 0) {
+								await this.broker.call("importstate.updateSession", {
+									sessionId,
+									status: "queueing",
+									stats: {
+										totalFiles: localFiles.length,
+										filesQueued: newFiles.length,
+									},
+								});
+								
 								this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
 									message: `Queueing ${newFiles.length} new files for import...`,
 								});
-
-								// Reset counters once at the start
-								await pubClient.set("completedJobCount", 0);
-								await pubClient.set("failedJobCount", 0);
-								console.log("[Incremental Import] Job counters reset");
 
 								// Queue all new files
 								for (const file of newFiles) {
@@ -417,9 +460,21 @@ export default class ImportService extends Service {
 										action: "enqueue.async",
 									});
 								}
+								
+								// Update session to active
+								await this.broker.call("importstate.updateSession", {
+									sessionId,
+									status: "active",
+								});
+							} else {
+								// No files to import, complete immediately
+								await this.broker.call("importstate.completeSession", {
+									sessionId,
+									success: true,
+								});
 							}
 
-							// Emit completion event
+							// Emit completion event (queueing complete, not import complete)
 							this.broker.broadcast("LS_INCREMENTAL_IMPORT_COMPLETE", {
 								message: `Successfully queued ${newFiles.length} files for import`,
 								stats: {
@@ -432,7 +487,9 @@ export default class ImportService extends Service {
 
 							return {
 								success: true,
-								message: `Incremental import complete: ${newFiles.length} new files queued`,
+								message: newFiles.length > 0
+									? `Incremental import started: ${newFiles.length} new files queued`
+									: "No new files to import",
 								stats: {
 									total: localFiles.length,
 									alreadyImported: localFiles.length - newFiles.length,
@@ -442,6 +499,15 @@ export default class ImportService extends Service {
 							};
 						} catch (error) {
 							console.error("[Incremental Import] Error:", error);
+							
+							// Mark session as failed
+							const { sessionId } = ctx.params;
+							if (sessionId) {
+								await this.broker.call("importstate.completeSession", {
+									sessionId,
+									success: false,
+								});
+							}
 							
 							// Emit error event
 							this.broker.broadcast("LS_INCREMENTAL_IMPORT_ERROR", {

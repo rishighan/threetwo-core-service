@@ -353,6 +353,9 @@ export const typeDefs = gql`
 
 		# Get job result statistics grouped by session
 		getJobResultStatistics: [JobResultStatistics!]!
+
+		# Get active import session (if any)
+		getActiveImportSession: ImportSession
 	}
 
 	# Mutations
@@ -779,5 +782,24 @@ export const typeDefs = gql`
 		completedJobs: Int!
 		failedJobs: Int!
 		earliestTimestamp: String!
+	}
+
+	# Import session information
+	type ImportSession {
+		sessionId: String!
+		type: String!
+		status: String!
+		startedAt: String!
+		completedAt: String
+		stats: ImportSessionStats!
+		directoryPath: String
+	}
+
+	type ImportSessionStats {
+		totalFiles: Int!
+		filesQueued: Int!
+		filesProcessed: Int!
+		filesSucceeded: Int!
+		filesFailed: Int!
 	}
 `;

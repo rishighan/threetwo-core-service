@@ -766,6 +766,56 @@ export const resolvers = {
 				throw new Error(`Failed to fetch job result statistics: ${error.message}`);
 			}
 		},
+
+		/**
+			* Get active import session (if any)
+			* @async
+			* @function getActiveImportSession
+			* @param {any} _ - Parent resolver (unused)
+			* @param {Object} args - Query arguments (none)
+			* @param {Object} context - GraphQL context with broker
+			* @returns {Promise<Object|null>} Active import session or null
+			* @throws {Error} If import state service is unavailable
+			* @description Retrieves the currently active import session (if any).
+			* Useful for checking if an import is in progress before starting a new one.
+			*
+			* @example
+			* ```graphql
+			* query {
+			*   getActiveImportSession {
+			*     sessionId
+			*     type
+			*     status
+			*     startedAt
+			*     stats {
+			*       totalFiles
+			*       filesProcessed
+			*       filesSucceeded
+			*       filesFailed
+			*     }
+			*   }
+			* }
+			* ```
+			*/
+		getActiveImportSession: async (
+			_: any,
+			args: {},
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				const session = await broker.call("importstate.getActiveSession");
+				return session;
+			} catch (error) {
+				console.error("Error fetching active import session:", error);
+				throw new Error(`Failed to fetch active import session: ${error.message}`);
+			}
+		},
 	},
 
 	Mutation: {
@@ -1373,12 +1423,143 @@ export const resolvers = {
 				throw new Error(`Failed to update sourced metadata: ${error.message}`);
 			}
 		},
+
+		/**
+		 * Start a new full import of the comics directory
+		 * @async
+		 * @function startNewImport
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.sessionId - Session ID for tracking this import batch
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Import job result with success status and jobs queued count
+		 * @throws {Error} If import service is unavailable or import fails
+		 * @description Starts a full import of all comics in the comics directory.
+		 * Scans the entire directory and queues jobs for all comic files that haven't
+		 * been imported yet. Checks for active import sessions to prevent race conditions.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   startNewImport(sessionId: "import-2024-01-01") {
+		 *     success
+		 *     message
+		 *     jobsQueued
+		 *   }
+		 * }
+		 * ```
+		 */
+		startNewImport: async (
+			_: any,
+			{ sessionId }: { sessionId: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				// Check for active import sessions (race condition prevention)
+				const activeSession = await broker.call("importstate.getActiveSession");
+				if (activeSession) {
+					throw new Error(
+						`Cannot start new import: Another import session "${activeSession.sessionId}" is already active (${activeSession.type}). Please wait for it to complete.`
+					);
+				}
+
+				// Call the library service to start new import
+				await broker.call("library.newImport", {
+					sessionId,
+				});
+
+				return {
+					success: true,
+					message: "New import started successfully",
+					jobsQueued: 0, // The actual count is tracked asynchronously
+				};
+			} catch (error) {
+				console.error("Error starting new import:", error);
+				throw new Error(`Failed to start new import: ${error.message}`);
+			}
+		},
+
+		/**
+		 * Start an incremental import (only new files)
+		 * @async
+		 * @function startIncrementalImport
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {string} args.sessionId - Session ID for tracking this import batch
+		 * @param {string} [args.directoryPath] - Optional directory path to scan (defaults to COMICS_DIRECTORY)
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Incremental import result with statistics
+		 * @throws {Error} If import service is unavailable or import fails
+		 * @description Starts an incremental import that only processes new files
+		 * not already in the database. More efficient than full import for large libraries.
+		 * Checks for active import sessions to prevent race conditions.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   startIncrementalImport(
+		 *     sessionId: "incremental-2024-01-01"
+		 *     directoryPath: "/path/to/comics"
+		 *   ) {
+		 *     success
+		 *     message
+		 *     stats {
+		 *       total
+		 *       alreadyImported
+		 *       newFiles
+		 *       queued
+		 *     }
+		 *   }
+		 * }
+		 * ```
+		 */
+		startIncrementalImport: async (
+			_: any,
+			{
+				sessionId,
+				directoryPath,
+			}: { sessionId: string; directoryPath?: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				// Check for active import sessions (race condition prevention)
+				const activeSession = await broker.call("importstate.getActiveSession");
+				if (activeSession) {
+					throw new Error(
+						`Cannot start incremental import: Another import session "${activeSession.sessionId}" is already active (${activeSession.type}). Please wait for it to complete.`
+					);
+				}
+
+				// Call the library service to start incremental import
+				const result = await broker.call("library.incrementalImport", {
+					sessionId,
+					directoryPath,
+				});
+
+				return result;
+			} catch (error) {
+				console.error("Error starting incremental import:", error);
+				throw new Error(`Failed to start incremental import: ${error.message}`);
+			}
+		},
 	},
 
 	/**
-	 * Field resolvers for Comic type
-	 * @description Custom field resolvers for transforming Comic data
-	 */
+		* Field resolvers for Comic type
+		* @description Custom field resolvers for transforming Comic data
+		*/
 	Comic: {
 		/**
 		 * Resolve Comic ID field

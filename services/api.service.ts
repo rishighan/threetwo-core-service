@@ -1,7 +1,7 @@
 import chokidar, { FSWatcher } from "chokidar";
 import fs from "fs";
 import path from "path";
-import { Service, ServiceBroker, ServiceSchema } from "moleculer";
+import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
 import debounce from "lodash/debounce";
 import { IFolderData } from "threetwo-ui-typings";
@@ -133,7 +133,103 @@ export default class ApiService extends Service {
         logResponseData: true,
         assets: { folder: "public", options: {} },
       },
-      events: {},
+      events: {
+        /**
+         * Listen for import session completion to refresh statistics
+         */
+        "IMPORT_SESSION_COMPLETED": {
+          async handler(ctx: Context<{
+            sessionId: string;
+            type: string;
+            success: boolean;
+            stats: any;
+          }>) {
+            const { sessionId, type, success } = ctx.params;
+            this.logger.info(
+              `[Stats Cache] Import session completed: ${sessionId} (${type}, success: ${success})`
+            );
+            
+            // Invalidate and refresh statistics cache
+            await this.actions.invalidateStatsCache();
+          },
+        },
+
+        /**
+         * Listen for import progress to update cache incrementally
+         */
+        "IMPORT_PROGRESS": {
+          async handler(ctx: Context<{
+            sessionId: string;
+            stats: any;
+          }>) {
+            // Update cache with current progress
+            if (this.statsCache) {
+              const { stats } = ctx.params;
+              // Update alreadyImported count based on files succeeded
+              if (stats.filesSucceeded) {
+                this.statsCache.alreadyImported += 1;
+                this.statsCache.newFiles = Math.max(0, this.statsCache.newFiles - 1);
+                
+                // Recalculate percentage
+                if (this.statsCache.totalLocalFiles > 0) {
+                  const percentage = (
+                    (this.statsCache.alreadyImported / this.statsCache.totalLocalFiles) * 100
+                  ).toFixed(2);
+                  this.statsCache.percentageImported = `${percentage}%`;
+                }
+                
+                this.statsCache.lastUpdated = new Date();
+                
+                // Trigger debounced broadcast
+                if (this.broadcastStatsUpdate) {
+                  this.broadcastStatsUpdate();
+                }
+              }
+            }
+          },
+        },
+
+        /**
+         * Listen for watcher disable events
+         */
+        "IMPORT_WATCHER_DISABLED": {
+          async handler(ctx: Context<{ reason: string; sessionId: string }>) {
+            const { reason, sessionId } = ctx.params;
+            this.logger.info(`[Watcher] Disabled: ${reason} (session: ${sessionId})`);
+            
+            // Broadcast to frontend
+            await this.broker.call("socket.broadcast", {
+              namespace: "/",
+              event: "IMPORT_WATCHER_STATUS",
+              args: [{
+                enabled: false,
+                reason,
+                sessionId,
+              }],
+            });
+          },
+        },
+
+        /**
+         * Listen for watcher enable events
+         */
+        "IMPORT_WATCHER_ENABLED": {
+          async handler(ctx: Context<{ sessionId: string }>) {
+            const { sessionId } = ctx.params;
+            this.logger.info(`[Watcher] Re-enabled after session: ${sessionId}`);
+            
+            // Broadcast to frontend
+            await this.broker.call("socket.broadcast", {
+              namespace: "/",
+              event: "IMPORT_WATCHER_STATUS",
+              args: [{
+                enabled: true,
+                sessionId,
+              }],
+            });
+          },
+        },
+      },
       actions: {
         /**
          * Get cached import statistics (fast, no filesystem scan)
@@ -421,30 +517,57 @@ export default class ApiService extends Service {
    * @private
    */
   private async handleFileEvent(
-    event: string,
-    filePath: string,
-    stats?: fs.Stats
+   event: string,
+   filePath: string,
+   stats?: fs.Stats
   ): Promise<void> {
-    this.logger.info(`File event [${event}]: ${filePath}`);
-    
-    // Update statistics cache for add/unlink events
-    if (event === "add" || event === "unlink") {
-      this.updateStatsCache(event, filePath);
-    }
-    
-    if (event === "add" && stats) {
+   this.logger.info(`File event [${event}]: ${filePath}`);
+   
+   // Check if watcher should process files (not during manual imports)
+   if (event === "add") {
+   	const watcherState: any = await this.broker.call("importstate.isWatcherEnabled");
+   	if (!watcherState.enabled) {
+   		this.logger.info(
+   			`[Watcher] Skipping file ${filePath} - manual import in progress (${watcherState.activeSession?.sessionId})`
+   		);
+   		return;
+   	}
+   }
+   
+   // Update statistics cache for add/unlink events
+   if (event === "add" || event === "unlink") {
+   	this.updateStatsCache(event, filePath);
+   }
+   
+   if (event === "add" && stats) {
       setTimeout(async () => {
-        try {
-          const newStats = await fs.promises.stat(filePath);
-          if (newStats.mtime.getTime() === stats.mtime.getTime()) {
-            this.logger.info(`Stable file detected: ${filePath}, importing.`);
-            
-            const folderData: IFolderData[] = await this.broker.call(
-              "library.walkFolders",
-              { basePathToWalk: filePath }
-            );
-            
-            if (folderData && folderData.length > 0) {
+      	try {
+      		// Double-check watcher is still enabled
+      		const watcherState: any = await this.broker.call("importstate.isWatcherEnabled");
+      		if (!watcherState.enabled) {
+      			this.logger.info(
+      				`[Watcher] Skipping delayed import for ${filePath} - manual import started`
+      			);
+      			return;
+      		}
+      		
+      		const newStats = await fs.promises.stat(filePath);
+      		if (newStats.mtime.getTime() === stats.mtime.getTime()) {
+      			this.logger.info(`Stable file detected: ${filePath}, importing.`);
+      			
+      			// Create a watcher session for this file
+      			const sessionId = `watcher-${Date.now()}`;
+      			await this.broker.call("importstate.startSession", {
+      				sessionId,
+      				type: "watcher",
+      			});
+      			
+      			const folderData: IFolderData[] = await this.broker.call(
+      				"library.walkFolders",
+      				{ basePathToWalk: filePath }
+      			);
+      			
+      			if (folderData && folderData.length > 0) {
               const fileData = folderData[0];
               const fileName = path.basename(filePath, path.extname(filePath));
               const extension = path.extname(filePath);
@@ -490,20 +613,42 @@ export default class ApiService extends Service {
               };
               
               // Call the library service to import the comic
-              await this.broker.call("library.rawImportToDB", {
-                importType: "new",
-                payload: payload,
+              const result: any = await this.broker.call("library.rawImportToDB", {
+              	importType: "new",
+              	payload: payload,
               });
               
-              this.logger.info(`Successfully queued import for: ${filePath}`);
+              this.logger.info(`Successfully imported: ${filePath}`);
               
               // Mark file as imported in statistics cache
               this.markFileAsImported(filePath);
+              
+              // Complete watcher session
+              await this.broker.call("importstate.completeSession", {
+              	sessionId,
+              	success: result.success,
+              });
+             } else {
+              // Complete session even if no folder data
+              await this.broker.call("importstate.completeSession", {
+              	sessionId,
+              	success: false,
+              });
+             }
             }
-          }
-        } catch (error) {
-          this.logger.error(`Error importing file ${filePath}:`, error);
-        }
+           } catch (error) {
+            this.logger.error(`Error importing file ${filePath}:`, error);
+            // Try to complete session on error
+            try {
+             const sessionId = `watcher-${Date.now()}`;
+             await this.broker.call("importstate.completeSession", {
+              sessionId,
+              success: false,
+             });
+            } catch (e) {
+             // Ignore session completion errors
+            }
+           }
       }, 3000);
     }
     
