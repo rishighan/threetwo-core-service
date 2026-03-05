@@ -239,6 +239,25 @@ export const typeDefs = gql`
 			series: String
 		): ComicConnection!
 
+		# Get comic books with advanced pagination and filtering
+		getComicBooks(
+			paginationOptions: PaginationOptionsInput!
+			predicate: PredicateInput
+		): ComicBooksResult!
+
+		# Get comic book groups (volumes with multiple issues)
+		getComicBookGroups: [ComicBookGroup!]!
+
+		# Get library statistics
+		getLibraryStatistics: LibraryStatistics!
+
+		# Search issues using Elasticsearch
+		searchIssue(
+			query: SearchIssueQueryInput
+			pagination: SearchPaginationInput
+			type: SearchType!
+		): SearchIssueResult!
+
 		# Get user preferences
 		userPreferences(userId: String = "default"): UserPreferences
 
@@ -438,5 +457,163 @@ export const typeDefs = gql`
 		comic: Comic
 		message: String
 		canonicalMetadataResolved: Boolean!
+	}
+
+	# Pagination options input
+	input PaginationOptionsInput {
+		page: Int
+		limit: Int
+		sort: String
+		lean: Boolean
+		leanWithId: Boolean
+		offset: Int
+		pagination: Boolean
+	}
+
+	# Predicate input for filtering
+	# Note: This is a placeholder. In practice, predicates are passed as JSON objects
+	# and handled dynamically in the resolver
+	scalar PredicateInput
+
+	# Comic books result with pagination
+	type ComicBooksResult {
+		docs: [Comic!]!
+		totalDocs: Int!
+		limit: Int!
+		page: Int
+		totalPages: Int!
+		hasNextPage: Boolean!
+		hasPrevPage: Boolean!
+		nextPage: Int
+		prevPage: Int
+		pagingCounter: Int!
+	}
+
+	# Comic book group (volume with issues)
+	type ComicBookGroup {
+		id: ID!
+		volumes: VolumeInfo
+	}
+
+	# Volume information
+	type VolumeInfo {
+		id: Int
+		name: String
+		count_of_issues: Int
+		publisher: Publisher
+		start_year: String
+		image: VolumeImage
+		description: String
+		site_detail_url: String
+	}
+
+	# Publisher information
+	type Publisher {
+		id: Int
+		name: String
+		api_detail_url: String
+	}
+
+	# Volume image
+	type VolumeImage {
+		icon_url: String
+		medium_url: String
+		screen_url: String
+		screen_large_url: String
+		small_url: String
+		super_url: String
+		thumb_url: String
+		tiny_url: String
+		original_url: String
+		image_tags: String
+	}
+
+	# Library statistics
+	type LibraryStatistics {
+		totalDocuments: Int!
+		comicDirectorySize: DirectorySize!
+		statistics: [StatisticsFacet!]!
+	}
+
+	# Directory size information
+	type DirectorySize {
+		totalSize: Float!
+		totalSizeInMB: Float!
+		totalSizeInGB: Float!
+		fileCount: Int!
+	}
+
+	# Statistics facet
+	type StatisticsFacet {
+		fileTypes: [FileTypeStats!]
+		issues: [IssueStats!]
+		fileLessComics: [Comic!]
+		issuesWithComicInfoXML: [Comic!]
+		publisherWithMostComicsInLibrary: [PublisherStats!]
+	}
+
+	# File type statistics
+	type FileTypeStats {
+		id: String!
+		data: [ID!]!
+	}
+
+	# Issue statistics
+	type IssueStats {
+		id: VolumeInfo
+		data: [ID!]!
+	}
+
+	# Publisher statistics
+	type PublisherStats {
+		id: String!
+		count: Int!
+	}
+	# Search issue query input
+	input SearchIssueQueryInput {
+		volumeName: String
+		issueNumber: String
+	}
+
+	# Search pagination input
+	input SearchPaginationInput {
+		size: Int
+		from: Int
+	}
+
+	# Search type enum
+	enum SearchType {
+		all
+		volumeName
+		wanted
+		volumes
+	}
+
+	# Search issue result
+	type SearchIssueResult {
+		hits: SearchHits!
+		took: Int
+		timed_out: Boolean
+	}
+
+	# Search hits
+	type SearchHits {
+		total: SearchTotal!
+		max_score: Float
+		hits: [SearchHit!]!
+	}
+
+	# Search total
+	type SearchTotal {
+		value: Int!
+		relation: String!
+	}
+
+	# Search hit
+	type SearchHit {
+		_index: String!
+		_id: String!
+		_score: Float
+		_source: Comic!
 	}
 `;

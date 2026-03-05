@@ -28,6 +28,202 @@ export const resolvers = {
 		},
 
 		/**
+		 * Get comic books with advanced pagination and filtering
+		 */
+		getComicBooks: async (
+			_: any,
+			{
+				paginationOptions,
+				predicate = {},
+			}: {
+				paginationOptions: any;
+				predicate?: any;
+			}
+		) => {
+			try {
+				const result = await Comic.paginate(predicate, paginationOptions);
+				return result;
+			} catch (error) {
+				console.error("Error fetching comic books:", error);
+				throw new Error("Failed to fetch comic books");
+			}
+		},
+
+		/**
+		 * Get comic book groups (volumes with multiple issues)
+		 */
+		getComicBookGroups: async () => {
+			try {
+				const volumes = await Comic.aggregate([
+					{
+						$project: {
+							volumeInfo:
+								"$sourcedMetadata.comicvine.volumeInformation",
+						},
+					},
+					{
+						$unwind: "$volumeInfo",
+					},
+					{
+						$group: {
+							_id: "$_id",
+							volumes: {
+								$addToSet: "$volumeInfo",
+							},
+						},
+					},
+					{
+						$unwind: "$volumes",
+					},
+					{ $sort: { updatedAt: -1 } },
+					{ $skip: 0 },
+					{ $limit: 5 },
+				]);
+
+				return volumes.map((vol) => ({
+					id: vol._id.toString(),
+					volumes: vol.volumes,
+				}));
+			} catch (error) {
+				console.error("Error fetching comic book groups:", error);
+				throw new Error("Failed to fetch comic book groups");
+			}
+		},
+
+		/**
+		 * Get library statistics
+		 */
+		getLibraryStatistics: async () => {
+			try {
+				const { getSizeOfDirectory } = require("../../utils/file.utils");
+				const { COMICS_DIRECTORY } = require("../../constants/directories");
+
+				const comicDirectorySize = await getSizeOfDirectory(
+					COMICS_DIRECTORY,
+					[".cbz", ".cbr", ".cb7"]
+				);
+				const totalCount = await Comic.countDocuments({});
+				const statistics = await Comic.aggregate([
+					{
+						$facet: {
+							fileTypes: [
+								{
+									$match: {
+										"rawFileDetails.extension": {
+											$in: [".cbr", ".cbz", ".cb7"],
+										},
+									},
+								},
+								{
+									$group: {
+										_id: "$rawFileDetails.extension",
+										data: { $push: "$$ROOT._id" },
+									},
+								},
+							],
+							issues: [
+								{
+									$match: {
+										"sourcedMetadata.comicvine.volumeInformation":
+											{
+												$gt: {},
+											},
+									},
+								},
+								{
+									$group: {
+										_id: "$sourcedMetadata.comicvine.volumeInformation",
+										data: { $push: "$$ROOT._id" },
+									},
+								},
+							],
+							fileLessComics: [
+								{
+									$match: {
+										rawFileDetails: {
+											$exists: false,
+										},
+									},
+								},
+							],
+							issuesWithComicInfoXML: [
+								{
+									$match: {
+										"sourcedMetadata.comicInfo": {
+											$exists: true,
+											$gt: { $size: 0 },
+										},
+									},
+								},
+							],
+							publisherWithMostComicsInLibrary: [
+								{
+									$unwind:
+										"$sourcedMetadata.comicvine.volumeInformation.publisher",
+								},
+								{
+									$group: {
+										_id: "$sourcedMetadata.comicvine.volumeInformation.publisher.name",
+										count: { $sum: 1 },
+									},
+								},
+								{ $sort: { count: -1 } },
+								{ $limit: 1 },
+							],
+						},
+					},
+				]);
+
+				return {
+					totalDocuments: totalCount,
+					comicDirectorySize,
+					statistics,
+				};
+			} catch (error) {
+				console.error("Error fetching library statistics:", error);
+				throw new Error("Failed to fetch library statistics");
+			}
+		},
+
+		/**
+		 * Search issues using Elasticsearch
+		 */
+		searchIssue: async (
+			_: any,
+			{
+				query,
+				pagination = { size: 10, from: 0 },
+				type,
+			}: {
+				query?: { volumeName?: string; issueNumber?: string };
+				pagination?: { size?: number; from?: number };
+				type: string;
+			},
+			context: any
+		) => {
+			try {
+				// Get broker from context (set up in GraphQL service)
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				// Call the search service through the broker
+				const result = await broker.call("search.issue", {
+					query: query || {},
+					pagination,
+					type,
+				});
+
+				return result;
+			} catch (error) {
+				console.error("Error searching issues:", error);
+				throw new Error(`Failed to search issues: ${error.message}`);
+			}
+		},
+
+		/**
 		 * List comics with pagination and filtering
 		 */
 		comics: async (

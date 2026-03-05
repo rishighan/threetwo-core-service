@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@apollo/server": "^4.12.2",
+    "moleculer-apollo-server": "^0.4.0",
     "@bluelovers/fast-glob": "https://github.com/rishighan/fast-glob-v2-api.git",
     "@elastic/elasticsearch": "^8.13.1",
     "@jorgeferrero/stream-to-buffer": "^2.0.6",
