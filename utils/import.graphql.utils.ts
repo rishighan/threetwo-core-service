@@ -135,7 +135,7 @@ export async function importComicViaGraphQL(
 	}
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query: mutation,
 			variables: { input },
 		});
@@ -183,7 +183,7 @@ export async function updateSourcedMetadataViaGraphQL(
 	`;
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query: mutation,
 			variables: {
 				comicId,
@@ -229,7 +229,7 @@ export async function resolveMetadataViaGraphQL(
 	`;
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query: mutation,
 			variables: { comicId },
 		});
@@ -287,7 +287,7 @@ export async function getComicViaGraphQL(
 	`;
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query,
 			variables: { id: comicId },
 		});
@@ -336,7 +336,7 @@ export async function analyzeMetadataConflictsViaGraphQL(
 	`;
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query,
 			variables: { comicId },
 		});
@@ -373,7 +373,7 @@ export async function bulkResolveMetadataViaGraphQL(
 	`;
 
 	try {
-		const result: any = await broker.call("graphql.query", {
+		const result: any = await broker.call("graphql.graphql", {
 			query: mutation,
 			variables: { comicIds },
 		});

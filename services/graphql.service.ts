@@ -115,6 +115,36 @@ export default {
 
 	actions: {
 		/**
+		 * Check remote schema health and availability
+		 * @returns Status of remote schema connection with appropriate HTTP status
+		 */
+		checkRemoteSchema: {
+			async handler(ctx: Context<any>) {
+				const status: any = {
+					remoteSchemaAvailable: this.remoteSchemaAvailable || false,
+					remoteUrl: this.settings.metadataGraphqlUrl,
+					localSchemaOnly: !this.remoteSchemaAvailable,
+				};
+
+				if (this.remoteSchemaAvailable && this.schema) {
+					const queryType = this.schema.getQueryType();
+					if (queryType) {
+						const fields = Object.keys(queryType.getFields());
+						status.availableQueryFields = fields;
+						status.hasWeeklyPullList = fields.includes('getWeeklyPullList');
+					}
+				}
+
+				// Set HTTP status code based on schema stitching status
+				// 200 = Schema stitching complete (remote available)
+				// 503 = Service degraded (local only, remote unavailable)
+				(ctx.meta as any).$statusCode = this.remoteSchemaAvailable ? 200 : 503;
+
+				return status;
+			},
+		},
+
+		/**
 		 * Execute GraphQL queries and mutations
 		 * @param query - GraphQL query or mutation string
 		 * @param variables - Variables for the GraphQL operation
@@ -196,11 +226,19 @@ export default {
 			this.logger.info(`Attempting to introspect remote schema at ${this.settings.metadataGraphqlUrl}`);
 			
 			const remoteSchema = await fetchRemoteSchema(this.settings.metadataGraphqlUrl);
-			this.logger.info("Successfully introspected remote metadata schema");
+			this.logger.info("✓ Successfully introspected remote metadata schema");
 			
 			const remoteQueryType = remoteSchema.getQueryType();
+			const remoteMutationType = remoteSchema.getMutationType();
+			
 			if (remoteQueryType) {
-				this.logger.info(`Remote schema Query fields: ${Object.keys(remoteQueryType.getFields()).join(', ')}`);
+				const remoteQueryFields = Object.keys(remoteQueryType.getFields());
+				this.logger.info(`✓ Remote schema has ${remoteQueryFields.length} Query fields: ${remoteQueryFields.join(', ')}`);
+			}
+			
+			if (remoteMutationType) {
+				const remoteMutationFields = Object.keys(remoteMutationType.getFields());
+				this.logger.info(`✓ Remote schema has ${remoteMutationFields.length} Mutation fields: ${remoteMutationFields.join(', ')}`);
 			}
 			
 			this.schema = stitchSchemas({
@@ -212,15 +250,35 @@ export default {
 			});
 			
 			const stitchedQueryType = this.schema.getQueryType();
+			const stitchedMutationType = this.schema.getMutationType();
+			
 			if (stitchedQueryType) {
-				this.logger.info(`Stitched schema Query fields: ${Object.keys(stitchedQueryType.getFields()).join(', ')}`);
+				const stitchedQueryFields = Object.keys(stitchedQueryType.getFields());
+				this.logger.info(`✓ Stitched schema has ${stitchedQueryFields.length} Query fields`);
+				
+				// Verify critical remote fields are present
+				const criticalFields = ['getWeeklyPullList'];
+				const missingFields = criticalFields.filter(field => !stitchedQueryFields.includes(field));
+				if (missingFields.length > 0) {
+					this.logger.warn(`⚠ Missing expected remote fields: ${missingFields.join(', ')}`);
+				}
 			}
 			
-			this.logger.info("Successfully stitched local and remote schemas");
+			if (stitchedMutationType) {
+				const stitchedMutationFields = Object.keys(stitchedMutationType.getFields());
+				this.logger.info(`✓ Stitched schema has ${stitchedMutationFields.length} Mutation fields`);
+			}
+			
+			this.logger.info("✓ Successfully stitched local and remote schemas");
+			this.remoteSchemaAvailable = true;
 		} catch (remoteError: any) {
-			this.logger.warn(`Could not connect to remote metadata GraphQL at ${this.settings.metadataGraphqlUrl}: ${remoteError.message}`);
-			this.logger.warn("Continuing with local schema only");
+			this.logger.error(`✗ Failed to connect to remote metadata GraphQL at ${this.settings.metadataGraphqlUrl}`);
+			this.logger.error(`✗ Error: ${remoteError.message}`);
+			this.logger.warn("⚠ FALLING BACK TO LOCAL SCHEMA ONLY");
+			this.logger.warn("⚠ Remote queries like 'getWeeklyPullList' will NOT be available");
+			this.logger.warn(`⚠ To fix: Ensure metadata-graphql service is running at ${this.settings.metadataGraphqlUrl}`);
 			this.schema = localSchema;
+			this.remoteSchemaAvailable = false;
 		}
 		
 		this.logger.info("GraphQL service started successfully");

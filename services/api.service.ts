@@ -92,6 +92,7 @@ export default class ApiService extends Service {
             aliases: {
               "POST /": "graphql.graphql",
               "GET /": "graphql.graphql",
+              "GET /health": "graphql.checkRemoteSchema",
             },
             mappingPolicy: "restrict",
             bodyParsers: {

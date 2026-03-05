@@ -623,6 +623,58 @@ export const resolvers = {
 		},
 
 		/**
+		 * Get import statistics for a directory
+		 * @async
+		 * @function getImportStatistics
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {string} [args.directoryPath] - Optional directory path to analyze
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Import statistics including total files, imported count, and new files
+		 * @throws {Error} If statistics calculation fails
+		 * @description Analyzes a directory (or default COMICS_DIRECTORY) and compares
+		 * files against the database to determine import status. This performs a full
+		 * filesystem scan and is slower than getCachedImportStatistics.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   getImportStatistics(directoryPath: "/path/to/comics") {
+		 *     success
+		 *     directory
+		 *     stats {
+		 *       totalLocalFiles
+		 *       alreadyImported
+		 *       newFiles
+		 *       percentageImported
+		 *     }
+		 *   }
+		 * }
+		 * ```
+		 */
+		getImportStatistics: async (
+			_: any,
+			{ directoryPath }: { directoryPath?: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				const result = await broker.call("library.getImportStatistics", {
+					directoryPath,
+				});
+				return result;
+			} catch (error) {
+				console.error("Error fetching import statistics:", error);
+				throw new Error(`Failed to fetch import statistics: ${error.message}`);
+			}
+		},
+
+		/**
 			* Get cached import statistics (fast, real-time)
 			* @async
 			* @function getCachedImportStatistics

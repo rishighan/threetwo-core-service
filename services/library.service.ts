@@ -623,7 +623,7 @@ export default class ImportService extends Service {
 								console.log(
 									"[GraphQL Import] Triggering metadata resolution..."
 								);
-								await this.broker.call("graphql.query", {
+								await this.broker.call("graphql.graphql", {
 									query: `
 										mutation ResolveMetadata($comicId: ID!) {
 											resolveMetadata(comicId: $comicId) {
