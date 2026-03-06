@@ -379,6 +379,13 @@ export default class JobQueueService extends Service {
 							},
 						],
 					});
+					
+					// Emit final library statistics when queue is drained
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after queue drained:", err);
+					}
 				},
 				async "enqueue.async.completed"(ctx: Context<{ id: Number }>) {
 					// 1. Fetch the job result using the job Id
@@ -410,6 +417,13 @@ export default class JobQueueService extends Service {
 					});
 
 					console.log(`Job ID ${ctx.params.id} completed.`);
+					
+					// 6. Emit updated library statistics after each import
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after import:", err);
+					}
 				},
 
 				async "enqueue.async.failed"(ctx) {

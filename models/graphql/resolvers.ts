@@ -95,7 +95,18 @@ export const resolvers = {
 			}
 		) => {
 			try {
-				const result = await Comic.paginate(predicate, paginationOptions);
+				// Parse predicate if it's a JSON string (from scalar type)
+				let parsedPredicate = predicate;
+				if (typeof predicate === 'string') {
+					try {
+						parsedPredicate = JSON.parse(predicate);
+					} catch (parseError) {
+						console.error("Error parsing predicate JSON:", parseError);
+						throw new Error("Invalid predicate format: must be valid JSON");
+					}
+				}
+				
+				const result = await Comic.paginate(parsedPredicate, paginationOptions);
 				return result;
 			} catch (error) {
 				console.error("Error fetching comic books:", error);
@@ -674,54 +685,6 @@ export const resolvers = {
 			}
 		},
 
-		/**
-			* Get cached import statistics (fast, real-time)
-			* @async
-			* @function getCachedImportStatistics
-			* @param {any} _ - Parent resolver (unused)
-			* @param {Object} args - Query arguments (none)
-			* @param {Object} context - GraphQL context with broker
-			* @returns {Promise<Object>} Cached import statistics
-			* @throws {Error} If statistics service is unavailable
-			* @description Retrieves cached import statistics from the API service.
-			* This is a fast, real-time query that doesn't require filesystem scanning.
-			*
-			* @example
-			* ```graphql
-			* query {
-			*   getCachedImportStatistics {
-			*     success
-			*     stats {
-			*       totalLocalFiles
-			*       alreadyImported
-			*       newFiles
-			*       percentageImported
-			*       pendingFiles
-			*     }
-			*     lastUpdated
-			*   }
-			* }
-			* ```
-			*/
-		getCachedImportStatistics: async (
-			_: any,
-			args: {},
-			context: any
-		) => {
-			try {
-				const broker = context?.broker;
-				
-				if (!broker) {
-					throw new Error("Broker not available in context");
-				}
-
-				const result = await broker.call("api.getCachedImportStatistics");
-				return result;
-			} catch (error) {
-				console.error("Error fetching cached import statistics:", error);
-				throw new Error(`Failed to fetch cached import statistics: ${error.message}`);
-			}
-		},
 
 		/**
 			* Get job result statistics grouped by session
@@ -810,6 +773,7 @@ export const resolvers = {
 				}
 
 				const session = await broker.call("importstate.getActiveSession");
+				console.log("[GraphQL] getActiveImportSession result:", session ? `Session ${session.sessionId} (${session.type}, ${session.status})` : "No active session");
 				return session;
 			} catch (error) {
 				console.error("Error fetching active import session:", error);
@@ -1552,6 +1516,55 @@ export const resolvers = {
 			} catch (error) {
 				console.error("Error starting incremental import:", error);
 				throw new Error(`Failed to start incremental import: ${error.message}`);
+			}
+		},
+
+		/**
+			* Force complete a stuck import session
+			* @async
+			* @function forceCompleteSession
+			* @param {any} _ - Parent resolver (unused)
+			* @param {Object} args - Arguments
+			* @param {string} args.sessionId - Session ID to force complete
+			* @param {any} context - GraphQL context with broker
+			* @returns {Promise<Object>} Result with success status and message
+			* @throws {Error} If broker is unavailable or session completion fails
+			*
+			* @example
+			* ```graphql
+			* mutation {
+			*   forceCompleteSession(sessionId: "d7c5043f-5438-4076-9480-2782267899b6") {
+			*     success
+			*     message
+			*   }
+			* }
+			* ```
+			*/
+		forceCompleteSession: async (
+			_: any,
+			{ sessionId }: { sessionId: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				
+				if (!broker) {
+					throw new Error("Broker not available in context");
+				}
+
+				// Force complete the session (mark as failed since it was stuck)
+				await broker.call("importstate.completeSession", {
+					sessionId,
+					success: false,
+				});
+
+				return {
+					success: true,
+					message: `Session ${sessionId} has been force completed and removed from active sessions`,
+				};
+			} catch (error) {
+				console.error("Error force completing session:", error);
+				throw new Error(`Failed to force complete session: ${error.message}`);
 			}
 		},
 	},

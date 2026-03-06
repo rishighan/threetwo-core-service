@@ -237,7 +237,26 @@ export default class ImportStateService extends Service {
 				 */
 				getActiveSession: {
 					async handler() {
-						return this.getActiveSession();
+						const session = this.getActiveSession();
+						if (session) {
+							// Format session for GraphQL response
+							return {
+								sessionId: session.sessionId,
+								type: session.type,
+								status: session.status,
+								startedAt: session.startedAt.toISOString(),
+								completedAt: session.completedAt?.toISOString() || null,
+								stats: {
+									totalFiles: session.stats.totalFiles,
+									filesQueued: session.stats.filesQueued,
+									filesProcessed: session.stats.filesProcessed,
+									filesSucceeded: session.stats.filesSucceeded,
+									filesFailed: session.stats.filesFailed,
+								},
+								directoryPath: session.directoryPath || null,
+							};
+						}
+						return null;
 					},
 				},
 
@@ -339,9 +358,13 @@ export default class ImportStateService extends Service {
 
 			started: async () => {
 				this.logger.info("[Import State] Service started");
-				// Clean up any stale sessions from Redis on startup
-				const keys = await pubClient.keys("import:session:*");
-				this.logger.info(`[Import State] Found ${keys.length} session keys in Redis`);
+				// Auto-complete stuck sessions every 5 minutes
+				setInterval(() => {
+					for (const [id, session] of this.activeSessions.entries()) {
+						const age = Date.now() - session.startedAt.getTime();
+						if (age > 30 * 60 * 1000 && session.stats.filesProcessed === 0) this.actions.completeSession({ sessionId: id, success: false });
+					}
+				}, 5 * 60 * 1000);
 			},
 		});
 	}

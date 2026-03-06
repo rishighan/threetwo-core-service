@@ -253,6 +253,15 @@ export default class ImportService extends Service {
 										sessionId,
 										status: "active",
 									});
+									
+									// Emit library statistics after scanning
+									try {
+										await this.broker.call("socket.broadcastLibraryStatistics", {
+											directoryPath: resolvedPath,
+										});
+									} catch (err) {
+										console.error("Failed to emit library statistics:", err);
+									}
 								});
 						} catch (error) {
 							console.log(error);
@@ -466,12 +475,30 @@ export default class ImportService extends Service {
 									sessionId,
 									status: "active",
 								});
+								
+								// Emit library statistics after queueing
+								try {
+									await this.broker.call("socket.broadcastLibraryStatistics", {
+										directoryPath: resolvedPath,
+									});
+								} catch (err) {
+									console.error("Failed to emit library statistics:", err);
+								}
 							} else {
 								// No files to import, complete immediately
 								await this.broker.call("importstate.completeSession", {
 									sessionId,
 									success: true,
 								});
+								
+								// Emit library statistics even when no new files
+								try {
+									await this.broker.call("socket.broadcastLibraryStatistics", {
+										directoryPath: resolvedPath,
+									});
+								} catch (err) {
+									console.error("Failed to emit library statistics:", err);
+								}
 							}
 
 							// Emit completion event (queueing complete, not import complete)
@@ -1210,6 +1237,11 @@ export default class ImportService extends Service {
 										"search.deleteElasticSearchIndices",
 										{}
 									);
+								
+								// Invalidate statistics cache after flushing database
+								console.info("Invalidating statistics cache after flushDB...");
+								await ctx.broker.call("api.invalidateStatsCache");
+								
 								return {
 									data,
 									coversFolderDeleteResult,

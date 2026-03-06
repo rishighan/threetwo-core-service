@@ -141,25 +141,43 @@ export async function getImportStatistics(localFilePaths: string[]): Promise<{
 }> {
 	console.log(`[Import Stats] Checking ${localFilePaths.length} files against database...`);
 	
-	// Normalize all paths upfront
-	const normalizedPaths = localFilePaths.map((p) => path.normalize(p));
+	// Extract file names (without extension) from paths
+	// This matches how comics are stored in the database (rawFileDetails.name)
+	const fileNameToPath = new Map<string, string>();
+	const fileNames: string[] = [];
 	
-	// Use batch query instead of fetching all comics
-	// This is much faster for large libraries
+	for (const filePath of localFilePaths) {
+		const fileName = path.basename(filePath, path.extname(filePath));
+		fileNames.push(fileName);
+		fileNameToPath.set(fileName, filePath);
+	}
+	
+	console.log(`[Import Stats] Extracted ${fileNames.length} file names from paths`);
+	
+	// Query by file name (matches how comics are checked during import)
 	const importedComics = await Comic.find(
 		{
-			"rawFileDetails.filePath": { $in: normalizedPaths },
+			"rawFileDetails.name": { $in: fileNames },
 		},
-		{ "rawFileDetails.filePath": 1, _id: 0 }
+		{ "rawFileDetails.name": 1, "rawFileDetails.filePath": 1, _id: 0 }
 	).lean();
 
-	// Build Set of imported paths
-	const importedPaths = new Set<string>(
-		importedComics
-			.map((c: any) => c.rawFileDetails?.filePath)
-			.filter(Boolean)
-			.map((p: string) => path.normalize(p))
-	);
+	console.log(`[Import Stats] Found ${importedComics.length} matching comics in database`);
+
+	// Build Set of imported paths based on name matching
+	const importedPaths = new Set<string>();
+	const importedNames = new Set<string>();
+	
+	for (const comic of importedComics) {
+		if (comic.rawFileDetails?.name) {
+			importedNames.add(comic.rawFileDetails.name);
+			// Map back to the local file path
+			const localPath = fileNameToPath.get(comic.rawFileDetails.name);
+			if (localPath) {
+				importedPaths.add(localPath);
+			}
+		}
+	}
 
 	const alreadyImported = importedPaths.size;
 	const newFiles = localFilePaths.length - alreadyImported;

@@ -348,9 +348,6 @@ export const typeDefs = gql`
 		# Get import statistics for a directory
 		getImportStatistics(directoryPath: String): ImportStatistics!
 
-		# Get cached import statistics (fast, real-time)
-		getCachedImportStatistics: CachedImportStatistics!
-
 		# Get job result statistics grouped by session
 		getJobResultStatistics: [JobResultStatistics!]!
 
@@ -406,6 +403,9 @@ export const typeDefs = gql`
 			sessionId: String!
 			directoryPath: String
 		): IncrementalImportResult!
+
+		# Force complete a stuck import session
+		forceCompleteSession(sessionId: String!): ForceCompleteResult!
 	}
 
 	# Input types
@@ -739,22 +739,6 @@ export const typeDefs = gql`
 		percentageImported: String!
 	}
 
-	# Cached import statistics (real-time)
-	type CachedImportStatistics {
-		success: Boolean!
-		message: String
-		stats: CachedImportStats
-		lastUpdated: String
-	}
-
-	type CachedImportStats {
-		totalLocalFiles: Int!
-		alreadyImported: Int!
-		newFiles: Int!
-		percentageImported: String!
-		pendingFiles: Int!
-	}
-
 	# Import job result
 	type ImportJobResult {
 		success: Boolean!
@@ -774,6 +758,12 @@ export const typeDefs = gql`
 		alreadyImported: Int!
 		newFiles: Int!
 		queued: Int!
+	}
+
+	# Force complete session result
+	type ForceCompleteResult {
+		success: Boolean!
+		message: String!
 	}
 
 	# Job result statistics

@@ -326,6 +326,106 @@ export default class SocketService extends Service {
 					},
 				},
 			},
+			events: {
+				// File watcher events - forward to Socket.IO clients
+				async "add"(ctx: Context<{ path: string }>) {
+					console.log(`[File Watcher] File added: ${ctx.params.path}`);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_FILE_ADDED",
+						args: [
+							{
+								path: ctx.params.path,
+								timestamp: new Date().toISOString(),
+							},
+						],
+					});
+					
+					// Emit updated statistics after file addition
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after file add:", err);
+					}
+				},
+
+				async "unlink"(ctx: Context<{ path: string }>) {
+					console.log(`[File Watcher] File removed: ${ctx.params.path}`);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_FILE_REMOVED",
+						args: [
+							{
+								path: ctx.params.path,
+								timestamp: new Date().toISOString(),
+							},
+						],
+					});
+					
+					// Emit updated statistics after file removal
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after file remove:", err);
+					}
+				},
+
+				async "addDir"(ctx: Context<{ path: string }>) {
+					console.log(`[File Watcher] Directory added: ${ctx.params.path}`);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_DIRECTORY_ADDED",
+						args: [
+							{
+								path: ctx.params.path,
+								timestamp: new Date().toISOString(),
+							},
+						],
+					});
+					
+					// Emit updated statistics after directory addition
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after directory add:", err);
+					}
+				},
+
+				async "unlinkDir"(ctx: Context<{ path: string }>) {
+					console.log(`[File Watcher] Directory removed: ${ctx.params.path}`);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_DIRECTORY_REMOVED",
+						args: [
+							{
+								path: ctx.params.path,
+								timestamp: new Date().toISOString(),
+							},
+						],
+					});
+					
+					// Emit updated statistics after directory removal
+					try {
+						await this.broker.call("socket.broadcastLibraryStatistics", {});
+					} catch (err) {
+						console.error("Failed to emit library statistics after directory remove:", err);
+					}
+				},
+
+				async "change"(ctx: Context<{ path: string }>) {
+					console.log(`[File Watcher] File changed: ${ctx.params.path}`);
+					await this.broker.call("socket.broadcast", {
+						namespace: "/",
+						event: "LS_FILE_CHANGED",
+						args: [
+							{
+								path: ctx.params.path,
+								timestamp: new Date().toISOString(),
+							},
+						],
+					});
+				},
+			},
 			methods: {
 				sleep: (ms: number): Promise<NodeJS.Timeout> => {
 					return new Promise((resolve) => setTimeout(resolve, ms));
