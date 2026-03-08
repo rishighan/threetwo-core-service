@@ -304,6 +304,7 @@ const ComicSchema = mongoose.Schema(
 		importStatus: {
 			isImported: Boolean,
 			tagged: Boolean,
+			isRawFileMissing: { type: Boolean, default: false },
 			matchedResult: {
 				score: String,
 			},

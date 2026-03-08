@@ -4,7 +4,6 @@ import path from "path";
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
 import debounce from "lodash/debounce";
-import { IFolderData } from "threetwo-ui-typings";
 
 /**
  * ApiService exposes REST endpoints and watches the comics directory for changes.
@@ -17,6 +16,12 @@ export default class ApiService extends Service {
    * @private
    */
   private fileWatcher?: any;
+
+  /**
+   * Per-path debounced handlers for add/change events, keyed by file path.
+   * @private
+   */
+  private debouncedHandlers: Map<string, ReturnType<typeof debounce>> = new Map();
 
   /**
    * Creates an instance of ApiService.
@@ -189,35 +194,38 @@ export default class ApiService extends Service {
     });
 
     /**
-     * Debounced handler for file system events, batching rapid triggers
-     * into a 200ms window. Leading and trailing calls invoked.
-     * @param {string} event - Type of file event (add, change, etc.).
-     * @param {string} p - Path of the file or directory.
-     * @param {fs.Stats} [stats] - Optional file stats for add/change events.
+     * Returns a debounced handler for a specific path, creating one if needed.
+     * Debouncing per-path prevents duplicate events for the same file while
+     * ensuring each distinct path is always processed.
      */
-    const debouncedEvent = debounce(
-      (event: string, p: string, stats?: fs.Stats) => {
-        try {
-          this.handleFileEvent(event, p, stats);
-        } catch (err) {
-          this.logger.error(
-            `Error handling file event [${event}] for ${p}:`,
-            err
-          );
-        }
-      },
-      200,
-      { leading: true, trailing: true }
-    );
+    const getDebouncedForPath = (p: string) => {
+      if (!this.debouncedHandlers.has(p)) {
+        const fn = debounce(
+          (event: string, filePath: string, stats?: fs.Stats) => {
+            this.debouncedHandlers.delete(filePath);
+            try {
+              this.handleFileEvent(event, filePath, stats);
+            } catch (err) {
+              this.logger.error(`Error handling file event [${event}] for ${filePath}:`, err);
+            }
+          },
+          200,
+          { leading: true, trailing: true }
+        );
+        this.debouncedHandlers.set(p, fn);
+      }
+      return this.debouncedHandlers.get(p)!;
+    };
 
     this.fileWatcher
       .on("ready", () => this.logger.info("Initial scan complete."))
       .on("error", (err) => this.logger.error("Watcher error:", err))
-      .on("add", (p, stats) => debouncedEvent("add", p, stats))
-      .on("change", (p, stats) => debouncedEvent("change", p, stats))
-      .on("unlink", (p) => debouncedEvent("unlink", p))
-      .on("addDir", (p) => debouncedEvent("addDir", p))
-      .on("unlinkDir", (p) => debouncedEvent("unlinkDir", p));
+      .on("add", (p, stats) => getDebouncedForPath(p)("add", p, stats))
+      .on("change", (p, stats) => getDebouncedForPath(p)("change", p, stats))
+      // unlink/unlinkDir fire once per path — handle immediately, no debounce needed
+      .on("unlink", (p) => this.handleFileEvent("unlink", p))
+      .on("addDir", (p) => getDebouncedForPath(p)("addDir", p))
+      .on("unlinkDir", (p) => this.handleFileEvent("unlinkDir", p));
   }
 
   /**
@@ -246,128 +254,52 @@ export default class ApiService extends Service {
   ): Promise<void> {
    this.logger.info(`File event [${event}]: ${filePath}`);
    
-   // Check if watcher should process files (not during manual imports)
-   if (event === "add") {
-   	const watcherState: any = await this.broker.call("importstate.isWatcherEnabled");
-   	if (!watcherState.enabled) {
-   		this.logger.info(
-   			`[Watcher] Skipping file ${filePath} - manual import in progress (${watcherState.activeSession?.sessionId})`
-   		);
-   		return;
-   	}
+   // Handle file/directory removal — mark affected comics as missing and notify frontend
+   if (event === "unlink" || event === "unlinkDir") {
+      try {
+         const result: any = await this.broker.call("library.markFileAsMissing", { filePath });
+         if (result.marked > 0) {
+            await this.broker.call("socket.broadcast", {
+               namespace: "/",
+               event: "LS_FILES_MISSING",
+               args: [{
+                  missingComics: result.missingComics,
+                  triggerPath: filePath,
+                  count: result.marked,
+               }],
+            });
+            this.logger.info(`[Watcher] Marked ${result.marked} comic(s) as missing for path: ${filePath}`);
+         }
+      } catch (err) {
+         this.logger.error(`[Watcher] Failed to mark comics missing for ${filePath}:`, err);
+      }
+      return;
    }
-   
+
    if (event === "add" && stats) {
       setTimeout(async () => {
-      	try {
-      		// Double-check watcher is still enabled
-      		const watcherState: any = await this.broker.call("importstate.isWatcherEnabled");
-      		if (!watcherState.enabled) {
-      			this.logger.info(
-      				`[Watcher] Skipping delayed import for ${filePath} - manual import started`
-      			);
-      			return;
-      		}
-      		
-      		const newStats = await fs.promises.stat(filePath);
-      		if (newStats.mtime.getTime() === stats.mtime.getTime()) {
-      			this.logger.info(`Stable file detected: ${filePath}, importing.`);
-      			
-      			// Create a watcher session for this file
-      			const sessionId = `watcher-${Date.now()}`;
-      			await this.broker.call("importstate.startSession", {
-      				sessionId,
-      				type: "watcher",
-      			});
-      			
-      			const folderData: IFolderData[] = await this.broker.call(
-      				"library.walkFolders",
-      				{ basePathToWalk: filePath }
-      			);
-      			
-      			if (folderData && folderData.length > 0) {
-              const fileData = folderData[0];
-              const fileName = path.basename(filePath, path.extname(filePath));
-              const extension = path.extname(filePath);
-              
-              // Determine mimeType based on extension
-              let mimeType = "application/octet-stream";
-              if (extension === ".cbz") {
-                mimeType = "application/zip; charset=binary";
-              } else if (extension === ".cbr") {
-                mimeType = "application/x-rar-compressed; charset=binary";
-              }
-              
-              // Prepare payload for rawImportToDB
-              const payload = {
-                rawFileDetails: {
-                  name: fileName,
-                  filePath: filePath,
-                  fileSize: fileData.fileSize,
-                  extension: extension,
-                  mimeType: mimeType,
-                },
-                inferredMetadata: {
-                  issue: {
-                    name: fileName,
-                    number: 0,
-                  },
-                },
-                sourcedMetadata: {
-                  comicInfo: null,
-                },
-                importStatus: {
-                  isImported: true,
-                  tagged: false,
-                  matchedResult: {
-                    score: "0",
-                  },
-                },
-                acquisition: {
-                  source: {
-                    wanted: false,
-                  },
-                },
-              };
-              
-              // Call the library service to import the comic
-              const result: any = await this.broker.call("library.rawImportToDB", {
-              	importType: "new",
-              	payload: payload,
-              });
-              
-              this.logger.info(`Successfully imported: ${filePath}`);
-              
-              // Complete watcher session
-              await this.broker.call("importstate.completeSession", {
-              	sessionId,
-              	success: result.success,
-              });
-             } else {
-              // Complete session even if no folder data
-              await this.broker.call("importstate.completeSession", {
-              	sessionId,
-              	success: false,
-              });
-             }
-            }
-           } catch (error) {
-            this.logger.error(`Error importing file ${filePath}:`, error);
-            // Try to complete session on error
-            try {
-             const sessionId = `watcher-${Date.now()}`;
-             await this.broker.call("importstate.completeSession", {
-              sessionId,
-              success: false,
-             });
-            } catch (e) {
-             // Ignore session completion errors
-            }
-           }
+        try {
+          const newStats = await fs.promises.stat(filePath);
+          if (newStats.mtime.getTime() === stats.mtime.getTime()) {
+            this.logger.info(`[Watcher] Stable file detected: ${filePath}`);
+
+            // Clear missing flag if this file was previously marked absent
+            await this.broker.call("library.clearFileMissingFlag", { filePath });
+
+            await this.broker.call("socket.broadcast", {
+              namespace: "/",
+              event: "LS_FILE_DETECTED",
+              args: [{
+                filePath,
+                fileSize: newStats.size,
+                extension: path.extname(filePath),
+              }],
+            });
+          }
+        } catch (error) {
+          this.logger.error(`[Watcher] Error handling detected file ${filePath}:`, error);
+        }
       }, 3000);
     }
-    
-    // Broadcast file system event
-    this.broker.broadcast(event, { path: filePath });
   }
 }

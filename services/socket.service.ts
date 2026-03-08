@@ -301,6 +301,27 @@ export default class SocketService extends Service {
 					},
 				},
 
+				/**
+				 * Compute and broadcast current library statistics to all connected Socket.IO clients.
+				 * Called after every filesystem event (add, unlink, etc.) to keep the UI in sync.
+				 * Emits a single `LS_LIBRARY_STATS` event with totalLocalFiles, alreadyImported,
+				 * newFiles, missingFiles, and percentageImported.
+				 */
+				broadcastLibraryStatistics: async (ctx: Context<{ directoryPath?: string }>) => {
+					try {
+						const result: any = await this.broker.call("library.getImportStatistics", {
+							directoryPath: ctx.params?.directoryPath,
+						});
+						await this.broker.call("socket.broadcast", {
+							namespace: "/",
+							event: "LS_LIBRARY_STATS",
+							args: [result],
+						});
+					} catch (err) {
+						this.logger.error("[Socket] broadcastLibraryStatistics failed:", err);
+					}
+				},
+
 				listenFileProgress: {
 					params: { config: "object", namespace: "string" },
 					async handler(

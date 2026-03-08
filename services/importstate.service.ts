@@ -16,6 +16,7 @@ interface ImportSession {
 	type: "full" | "incremental" | "watcher";
 	status: "starting" | "scanning" | "queueing" | "active" | "completed" | "failed";
 	startedAt: Date;
+	lastActivityAt: Date;
 	completedAt?: Date;
 	stats: {
 		totalFiles: number;
@@ -75,6 +76,7 @@ export default class ImportStateService extends Service {
 							type,
 							status: "starting",
 							startedAt: new Date(),
+							lastActivityAt: new Date(),
 							stats: {
 								totalFiles: 0,
 								filesQueued: 0,
@@ -212,8 +214,6 @@ export default class ImportStateService extends Service {
 						// Remove from active sessions
 						this.activeSessions.delete(sessionId);
 
-						// Trigger statistics refresh
-						await this.broker.call("api.invalidateStatsCache");
 
 						return session;
 					},
@@ -292,6 +292,7 @@ export default class ImportStateService extends Service {
 						}
 
 						session.stats.filesProcessed++;
+						session.lastActivityAt = new Date();
 						if (success) {
 							session.stats.filesSucceeded++;
 						} else {
@@ -360,9 +361,13 @@ export default class ImportStateService extends Service {
 				this.logger.info("[Import State] Service started");
 				// Auto-complete stuck sessions every 5 minutes
 				setInterval(() => {
+					const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 minutes without activity
 					for (const [id, session] of this.activeSessions.entries()) {
-						const age = Date.now() - session.startedAt.getTime();
-						if (age > 30 * 60 * 1000 && session.stats.filesProcessed === 0) this.actions.completeSession({ sessionId: id, success: false });
+						const idleMs = Date.now() - session.lastActivityAt.getTime();
+						if (idleMs > IDLE_TIMEOUT) {
+							this.logger.warn(`[Import State] Auto-expiring stuck session ${id} (idle ${Math.round(idleMs / 60000)}m)`);
+							this.actions.completeSession({ sessionId: id, success: false });
+						}
 					}
 				}, 5 * 60 * 1000);
 			},

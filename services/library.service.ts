@@ -323,6 +323,11 @@ export default class ImportService extends Service {
 								? ((stats.alreadyImported / stats.total) * 100).toFixed(2)
 								: "0.00";
 
+							// Count comics marked as missing (in DB but no longer on disk)
+							const missingFiles = await Comic.countDocuments({
+								"importStatus.isRawFileMissing": true,
+							});
+
 							return {
 								success: true,
 								directory: resolvedPath,
@@ -330,6 +335,7 @@ export default class ImportService extends Service {
 									totalLocalFiles: stats.total,
 									alreadyImported: stats.alreadyImported,
 									newFiles: stats.newFiles,
+									missingFiles,
 									percentageImported: `${percentageImported}%`,
 								},
 							};
@@ -751,7 +757,83 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+	
+				markFileAsMissing: {
+					rest: "POST /markFileAsMissing",
+					params: {
+						filePath: "string",
+					},
+					async handler(ctx: Context<{ filePath: string }>) {
+						const { filePath } = ctx.params;
+
+						// Prefix-regex match: covers both single file and entire directory subtree
+						const escapedPath = filePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+						const pathRegex = new RegExp(`^${escapedPath}`);
+
+						const affectedComics = await Comic.find(
+							{ "rawFileDetails.filePath": pathRegex },
+							{
+								_id: 1,
+								"rawFileDetails.name": 1,
+								"rawFileDetails.filePath": 1,
+								"rawFileDetails.cover": 1,
+								"inferredMetadata.issue.name": 1,
+								"inferredMetadata.issue.number": 1,
+							}
+						).lean();
+
+						if (affectedComics.length === 0) {
+							return { marked: 0, missingComics: [] };
+						}
+
+						const affectedIds = affectedComics.map((c: any) => c._id);
+						await Comic.updateMany(
+							{ _id: { $in: affectedIds } },
+							{ $set: { "importStatus.isRawFileMissing": true } }
+						);
+
+						return {
+							marked: affectedComics.length,
+							missingComics: affectedComics,
+						};
+					},
+				},
+
+				clearFileMissingFlag: {
+					rest: "POST /clearFileMissingFlag",
+					params: {
+						filePath: "string",
+					},
+					async handler(ctx: Context<{ filePath: string }>) {
+						const { filePath } = ctx.params;
+
+						// First try exact path match
+						const byPath = await Comic.findOneAndUpdate(
+							{ "rawFileDetails.filePath": filePath },
+							{ $set: { "importStatus.isRawFileMissing": false } }
+						);
+
+						if (!byPath) {
+							// File was moved — match by filename and update the stored path too
+							const fileName = path.basename(filePath, path.extname(filePath));
+							await Comic.findOneAndUpdate(
+								{
+									"rawFileDetails.name": fileName,
+									"importStatus.isRawFileMissing": true,
+								},
+								{
+									$set: {
+										"importStatus.isRawFileMissing": false,
+										"rawFileDetails.filePath": filePath,
+									},
+								}
+							);
+						}
+					},
+				},
+
 				getComicsMarkedAsWanted: {
+
 					rest: "GET /getComicsMarkedAsWanted",
 					handler: async (ctx: Context<{}>) => {
 						try {
@@ -1238,9 +1320,6 @@ export default class ImportService extends Service {
 										{}
 									);
 								
-								// Invalidate statistics cache after flushing database
-								console.info("Invalidating statistics cache after flushDB...");
-								await ctx.broker.call("api.invalidateStatsCache");
 								
 								return {
 									data,

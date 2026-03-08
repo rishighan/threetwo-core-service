@@ -736,6 +736,7 @@ export const typeDefs = gql`
 		totalLocalFiles: Int!
 		alreadyImported: Int!
 		newFiles: Int!
+		missingFiles: Int!
 		percentageImported: String!
 	}
 
