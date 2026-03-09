@@ -111,6 +111,8 @@ export default {
 	settings: {
 		/** Remote metadata GraphQL endpoint URL */
 		metadataGraphqlUrl: process.env.METADATA_GRAPHQL_URL || "http://localhost:3080/metadata-graphql",
+		/** Remote acquisition GraphQL endpoint URL */
+		acquisitionGraphqlUrl: process.env.ACQUISITION_GRAPHQL_URL || "http://localhost:3060/acquisition-graphql",
 	},
 
 	actions: {
@@ -222,61 +224,34 @@ export default {
 		
 		const localSchema = makeExecutableSchema({ typeDefs, resolvers });
 
+		const subschemas: any[] = [{ schema: localSchema }];
+
+		// Stitch metadata schema
 		try {
 			this.logger.info(`Attempting to introspect remote schema at ${this.settings.metadataGraphqlUrl}`);
-			
-			const remoteSchema = await fetchRemoteSchema(this.settings.metadataGraphqlUrl);
+			const metadataSchema = await fetchRemoteSchema(this.settings.metadataGraphqlUrl);
+			subschemas.push({ schema: metadataSchema, executor: createRemoteExecutor(this.settings.metadataGraphqlUrl) });
 			this.logger.info("✓ Successfully introspected remote metadata schema");
-			
-			const remoteQueryType = remoteSchema.getQueryType();
-			const remoteMutationType = remoteSchema.getMutationType();
-			
-			if (remoteQueryType) {
-				const remoteQueryFields = Object.keys(remoteQueryType.getFields());
-				this.logger.info(`✓ Remote schema has ${remoteQueryFields.length} Query fields: ${remoteQueryFields.join(', ')}`);
-			}
-			
-			if (remoteMutationType) {
-				const remoteMutationFields = Object.keys(remoteMutationType.getFields());
-				this.logger.info(`✓ Remote schema has ${remoteMutationFields.length} Mutation fields: ${remoteMutationFields.join(', ')}`);
-			}
-			
-			this.schema = stitchSchemas({
-				subschemas: [
-					{ schema: localSchema },
-					{ schema: remoteSchema, executor: createRemoteExecutor(this.settings.metadataGraphqlUrl) },
-				],
-				mergeTypes: true,
-			});
-			
-			const stitchedQueryType = this.schema.getQueryType();
-			const stitchedMutationType = this.schema.getMutationType();
-			
-			if (stitchedQueryType) {
-				const stitchedQueryFields = Object.keys(stitchedQueryType.getFields());
-				this.logger.info(`✓ Stitched schema has ${stitchedQueryFields.length} Query fields`);
-				
-				// Verify critical remote fields are present
-				const criticalFields = ['getWeeklyPullList'];
-				const missingFields = criticalFields.filter(field => !stitchedQueryFields.includes(field));
-				if (missingFields.length > 0) {
-					this.logger.warn(`⚠ Missing expected remote fields: ${missingFields.join(', ')}`);
-				}
-			}
-			
-			if (stitchedMutationType) {
-				const stitchedMutationFields = Object.keys(stitchedMutationType.getFields());
-				this.logger.info(`✓ Stitched schema has ${stitchedMutationFields.length} Mutation fields`);
-			}
-			
-			this.logger.info("✓ Successfully stitched local and remote schemas");
+		} catch (error: any) {
+			this.logger.warn(`⚠ Metadata schema unavailable: ${error.message}`);
+		}
+
+		// Stitch acquisition schema
+		try {
+			this.logger.info(`Attempting to introspect remote schema at ${this.settings.acquisitionGraphqlUrl}`);
+			const acquisitionSchema = await fetchRemoteSchema(this.settings.acquisitionGraphqlUrl);
+			subschemas.push({ schema: acquisitionSchema, executor: createRemoteExecutor(this.settings.acquisitionGraphqlUrl) });
+			this.logger.info("✓ Successfully introspected remote acquisition schema");
+		} catch (error: any) {
+			this.logger.warn(`⚠ Acquisition schema unavailable: ${error.message}`);
+		}
+
+		if (subschemas.length > 1) {
+			this.schema = stitchSchemas({ subschemas, mergeTypes: true });
+			this.logger.info(`✓ Stitched ${subschemas.length} schemas`);
 			this.remoteSchemaAvailable = true;
-		} catch (remoteError: any) {
-			this.logger.error(`✗ Failed to connect to remote metadata GraphQL at ${this.settings.metadataGraphqlUrl}`);
-			this.logger.error(`✗ Error: ${remoteError.message}`);
+		} else {
 			this.logger.warn("⚠ FALLING BACK TO LOCAL SCHEMA ONLY");
-			this.logger.warn("⚠ Remote queries like 'getWeeklyPullList' will NOT be available");
-			this.logger.warn(`⚠ To fix: Ensure metadata-graphql service is running at ${this.settings.metadataGraphqlUrl}`);
 			this.schema = localSchema;
 			this.remoteSchemaAvailable = false;
 		}

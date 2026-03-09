@@ -73,6 +73,9 @@ import { gql } from "graphql-tag";
  * ```
  */
 export const typeDefs = gql`
+	# Arbitrary JSON scalar
+	scalar JSON
+
 	# Metadata source enumeration
 	enum MetadataSource {
 		COMICVINE
@@ -353,6 +356,27 @@ export const typeDefs = gql`
 
 		# Get active import session (if any)
 		getActiveImportSession: ImportSession
+
+		# Search ComicVine for volumes by name
+		searchComicVine(searchTerms: String!, exactMatch: Boolean): ComicVineSearchResult!
+
+		# Get all app settings (optionally filtered by key)
+		settings(settingsKey: String): AppSettings
+
+		# Get AirDC++ hubs for a given host
+		hubs(host: HostInput!): [Hub!]!
+
+		# Get AirDC++ bundles for a comic object
+		bundles(comicObjectId: ID!, config: JSON): [Bundle!]!
+
+		# Enqueue a repeating torrent data polling job
+		torrentJobs(trigger: String!): TorrentJob
+
+		# Search Prowlarr for torrents
+		searchTorrents(query: String!): [TorrentSearchResult!]!
+
+		# Walk a folder and return matching comic file paths
+		walkFolders(basePathToWalk: String!, extensions: [String!]): [String!]!
 	}
 
 	# Mutations
@@ -406,6 +430,15 @@ export const typeDefs = gql`
 
 		# Force complete a stuck import session
 		forceCompleteSession(sessionId: String!): ForceCompleteResult!
+
+		# Apply a ComicVine volume match to a comic
+		applyComicVineMatch(comicObjectId: ID!, match: ComicVineMatchInput!): Comic!
+
+		# Analyze an image file for color and metadata
+		analyzeImage(imageFilePath: String!): ImageAnalysisResult!
+
+		# Uncompress an archive (enqueues background job)
+		uncompressArchive(filePath: String!, comicObjectId: ID!, options: JSON): Boolean
 	}
 
 	# Input types
@@ -793,4 +826,128 @@ export const typeDefs = gql`
 		filesSucceeded: Int!
 		filesFailed: Int!
 	}
+
+	# Host configuration (used by AirDC++, bittorrent, prowlarr)
+	type HostConfig {
+		hostname: String
+		port: String
+		protocol: String
+		username: String
+		password: String
+	}
+
+	input HostInput {
+		hostname: String!
+		port: String!
+		protocol: String!
+		username: String!
+		password: String!
+	}
+
+	# App settings
+	type DirectConnectClient {
+		host: HostConfig
+		airDCPPUserSettings: JSON
+		hubs: [JSON]
+	}
+
+	type DirectConnectSettings {
+		client: DirectConnectClient
+	}
+
+	type BittorrentClient {
+		name: String
+		host: HostConfig
+	}
+
+	type BittorrentSettings {
+		client: BittorrentClient
+	}
+
+	type ProwlarrClient {
+		host: HostConfig
+		apiKey: String
+	}
+
+	type ProwlarrSettings {
+		client: ProwlarrClient
+	}
+
+	type AppSettings {
+		directConnect: DirectConnectSettings
+		bittorrent: BittorrentSettings
+		prowlarr: ProwlarrSettings
+	}
+
+	# AirDC++ Hub
+	type Hub {
+		id: Int
+		name: String
+		description: String
+		userCount: Int
+	}
+
+	# AirDC++ Bundle
+	type Bundle {
+		id: Int
+		name: String
+		size: String
+		status: String
+		speed: String
+	}
+
+	# Torrent search result (from Prowlarr)
+	type TorrentSearchResult {
+		title: String
+		size: Float
+		seeders: Int
+		leechers: Int
+		downloadUrl: String
+		guid: String
+		publishDate: String
+		indexer: String
+	}
+
+	# Torrent job reference
+	type TorrentJob {
+		id: String
+		name: String
+	}
+
+	# Image analysis result
+	type ImageAnalysisResult {
+		analyzedData: JSON
+		colorHistogramData: JSON
+	}
+
+	# ComicVine volume search result
+	type ComicVineVolume {
+		id: Int
+		name: String
+		publisher: Publisher
+		start_year: String
+		count_of_issues: Int
+		image: VolumeImage
+		api_detail_url: String
+		site_detail_url: String
+		description: String
+	}
+
+	type ComicVineSearchResult {
+		results: [ComicVineVolume!]!
+		total: Int!
+		limit: Int
+		offset: Int
+	}
+
+	# Input for applying a ComicVine match
+	input ComicVineMatchInput {
+		volume: ComicVineVolumeRefInput!
+		volumeInformation: JSON
+	}
+
+	input ComicVineVolumeRefInput {
+		api_detail_url: String!
+	}
+
 `;

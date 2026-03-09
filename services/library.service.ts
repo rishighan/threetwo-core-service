@@ -832,6 +832,77 @@ export default class ImportService extends Service {
 					},
 				},
 
+				reconcileLibrary: {
+					rest: "POST /reconcileLibrary",
+					timeout: 120000,
+					async handler(ctx: Context<{ directoryPath?: string }>) {
+						const resolvedPath = path.resolve(
+							ctx.params.directoryPath || COMICS_DIRECTORY
+						);
+
+						// 1. Collect all comic file paths currently on disk
+						const localPaths = new Set<string>();
+						await new Promise<void>((resolve, reject) => {
+							klaw(resolvedPath)
+								.on("error", reject)
+								.pipe(
+									through2.obj(function (item, enc, next) {
+										if (
+											item.stats.isFile() &&
+											[".cbz", ".cbr", ".cb7"].includes(
+												path.extname(item.path)
+											)
+										) {
+											this.push(item.path);
+										}
+										next();
+									})
+								)
+								.on("data", (p: string) => localPaths.add(p))
+								.on("end", resolve);
+						});
+
+						// 2. Get every DB record that has a stored filePath
+						const comics = await Comic.find(
+							{ "rawFileDetails.filePath": { $exists: true, $ne: null } },
+							{ _id: 1, "rawFileDetails.filePath": 1 }
+						).lean();
+
+						const nowMissing: any[] = [];
+						const nowPresent: any[] = [];
+
+						for (const comic of comics) {
+							const stored = comic.rawFileDetails?.filePath;
+							if (!stored) continue;
+							if (localPaths.has(stored)) {
+								nowPresent.push(comic._id);
+							} else {
+								nowMissing.push(comic._id);
+							}
+						}
+
+						// 3. Apply updates in bulk
+						if (nowMissing.length > 0) {
+							await Comic.updateMany(
+								{ _id: { $in: nowMissing } },
+								{ $set: { "importStatus.isRawFileMissing": true } }
+							);
+						}
+						if (nowPresent.length > 0) {
+							await Comic.updateMany(
+								{ _id: { $in: nowPresent } },
+								{ $set: { "importStatus.isRawFileMissing": false } }
+							);
+						}
+
+						return {
+							scanned: localPaths.size,
+							markedMissing: nowMissing.length,
+							cleared: nowPresent.length,
+						};
+					},
+				},
+
 				getComicsMarkedAsWanted: {
 
 					rest: "GET /getComicsMarkedAsWanted",

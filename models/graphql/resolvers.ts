@@ -767,7 +767,7 @@ export const resolvers = {
 		) => {
 			try {
 				const broker = context?.broker;
-				
+
 				if (!broker) {
 					throw new Error("Broker not available in context");
 				}
@@ -778,6 +778,111 @@ export const resolvers = {
 			} catch (error) {
 				console.error("Error fetching active import session:", error);
 				throw new Error(`Failed to fetch active import session: ${error.message}`);
+			}
+		},
+
+		searchComicVine: async (
+			_: any,
+			{ searchTerms, exactMatch }: { searchTerms: string; exactMatch?: boolean },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("library.volumeBasedSearch", { searchTerms, exactMatch });
+			} catch (error) {
+				console.error("Error searching ComicVine:", error);
+				throw new Error(`Failed to search ComicVine: ${error.message}`);
+			}
+		},
+
+		settings: async (
+			_: any,
+			{ settingsKey }: { settingsKey?: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("settings.getSettings", settingsKey ? { settingsKey } : {});
+			} catch (error) {
+				console.error("Error fetching settings:", error);
+				throw new Error(`Failed to fetch settings: ${error.message}`);
+			}
+		},
+
+		hubs: async (
+			_: any,
+			{ host }: { host: any },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("airdcpp.getHubs", { host });
+			} catch (error) {
+				console.error("Error fetching hubs:", error);
+				throw new Error(`Failed to fetch hubs: ${error.message}`);
+			}
+		},
+
+		bundles: async (
+			_: any,
+			{ comicObjectId, config }: { comicObjectId: string; config?: any },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("library.getBundles", { comicObjectId, config });
+			} catch (error) {
+				console.error("Error fetching bundles:", error);
+				throw new Error(`Failed to fetch bundles: ${error.message}`);
+			}
+		},
+
+		torrentJobs: async (
+			_: any,
+			{ trigger }: { trigger: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("torrentjobs.getTorrentData", { trigger });
+			} catch (error) {
+				console.error("Error fetching torrent jobs:", error);
+				throw new Error(`Failed to fetch torrent jobs: ${error.message}`);
+			}
+		},
+
+		searchTorrents: async (
+			_: any,
+			{ query }: { query: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("prowlarr.search", { query });
+			} catch (error) {
+				console.error("Error searching torrents:", error);
+				throw new Error(`Failed to search torrents: ${error.message}`);
+			}
+		},
+
+		walkFolders: async (
+			_: any,
+			{ basePathToWalk, extensions }: { basePathToWalk: string; extensions?: string[] },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("library.walkFolders", { basePathToWalk, extensions });
+			} catch (error) {
+				console.error("Error walking folders:", error);
+				throw new Error(`Failed to walk folders: ${error.message}`);
 			}
 		},
 	},
@@ -1547,7 +1652,7 @@ export const resolvers = {
 		) => {
 			try {
 				const broker = context?.broker;
-				
+
 				if (!broker) {
 					throw new Error("Broker not available in context");
 				}
@@ -1565,6 +1670,52 @@ export const resolvers = {
 			} catch (error) {
 				console.error("Error force completing session:", error);
 				throw new Error(`Failed to force complete session: ${error.message}`);
+			}
+		},
+
+		applyComicVineMatch: async (
+			_: any,
+			{ comicObjectId, match }: { comicObjectId: string; match: any },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("library.applyComicVineMetadata", { comicObjectId, match });
+			} catch (error) {
+				console.error("Error applying ComicVine match:", error);
+				throw new Error(`Failed to apply ComicVine match: ${error.message}`);
+			}
+		},
+
+		analyzeImage: async (
+			_: any,
+			{ imageFilePath }: { imageFilePath: string },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				return await broker.call("imagetransformation.analyze", { imageFilePath });
+			} catch (error) {
+				console.error("Error analyzing image:", error);
+				throw new Error(`Failed to analyze image: ${error.message}`);
+			}
+		},
+
+		uncompressArchive: async (
+			_: any,
+			{ filePath, comicObjectId, options }: { filePath: string; comicObjectId: string; options?: any },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				await broker.call("library.uncompressFullArchive", { filePath, comicObjectId, options });
+				return true;
+			} catch (error) {
+				console.error("Error uncompressing archive:", error);
+				throw new Error(`Failed to uncompress archive: ${error.message}`);
 			}
 		},
 	},
@@ -1680,6 +1831,29 @@ export const resolvers = {
 					: [],
 			}));
 		},
+	},
+
+	// Custom scalars
+	JSON: {
+		serialize: (value: any) => value,
+		parseValue: (value: any) => value,
+		parseLiteral: (ast: any) => {
+			// Handle basic scalar literals; complex objects are passed as variables
+			switch (ast.kind) {
+				case "StringValue": return ast.value;
+				case "IntValue": return parseInt(ast.value, 10);
+				case "FloatValue": return parseFloat(ast.value);
+				case "BooleanValue": return ast.value;
+				case "NullValue": return null;
+				default: return null;
+			}
+		},
+	},
+
+	PredicateInput: {
+		serialize: (value: any) => value,
+		parseValue: (value: any) => value,
+		parseLiteral: (ast: any) => ast.value ?? null,
 	},
 };
 

@@ -123,6 +123,11 @@ export default class SettingsService extends Service {
 										},
 									});
 									break;
+								case "missingFiles":
+									Object.assign(eSQuery, {
+										term: query,
+									});
+									break;
 							}
 							console.log(
 								"Searching ElasticSearch index with this query -> "
