@@ -206,6 +206,9 @@ export const resolvers = {
 					[".cbz", ".cbr", ".cb7"]
 				);
 				const totalCount = await Comic.countDocuments({});
+				const comicsMissingFiles = await Comic.countDocuments({
+					"importStatus.isRawFileMissing": true,
+				});
 				const statistics = await Comic.aggregate([
 					{
 						$facet: {
@@ -279,6 +282,7 @@ export const resolvers = {
 
 				return {
 					totalDocuments: totalCount,
+					comicsMissingFiles,
 					comicDirectorySize,
 					statistics,
 				};

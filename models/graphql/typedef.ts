@@ -673,6 +673,7 @@ export const typeDefs = gql`
 	# Library statistics
 	type LibraryStatistics {
 		totalDocuments: Int!
+		comicsMissingFiles: Int!
 		comicDirectorySize: DirectorySize!
 		statistics: [StatisticsFacet!]!
 	}
