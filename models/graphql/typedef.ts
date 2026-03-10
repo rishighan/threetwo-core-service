@@ -191,6 +191,7 @@ export const typeDefs = gql`
 	type ImportStatus {
 		isImported: Boolean
 		tagged: Boolean
+		isRawFileMissing: Boolean
 		matchedResult: MatchedResult
 	}
 

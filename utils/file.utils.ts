@@ -4,7 +4,7 @@ const fse = require("fs-extra");
 import path from "path";
 import fs from "fs";
 import { FileMagic, MagicFlags } from "@npcz/magic";
-const { readdir, stat } = require("fs/promises");
+const { stat } = require("fs/promises");
 import {
 	IExplodedPathResponse,
 	IExtractComicBookCoverErrorResponse,
@@ -95,19 +95,23 @@ export const getSizeOfDirectory = async (
 	directoryPath: string,
 	extensions: string[]
 ) => {
-	const files = await readdir(directoryPath);
-	const stats = files.map((file) => stat(path.join(directoryPath, file)));
+	let totalSizeInBytes = 0;
+	let fileCount = 0;
 
-	const totalSizeInBytes = (await Promise.all(stats)).reduce(
-		(accumulator, { size }) => accumulator + size,
-		0
-	);
+	await Walk.walk(directoryPath, async (err, pathname, dirent) => {
+		if (err) return false;
+		if (dirent.isFile() && extensions.includes(path.extname(dirent.name))) {
+			const fileStat = await stat(pathname);
+			totalSizeInBytes += fileStat.size;
+			fileCount++;
+		}
+	});
 
 	return {
 		totalSize: totalSizeInBytes,
 		totalSizeInMB: totalSizeInBytes / (1024 * 1024),
 		totalSizeInGB: totalSizeInBytes / (1024 * 1024 * 1024),
-		fileCount: files.length,
+		fileCount,
 	};
 };
 
