@@ -324,6 +324,20 @@ export default class ImportStateService extends Service {
 						return Array.from(this.activeSessions.values());
 					},
 				},
+
+				/**
+				 * Force-clear all active sessions (e.g. after flushDB)
+				 */
+				clearActiveSessions: {
+					async handler() {
+						const cleared = Array.from(this.activeSessions.keys());
+						this.activeSessions.clear();
+						this.watcherEnabled = true;
+						this.logger.warn(`[Import State] Force-cleared ${cleared.length} session(s): ${cleared.join(", ")}`);
+						await this.broker.broadcast("IMPORT_WATCHER_ENABLED", { reason: "sessions cleared" });
+						return { cleared };
+					},
+				},
 			},
 
 			methods: {

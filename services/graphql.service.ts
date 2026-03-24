@@ -107,12 +107,14 @@ async function autoResolveMetadata(broker: any, logger: any, comicId: string, co
  */
 export default {
 	name: "graphql",
-	
+
 	settings: {
 		/** Remote metadata GraphQL endpoint URL */
 		metadataGraphqlUrl: process.env.METADATA_GRAPHQL_URL || "http://localhost:3080/metadata-graphql",
 		/** Remote acquisition GraphQL endpoint URL */
 		acquisitionGraphqlUrl: process.env.ACQUISITION_GRAPHQL_URL || "http://localhost:3060/acquisition-graphql",
+		/** Retry interval in ms for re-stitching remote schemas (0 = disabled) */
+		schemaRetryInterval: 5000,
 	},
 
 	actions: {
@@ -214,16 +216,12 @@ export default {
 		},
 	},
 
+	methods: {
 	/**
-	 * Service started lifecycle hook
-	 * Creates local schema and attempts to stitch with remote metadata schema.
-	 * Falls back to local-only if remote unavailable.
+	 * Attempt to build/rebuild the stitched schema.
+	 * Returns true if at least one remote schema was stitched.
 	 */
-	async started() {
-		this.logger.info("GraphQL service starting...");
-		
-		const localSchema = makeExecutableSchema({ typeDefs, resolvers });
-
+	async _buildSchema(localSchema: any): Promise<boolean> {
 		const subschemas: any[] = [{ schema: localSchema }];
 
 		// Stitch metadata schema
@@ -250,12 +248,33 @@ export default {
 			this.schema = stitchSchemas({ subschemas, mergeTypes: true });
 			this.logger.info(`✓ Stitched ${subschemas.length} schemas`);
 			this.remoteSchemaAvailable = true;
+			return true;
 		} else {
-			this.logger.warn("⚠ FALLING BACK TO LOCAL SCHEMA ONLY");
 			this.schema = localSchema;
 			this.remoteSchemaAvailable = false;
+			return false;
 		}
-		
+	},
+	},
+
+	/**
+	 * Service started lifecycle hook
+	 * Blocks until remote schemas are stitched, retrying every schemaRetryInterval ms.
+	 */
+	async started() {
+		this.logger.info("GraphQL service starting...");
+
+		this._localSchema = makeExecutableSchema({ typeDefs, resolvers });
+		this.schema = this._localSchema;
+		this.remoteSchemaAvailable = false;
+
+		while (true) {
+			const stitched = await this._buildSchema(this._localSchema);
+			if (stitched) break;
+			this.logger.warn(`⚠ Remote schemas unavailable — retrying in ${this.settings.schemaRetryInterval}ms`);
+			await new Promise(resolve => setTimeout(resolve, this.settings.schemaRetryInterval));
+		}
+
 		this.logger.info("GraphQL service started successfully");
 	},
 

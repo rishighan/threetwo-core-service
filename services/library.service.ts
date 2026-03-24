@@ -323,6 +323,9 @@ export default class ImportService extends Service {
 								? ((stats.alreadyImported / stats.total) * 100).toFixed(2)
 								: "0.00";
 
+							// Count all comics in DB (true imported count, regardless of file presence on disk)
+							const alreadyImported = await Comic.countDocuments({});
+
 							// Count comics marked as missing (in DB but no longer on disk)
 							const missingFiles = await Comic.countDocuments({
 								"importStatus.isRawFileMissing": true,
@@ -333,7 +336,7 @@ export default class ImportService extends Service {
 								directory: resolvedPath,
 								stats: {
 									totalLocalFiles: stats.total,
-									alreadyImported: stats.alreadyImported,
+									alreadyImported,
 									newFiles: stats.newFiles,
 									missingFiles,
 									percentageImported: `${percentageImported}%`,
@@ -457,10 +460,15 @@ export default class ImportService extends Service {
 										filesQueued: newFiles.length,
 									},
 								});
-								
+
 								this.broker.broadcast("LS_INCREMENTAL_IMPORT_PROGRESS", {
 									message: `Queueing ${newFiles.length} new files for import...`,
 								});
+
+								// Reset counters and set total so the UI can show a progress bar
+								await pubClient.set("completedJobCount", 0);
+								await pubClient.set("failedJobCount", 0);
+								await pubClient.set("totalJobCount", newFiles.length);
 
 								// Queue all new files
 								for (const file of newFiles) {
@@ -1369,6 +1377,8 @@ export default class ImportService extends Service {
 					rest: "POST /flushDB",
 					params: {},
 					handler: async (ctx: Context<{}>) => {
+						// Clear any stale import sessions so subsequent imports are not blocked
+						await ctx.broker.call("importstate.clearActiveSessions", {});
 						return await Comic.collection
 							.drop()
 							.then(async (data) => {

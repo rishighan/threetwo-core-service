@@ -379,7 +379,20 @@ export default class JobQueueService extends Service {
 							},
 						],
 					});
-					
+
+					// Complete the active import session now that the queue is empty
+					try {
+						const activeSession = await this.broker.call("importstate.getActiveSession");
+						if (activeSession) {
+							await this.broker.call("importstate.completeSession", {
+								sessionId: activeSession.sessionId,
+								success: true,
+							});
+						}
+					} catch (err) {
+						console.error("Failed to complete import session after queue drained:", err);
+					}
+
 					// Emit final library statistics when queue is drained
 					try {
 						await this.broker.call("socket.broadcastLibraryStatistics", {});
@@ -392,10 +405,11 @@ export default class JobQueueService extends Service {
 					const job = await this.job(ctx.params.id);
 					// 2. Increment the completed job counter
 					await pubClient.incr("completedJobCount");
-					// 3. Fetch the completed job count for the final payload to be sent to the client
-					const completedJobCount = await pubClient.get(
-						"completedJobCount"
-					);
+					// 3. Fetch the completed and total job counts for the progress payload
+					const [completedJobCount, totalJobCount] = await Promise.all([
+						pubClient.get("completedJobCount"),
+						pubClient.get("totalJobCount"),
+					]);
 					// 4. Emit the LS_COVER_EXTRACTED event with the necessary details
 					await this.broker.call("socket.broadcast", {
 						namespace: "/",
@@ -403,6 +417,7 @@ export default class JobQueueService extends Service {
 						args: [
 							{
 								completedJobCount,
+								totalJobCount,
 								importResult: job.returnvalue.data.importResult,
 							},
 						],
