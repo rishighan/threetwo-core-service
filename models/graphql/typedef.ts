@@ -111,17 +111,80 @@ export const typeDefs = gql`
 		userOverride: Boolean
 	}
 
-	# Array metadata field with provenance
-	type MetadataArrayField {
-		values: [String!]!
+	# Creator with role and provenance
+	# id: external ID from the source (e.g. Metron creator ID)
+	type Creator {
+		id: String
+		name: String!
+		role: String!
+		provenance: Provenance!
+	}
+
+	# Global Trade Item Number (ISBN + UPC) with provenance
+	type GTINField {
+		isbn: String
+		upc: String
 		provenance: Provenance!
 		userOverride: Boolean
 	}
 
-	# Creator with role and provenance
-	type Creator {
+	# External source identifier with provenance
+	# Matches Metron IDS[] and ComicVine/GCD equivalent IDs
+	type ExternalID {
+		source: MetadataSource!
+		externalId: String!
+		primary: Boolean
+		provenance: Provenance!
+	}
+
+	# Universe with optional designation (e.g. "Earth-616") and provenance
+	type UniverseField {
+		id: String
 		name: String!
-		role: String!
+		designation: String
+		provenance: Provenance!
+	}
+
+	# Story arc with position tracking
+	# number: this issue's position within the arc
+	type StoryArcField {
+		id: String
+		name: String!
+		number: Int
+		provenance: Provenance!
+	}
+
+	# Price in a specific country/currency
+	type PriceField {
+		country: String!
+		amount: Float!
+		currency: String
+		provenance: Provenance!
+	}
+
+	# Reprint reference
+	type ReprintField {
+		id: String
+		description: String!
+		provenance: Provenance!
+	}
+
+	# External URL with primary flag
+	type URLField {
+		url: String!
+		primary: Boolean
+		provenance: Provenance!
+	}
+
+	# Structured series-level metadata
+	# Separate from the series name field to avoid flattening rich series data
+	type SeriesInfo {
+		sortName: String
+		startYear: Int
+		issueCount: Int
+		volumeCount: Int
+		language: String
+		alternativeNames: [MetadataField!]
 		provenance: Provenance!
 	}
 
@@ -132,18 +195,28 @@ export const typeDefs = gql`
 		series: MetadataField
 		volume: MetadataField
 		issueNumber: MetadataField
+		collectionTitle: MetadataField
+
+		# Structured series info (sort name, start year, issue count, etc.)
+		seriesInfo: SeriesInfo
 
 		# Publication info
 		publisher: MetadataField
+		imprint: MetadataField
 		publicationDate: MetadataField
 		coverDate: MetadataField
+		storeDate: MetadataField
+		language: MetadataField
 
 		# Content
 		description: MetadataField
-		storyArcs: [MetadataField!]
+		notes: MetadataField
+		stories: [MetadataField!]
+		storyArcs: [StoryArcField!]
 		characters: [MetadataField!]
 		teams: [MetadataField!]
 		locations: [MetadataField!]
+		universes: [UniverseField!]
 
 		# Creators
 		creators: [Creator!]
@@ -157,11 +230,25 @@ export const typeDefs = gql`
 		pageCount: MetadataField
 		format: MetadataField
 
+		# Commercial
+		prices: [PriceField!]
+		gtin: GTINField
+
+		# Reprints
+		reprints: [ReprintField!]
+
 		# Ratings
 		communityRating: MetadataField
 
 		# Cover
 		coverImage: MetadataField
+
+		# External references
+		externalIDs: [ExternalID!]
+		urls: [URLField!]
+
+		# Tracking
+		lastModified: MetadataField
 	}
 
 	# Raw file details
