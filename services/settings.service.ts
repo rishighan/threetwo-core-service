@@ -9,6 +9,9 @@ import {
 import { DbMixin } from "../mixins/db.mixin";
 import Settings from "../models/settings.model";
 import { isEmpty, pickBy, identity, map, isNil } from "lodash";
+import fs from "fs";
+import path from "path";
+import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 const ObjectId = require("mongoose").Types.ObjectId;
 
 export default class SettingsService extends Service {
@@ -25,22 +28,82 @@ export default class SettingsService extends Service {
 			hooks: {},
 			actions: {
 				getEnvironmentVariables: {
-					rest: "GET /getEnvironmentVariables",
-					params: {},
-					handler: async (ctx: Context<{}>) => {
-						return {
-							comicsDirectory: process.env.COMICS_DIRECTORY,
-							userdataDirectory: process.env.USERDATA_DIRECTORY,
-							redisURI: process.env.REDIS_URI,
-							elasticsearchURI: process.env.ELASTICSEARCH_URI,
-							mongoURI: process.env.MONGO_URI,
-							kafkaBroker: process.env.KAFKA_BROKER,
-							unrarBinPath: process.env.UNRAR_BIN_PATH,
-							sevenzBinPath: process.env.SEVENZ_BINARY_PATH,
-							comicvineAPIKey: process.env.COMICVINE_API_KEY,
+						rest: "GET /getEnvironmentVariables",
+						params: {},
+						handler: async (ctx: Context<{}>) => {
+							return {
+								comicsDirectory: process.env.COMICS_DIRECTORY,
+								userdataDirectory: process.env.USERDATA_DIRECTORY,
+								redisURI: process.env.REDIS_URI,
+								elasticsearchURI: process.env.ELASTICSEARCH_URI,
+								mongoURI: process.env.MONGO_URI,
+								kafkaBroker: process.env.KAFKA_BROKER,
+								unrarBinPath: process.env.UNRAR_BIN_PATH,
+								sevenzBinPath: process.env.SEVENZ_BINARY_PATH,
+								comicvineAPIKey: process.env.COMICVINE_API_KEY,
+							}
 						}
-					}
-				},
+					},
+					getDirectoryStatus: {
+						rest: "GET /getDirectoryStatus",
+						params: {},
+						handler: async (ctx: Context<{}>) => {
+							const comicsDirectoryEnvSet = !!process.env.COMICS_DIRECTORY;
+							const userdataDirectoryEnvSet = !!process.env.USERDATA_DIRECTORY;
+							
+							const resolvedComicsDirectory = path.resolve(COMICS_DIRECTORY);
+							const resolvedUserdataDirectory = path.resolve(USERDATA_DIRECTORY);
+							
+							let comicsDirectoryExists = false;
+							let userdataDirectoryExists = false;
+							
+							try {
+								await fs.promises.access(resolvedComicsDirectory, fs.constants.F_OK);
+								comicsDirectoryExists = true;
+							} catch {
+								comicsDirectoryExists = false;
+							}
+							
+							try {
+								await fs.promises.access(resolvedUserdataDirectory, fs.constants.F_OK);
+								userdataDirectoryExists = true;
+							} catch {
+								userdataDirectoryExists = false;
+							}
+							
+							const issues: string[] = [];
+							
+							if (!comicsDirectoryEnvSet) {
+								issues.push("COMICS_DIRECTORY environment variable is not set");
+							}
+							if (!userdataDirectoryEnvSet) {
+								issues.push("USERDATA_DIRECTORY environment variable is not set");
+							}
+							if (!comicsDirectoryExists) {
+								issues.push(`Comics directory does not exist: ${resolvedComicsDirectory}`);
+							}
+							if (!userdataDirectoryExists) {
+								issues.push(`Userdata directory does not exist: ${resolvedUserdataDirectory}`);
+							}
+							
+							return {
+								comicsDirectory: {
+									path: resolvedComicsDirectory,
+									envSet: comicsDirectoryEnvSet,
+									exists: comicsDirectoryExists,
+									isValid: comicsDirectoryEnvSet && comicsDirectoryExists,
+								},
+								userdataDirectory: {
+									path: resolvedUserdataDirectory,
+									envSet: userdataDirectoryEnvSet,
+									exists: userdataDirectoryExists,
+									isValid: userdataDirectoryEnvSet && userdataDirectoryExists,
+								},
+								isValid: comicsDirectoryEnvSet && userdataDirectoryEnvSet && comicsDirectoryExists && userdataDirectoryExists,
+								issues,
+							};
+						}
+					},
 				getSettings: {
 					rest: "GET /getAllSettings",
 					params: {},

@@ -51,7 +51,9 @@ export default class ApiService extends Service {
             authentication: false,
             authorization: false,
             autoAliases: true,
-            aliases: {},
+            aliases: {
+              "GET /settings/getDirectoryStatus": "settings.getDirectoryStatus",
+            },
             callingOptions: {},
             bodyParsers: {
               json: { strict: false, limit: "1MB" },
