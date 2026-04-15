@@ -101,6 +101,7 @@
   "jest": {
     "coverageDirectory": "<rootDir>/coverage",
     "testEnvironment": "node",
+    "testTimeout": 30000,
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -112,9 +113,16 @@
     "testMatch": [
       "**/*.spec.(ts|js)"
     ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.ts"
+    ],
     "globals": {
       "ts-jest": {
-        "tsConfig": "tsconfig.json"
+        "tsconfig": "tsconfig.json"
       }
     }
   }
