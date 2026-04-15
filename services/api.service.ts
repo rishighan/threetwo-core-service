@@ -183,17 +183,31 @@ export default class ApiService extends Service {
       return;
     }
 
+    // Chokidar uses the best native watcher per platform:
+    // - macOS: FSEvents
+    // - Linux: inotify
+    // - Windows: ReadDirectoryChangesW
+    // Only use polling when explicitly requested (Docker, network mounts, etc.)
+    const forcePolling = process.env.USE_POLLING === "true";
+    const platform = process.platform;
+    const watchMode = forcePolling ? "polling" : `native (${platform})`;
+    
     this.fileWatcher = chokidar.watch(watchDir, {
       persistent: true,
       ignoreInitial: true,
       followSymlinks: true,
       depth: 10,
-      usePolling: true,
-      interval: 5000,
+      // Use native file watchers by default (FSEvents/inotify/ReadDirectoryChangesW)
+      // Fall back to polling only when explicitly requested via USE_POLLING=true
+      usePolling: forcePolling,
+      interval: forcePolling ? 1000 : undefined,
+      binaryInterval: forcePolling ? 1000 : undefined,
       atomic: true,
       awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 },
       ignored: (p) => p.endsWith(".dctmp") || p.includes("/.git/"),
     });
+    
+    this.logger.info(`[Watcher] Platform: ${platform}, Mode: ${watchMode}`);
 
     /**
      * Returns a debounced handler for a specific path, creating one if needed.
@@ -254,26 +268,38 @@ export default class ApiService extends Service {
    filePath: string,
    stats?: fs.Stats
   ): Promise<void> {
-   this.logger.info(`File event [${event}]: ${filePath}`);
+   const ext = path.extname(filePath).toLowerCase();
+   const isComicFile = [".cbz", ".cbr", ".cb7"].includes(ext);
+   
+   this.logger.info(`[Watcher] File event [${event}]: ${filePath} (ext: ${ext}, isComic: ${isComicFile})`);
    
    // Handle file/directory removal — mark affected comics as missing and notify frontend
    if (event === "unlink" || event === "unlinkDir") {
-      try {
-         const result: any = await this.broker.call("library.markFileAsMissing", { filePath });
-         if (result.marked > 0) {
-            await this.broker.call("socket.broadcast", {
-               namespace: "/",
-               event: "LS_FILES_MISSING",
-               args: [{
-                  missingComics: result.missingComics,
-                  triggerPath: filePath,
-                  count: result.marked,
-               }],
-            });
-            this.logger.info(`[Watcher] Marked ${result.marked} comic(s) as missing for path: ${filePath}`);
+      // For unlink events, process if it's a comic file OR a directory (unlinkDir)
+      if (event === "unlinkDir" || isComicFile) {
+         this.logger.info(`[Watcher] Processing deletion for: ${filePath}`);
+         try {
+            const result: any = await this.broker.call("library.markFileAsMissing", { filePath });
+            this.logger.info(`[Watcher] markFileAsMissing result: marked=${result.marked}, path=${filePath}`);
+            if (result.marked > 0) {
+               await this.broker.call("socket.broadcast", {
+                  namespace: "/",
+                  event: "LS_FILES_MISSING",
+                  args: [{
+                     missingComics: result.missingComics,
+                     triggerPath: filePath,
+                     count: result.marked,
+                  }],
+               });
+               this.logger.info(`[Watcher] Marked ${result.marked} comic(s) as missing for path: ${filePath}`);
+            } else {
+               this.logger.info(`[Watcher] No matching comics found in DB for deleted path: ${filePath}`);
+            }
+         } catch (err) {
+            this.logger.error(`[Watcher] Failed to mark comics missing for ${filePath}:`, err);
          }
-      } catch (err) {
-         this.logger.error(`[Watcher] Failed to mark comics missing for ${filePath}:`, err);
+      } else {
+         this.logger.info(`[Watcher] Ignoring non-comic file deletion: ${filePath}`);
       }
       return;
    }
