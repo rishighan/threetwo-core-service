@@ -988,6 +988,56 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				applyMetronMetadata: {
+					rest: "POST /comics/:comicObjectId/metron-metadata",
+					params: {
+						comicObjectId: { type: "string" },
+						metronIssueId: { type: "number" },
+						metronSeriesId: { type: "number" },
+					},
+					async handler(
+						ctx: Context<{
+							comicObjectId: string;
+							metronIssueId: number;
+							metronSeriesId: number;
+						}>
+					) {
+						const { comicObjectId, metronIssueId, metronSeriesId } = ctx.params;
+
+						// 1. Fetch metadata from threetwo-metadata-service
+						const [issue, series] = await Promise.all([
+							ctx.call("v1.metron.getIssueById", { id: metronIssueId }),
+							ctx.call("v1.metron.getSeriesById", { id: metronSeriesId }),
+						]);
+
+						// 2. Update the comic document
+						const updated = await Comic.findByIdAndUpdate(
+							new ObjectId(comicObjectId),
+							{
+								$set: {
+									"sourcedMetadata.metron": {
+										issue,
+										seriesInformation: series,
+										lastUpdated: new Date().toISOString(),
+									},
+									updatedAt: new Date(),
+								},
+							},
+							{ new: true }
+						);
+
+						if (!updated) {
+							throw new Errors.MoleculerError("Comic not found", 404, "NOT_FOUND");
+						}
+
+						return {
+							success: true,
+							message: "Metron metadata applied successfully",
+							comicObjectId,
+							updatedAt: new Date().toISOString(),
+						};
+					},
+				},
 				applyAirDCPPDownloadMetadata: {
 					rest: "POST /applyAirDCPPDownloadMetadata",
 					params: {},

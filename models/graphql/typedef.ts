@@ -527,6 +527,9 @@ export const typeDefs = gql`
 
 		# Uncompress an archive (enqueues background job)
 		uncompressArchive(filePath: String!, comicObjectId: ID!, options: JSON): Boolean
+
+		# Apply Metron metadata to a comic
+		applyMetronMetadata(input: ApplyMetronMetadataInput!): ApplyMetronMetadataResult!
 	}
 
 	# Input types
@@ -1034,9 +1037,24 @@ export const typeDefs = gql`
 		volume: ComicVineVolumeRefInput!
 		volumeInformation: JSON
 	}
+input ComicVineVolumeRefInput {
+	api_detail_url: String!
+}
 
-	input ComicVineVolumeRefInput {
-		api_detail_url: String!
-	}
+# Input for applying Metron metadata to a comic
+input ApplyMetronMetadataInput {
+	comicObjectId: ID!
+	metronIssueId: Int!
+	metronSeriesId: Int!
+}
+
+# Result of applying Metron metadata
+type ApplyMetronMetadataResult {
+	success: Boolean!
+	message: String!
+	comicObjectId: ID!
+	updatedAt: String!
+}
+
 
 `;

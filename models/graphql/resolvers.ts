@@ -1722,6 +1722,57 @@ export const resolvers = {
 				throw new Error(`Failed to uncompress archive: ${error.message}`);
 			}
 		},
+
+		/**
+		 * Apply Metron metadata to a comic
+		 * @async
+		 * @function applyMetronMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {Object} args.input - Input containing comicObjectId, metronIssueId, metronSeriesId
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Result with success status, message, comicObjectId, and updatedAt
+		 * @throws {Error} If broker unavailable or service call fails
+		 * @description Fetches issue and series metadata from Metron via threetwo-metadata-service
+		 * and applies it to the specified comic document.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   applyMetronMetadata(input: {
+		 *     comicObjectId: "507f1f77bcf86cd799439011"
+		 *     metronIssueId: 12345
+		 *     metronSeriesId: 678
+		 *   }) {
+		 *     success
+		 *     message
+		 *     comicObjectId
+		 *     updatedAt
+		 *   }
+		 * }
+		 * ```
+		 */
+		applyMetronMetadata: async (
+			_: any,
+			{ input }: { input: { comicObjectId: string; metronIssueId: number; metronSeriesId: number } },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+				
+				const result = await broker.call("library.applyMetronMetadata", {
+					comicObjectId: input.comicObjectId,
+					metronIssueId: input.metronIssueId,
+					metronSeriesId: input.metronSeriesId,
+				});
+				
+				return result;
+			} catch (error) {
+				console.error("Error applying Metron metadata:", error);
+				throw new Error(`Failed to apply Metron metadata: ${error.message}`);
+			}
+		},
 	},
 
 	/**
