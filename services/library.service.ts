@@ -1060,16 +1060,45 @@ export default class ImportService extends Service {
 							ctx.call("v1.gcd.getSeriesById", { id: gcdSeriesId }),
 						]);
 
-						// 2. Update the comic document
+										// 2. Create flattened GCD metadata structure
+										const gcdMetadata = {
+											// Issue information
+															id: (issue as any).id,
+															issueNumber: (issue as any).issueNumber,
+															title: (issue as any).title,
+															publicationDate: (issue as any).publicationDate,
+															keyDate: (issue as any).keyDate,
+															price: (issue as any).price,
+															pageCount: (issue as any).pageCount,
+															isbn: (issue as any).isbn,
+															barcode: (issue as any).barcode,
+															notes: (issue as any).notes,
+															variantName: (issue as any).variantName,
+															variantOfId: (issue as any).variantOfId,
+						
+											// Series information
+											series: {
+																id: (series as any).id,
+																name: (series as any).name,
+																sortName: (series as any).sortName,
+																yearBegan: (series as any).yearBegan,
+																yearEnded: (series as any).yearEnded,
+																issueCount: (series as any).issueCount,
+																publisher: (series as any).publisher,
+																notes: (series as any).notes,
+											},
+						
+											// Metadata tracking
+											lastUpdated: new Date().toISOString(),
+											source: "gcd",
+										};
+						
+										// 3. Update the comic document
 						const updated = await Comic.findByIdAndUpdate(
 							new ObjectId(comicObjectId),
 							{
 								$set: {
-									"sourcedMetadata.gcd": {
-										issue,
-										seriesInformation: series,
-										lastUpdated: new Date().toISOString(),
-									},
+																	"sourcedMetadata.gcd": gcdMetadata,
 									updatedAt: new Date(),
 								},
 							},

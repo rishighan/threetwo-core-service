@@ -52,6 +52,18 @@ export const resolvers = {
 		comic: async (_: any, { id }: { id: string }) => {
 			try {
 				const comic = await Comic.findById(id);
+
+				// Ensure all sourcedMetadata fields are present to prevent frontend detection issues
+				if (comic && comic.sourcedMetadata) {
+					comic.sourcedMetadata = {
+						comicInfo: comic.sourcedMetadata.comicInfo || {},
+						comicvine: comic.sourcedMetadata.comicvine || {},
+						metron: comic.sourcedMetadata.metron || {},
+						gcd: comic.sourcedMetadata.gcd || {},
+						locg: comic.sourcedMetadata.locg || {}
+					};
+				}
+
 				return comic;
 			} catch (error) {
 				console.error("Error fetching comic:", error);
@@ -105,8 +117,25 @@ export const resolvers = {
 						throw new Error("Invalid predicate format: must be valid JSON");
 					}
 				}
-				
+
 				const result = await Comic.paginate(parsedPredicate, paginationOptions);
+
+				// Ensure all sourcedMetadata fields are present for each comic
+				if (result.docs) {
+					result.docs = result.docs.map((comic: any) => {
+						if (comic && comic.sourcedMetadata) {
+							comic.sourcedMetadata = {
+								comicInfo: comic.sourcedMetadata.comicInfo || {},
+								comicvine: comic.sourcedMetadata.comicvine || {},
+								metron: comic.sourcedMetadata.metron || {},
+								gcd: comic.sourcedMetadata.gcd || {},
+								locg: comic.sourcedMetadata.locg || {}
+							};
+						}
+						return comic;
+					});
+				}
+
 				return result;
 			} catch (error) {
 				console.error("Error fetching comic books:", error);
@@ -429,6 +458,22 @@ export const resolvers = {
 
 				const result = await Comic.paginate(query, options);
 
+							// Ensure all sourcedMetadata fields are present for each comic
+							if (result.docs) {
+								result.docs = result.docs.map((comic: any) => {
+									if (comic && comic.sourcedMetadata) {
+										comic.sourcedMetadata = {
+											comicInfo: comic.sourcedMetadata.comicInfo || {},
+											comicvine: comic.sourcedMetadata.comicvine || {},
+											metron: comic.sourcedMetadata.metron || {},
+											gcd: comic.sourcedMetadata.gcd || {},
+											locg: comic.sourcedMetadata.locg || {}
+										};
+									}
+									return comic;
+								});
+							}
+				
 				return {
 					comics: result.docs,
 					totalCount: result.totalDocs,
@@ -887,6 +932,64 @@ export const resolvers = {
 			} catch (error) {
 				console.error("Error walking folders:", error);
 				throw new Error(`Failed to walk folders: ${error.message}`);
+			}
+		},
+
+		/**
+		 * Get weekly pull list (placeholder for remote schema)
+		 * @async
+		 * @function getWeeklyPullList
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Query arguments
+		 * @param {Object} [args.input] - Weekly pull list input parameters
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object|null>} Weekly pull list result or null if remote unavailable
+		 * @throws {Error} If broker unavailable
+		 * @description Placeholder resolver for weekly pull list functionality.
+		 * This query is expected to be provided by remote schemas. When remote schemas
+		 * are unavailable, returns null to prevent GraphQL codegen failures.
+		 *
+		 * @example
+		 * ```graphql
+		 * query {
+		 *   getWeeklyPullList(input: { startDate: "2024-01-01", publisher: "Marvel" }) {
+		 *     success
+		 *     pullList { id title issueNumber publisher releaseDate }
+		 *   }
+		 * }
+		 * ```
+		 */
+		getWeeklyPullList: async (
+			_: any,
+			{ input }: { input?: any },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) {
+					// Return placeholder response when broker unavailable
+					return {
+						success: false,
+						message: "Weekly pull list service unavailable",
+						pullList: [],
+					};
+				}
+
+				// Try to call remote service for weekly pull list
+				// This would typically be handled by a remote schema
+				// For now, return a placeholder response
+				return {
+					success: false,
+					message: "Weekly pull list feature not yet implemented",
+					pullList: [],
+				};
+			} catch (error) {
+				console.error("Error fetching weekly pull list:", error);
+				return {
+					success: false,
+					message: `Failed to fetch weekly pull list: ${error.message}`,
+					pullList: [],
+				};
 			}
 		},
 	},

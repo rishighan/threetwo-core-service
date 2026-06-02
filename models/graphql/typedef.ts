@@ -76,6 +76,29 @@ export const typeDefs = gql`
 	# Arbitrary JSON scalar
 	scalar JSON
 
+	# Weekly pull list input (placeholder for remote schema)
+	input WeeklyPullListInput {
+		startDate: String
+		endDate: String
+		publisher: String
+	}
+
+	# Weekly pull list result (placeholder for remote schema)
+	type WeeklyPullListResult {
+		success: Boolean!
+		message: String
+		pullList: [WeeklyPullListItem!]
+	}
+
+	# Weekly pull list item (placeholder for remote schema)
+	type WeeklyPullListItem {
+		id: ID!
+		title: String
+		issueNumber: String
+		publisher: String
+		releaseDate: String
+	}
+
 	# Metadata source enumeration
 	enum MetadataSource {
 		COMICVINE
@@ -465,6 +488,9 @@ export const typeDefs = gql`
 
 		# Walk a folder and return matching comic file paths
 		walkFolders(basePathToWalk: String!, extensions: [String!]): [String!]!
+		
+			# Weekly pull list query (placeholder for remote schema)
+			getWeeklyPullList(input: WeeklyPullListInput): WeeklyPullListResult
 	}
 
 	# Mutations
