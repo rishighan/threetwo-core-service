@@ -1752,6 +1752,35 @@ export const resolvers = {
 		 * }
 		 * ```
 		 */
+		/**
+		 * Apply Metron metadata to a comic
+		 * @async
+		 * @function applyMetronMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {Object} args.input - Input containing comicObjectId, metronIssueId, metronSeriesId
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Result with success status, message, comicObjectId, and updatedAt
+		 * @throws {Error} If broker unavailable or service call fails
+		 * @description Fetches issue and series metadata from Metron via threetwo-metadata-service
+		 * and applies it to the specified comic document.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   applyMetronMetadata(input: {
+		 *     comicObjectId: "507f1f77bcf86cd799439011"
+		 *     metronIssueId: 12345
+		 *     metronSeriesId: 678
+		 *   }) {
+		 *     success
+		 *     message
+		 *     comicObjectId
+		 *     updatedAt
+		 *   }
+		 * }
+		 * ```
+		 */
 		applyMetronMetadata: async (
 			_: any,
 			{ input }: { input: { comicObjectId: string; metronIssueId: number; metronSeriesId: number } },
@@ -1760,17 +1789,124 @@ export const resolvers = {
 			try {
 				const broker = context?.broker;
 				if (!broker) throw new Error("Broker not available in context");
-				
+
 				const result = await broker.call("library.applyMetronMetadata", {
 					comicObjectId: input.comicObjectId,
 					metronIssueId: input.metronIssueId,
 					metronSeriesId: input.metronSeriesId,
 				});
-				
+
 				return result;
 			} catch (error) {
 				console.error("Error applying Metron metadata:", error);
 				throw new Error(`Failed to apply Metron metadata: ${error.message}`);
+			}
+		},
+
+		/**
+		 * Apply GCD metadata to a comic
+		 * @async
+		 * @function applyGCDMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {Object} args.input - Input containing comicObjectId, gcdIssueId, gcdSeriesId
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Result with success status, message, comicObjectId, and updatedAt
+		 * @throws {Error} If broker unavailable or service call fails
+		 * @description Fetches issue and series metadata from GCD via threetwo-metadata-service
+		 * and applies it to the specified comic document.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   applyGCDMetadata(input: {
+		 *     comicObjectId: "507f1f77bcf86cd799439011"
+		 *     gcdIssueId: 12345
+		 *     gcdSeriesId: 678
+		 *   }) {
+		 *     success
+		 *     message
+		 *     comicObjectId
+		 *     updatedAt
+		 *   }
+		 * }
+		 * ```
+		 */
+		applyGCDMetadata: async (
+			_: any,
+			{ input }: { input: { comicObjectId: string; gcdIssueId: number; gcdSeriesId: number } },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+
+				const result = await broker.call("library.applyGCDMetadata", {
+					comicObjectId: input.comicObjectId,
+					gcdIssueId: input.gcdIssueId,
+					gcdSeriesId: input.gcdSeriesId,
+				});
+
+				return result;
+			} catch (error) {
+				console.error("Error applying GCD metadata:", error);
+				throw new Error(`Failed to apply GCD metadata: ${error.message}`);
+			}
+		},
+
+		/**
+		 * Apply ComicVine metadata to a comic
+		 * @async
+		 * @function applyComicVineMetadata
+		 * @param {any} _ - Parent resolver (unused)
+		 * @param {Object} args - Mutation arguments
+		 * @param {Object} args.input - Input containing comicObjectId and match object
+		 * @param {Object} context - GraphQL context with broker
+		 * @returns {Promise<Object>} Result with success status, message, comicObjectId, and updatedAt
+		 * @throws {Error} If broker unavailable or service call fails
+		 * @description Applies ComicVine volume metadata to the specified comic document.
+		 *
+		 * @example
+		 * ```graphql
+		 * mutation {
+		 *   applyComicVineMetadata(input: {
+		 *     comicObjectId: "507f1f77bcf86cd799439011"
+		 *     match: {
+		 *       volume: { api_detail_url: "https://comicvine.gamespot.com/api/volume/4050-12345/" }
+		 *       volumeInformation: { name: "Batman", publisher: { name: "DC Comics" } }
+		 *     }
+		 *   }) {
+		 *     success
+		 *     message
+		 *     comicObjectId
+		 *     updatedAt
+		 *   }
+		 * }
+		 * ```
+		 */
+		applyComicVineMetadata: async (
+			_: any,
+			{ input }: { input: { comicObjectId: string; match: any } },
+			context: any
+		) => {
+			try {
+				const broker = context?.broker;
+				if (!broker) throw new Error("Broker not available in context");
+
+				const result = await broker.call("library.applyComicVineMetadata", {
+					comicObjectId: input.comicObjectId,
+					match: input.match,
+				});
+
+				return {
+					success: true,
+					message: "ComicVine metadata applied successfully",
+					comicObjectId: input.comicObjectId,
+					updatedAt: new Date().toISOString(),
+				};
+			} catch (error) {
+				console.error("Error applying ComicVine metadata:", error);
+				throw new Error(`Failed to apply ComicVine metadata: ${error.message}`);
 			}
 		},
 	},
@@ -1860,8 +1996,8 @@ export const resolvers = {
 		 * @description Converts Map to array of {field, preferredSource} objects
 		 */
 		fieldPreferences: (prefs: any) => {
-			if (!prefs.fieldPreferences) return [];
-			return Array.from(prefs.fieldPreferences.entries()).map(
+				if (!prefs.fieldPreferences || typeof prefs.fieldPreferences.entries !== 'function') return [];
+				return Array.from(prefs.fieldPreferences.entries() as Iterable<[string, string]>).map(
 				([field, preferredSource]) => ({
 					field,
 					preferredSource,

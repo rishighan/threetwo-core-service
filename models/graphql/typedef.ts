@@ -529,7 +529,13 @@ export const typeDefs = gql`
 		uncompressArchive(filePath: String!, comicObjectId: ID!, options: JSON): Boolean
 
 		# Apply Metron metadata to a comic
-		applyMetronMetadata(input: ApplyMetronMetadataInput!): ApplyMetronMetadataResult!
+			applyMetronMetadata(input: ApplyMetronMetadataInput!): ApplyMetronMetadataResult!
+		
+			# Apply GCD metadata to a comic
+			applyGCDMetadata(input: ApplyGCDMetadataInput!): ApplyGCDMetadataResult!
+		
+			# Apply ComicVine metadata to a comic
+			applyComicVineMetadata(input: ApplyComicVineMetadataInput!): ApplyComicVineMetadataResult!
 	}
 
 	# Input types
@@ -1050,6 +1056,35 @@ input ApplyMetronMetadataInput {
 
 # Result of applying Metron metadata
 type ApplyMetronMetadataResult {
+	success: Boolean!
+	message: String!
+	comicObjectId: ID!
+	updatedAt: String!
+}
+
+# Input for applying GCD metadata to a comic
+input ApplyGCDMetadataInput {
+	comicObjectId: ID!
+	gcdIssueId: Int!
+	gcdSeriesId: Int!
+}
+
+# Result of applying GCD metadata
+type ApplyGCDMetadataResult {
+	success: Boolean!
+	message: String!
+	comicObjectId: ID!
+	updatedAt: String!
+}
+
+# Input for applying ComicVine metadata to a comic
+input ApplyComicVineMetadataInput {
+	comicObjectId: ID!
+	match: ComicVineMatchInput!
+}
+
+# Result of applying ComicVine metadata
+type ApplyComicVineMetadataResult {
 	success: Boolean!
 	message: String!
 	comicObjectId: ID!

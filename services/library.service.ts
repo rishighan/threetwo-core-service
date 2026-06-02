@@ -1038,6 +1038,56 @@ export default class ImportService extends Service {
 						};
 					},
 				},
+				applyGCDMetadata: {
+					rest: "POST /comics/:comicObjectId/gcd-metadata",
+					params: {
+						comicObjectId: { type: "string" },
+						gcdIssueId: { type: "number" },
+						gcdSeriesId: { type: "number" },
+					},
+					async handler(
+						ctx: Context<{
+							comicObjectId: string;
+							gcdIssueId: number;
+							gcdSeriesId: number;
+						}>
+					) {
+						const { comicObjectId, gcdIssueId, gcdSeriesId } = ctx.params;
+
+						// 1. Fetch metadata from threetwo-metadata-service
+						const [issue, series] = await Promise.all([
+							ctx.call("v1.gcd.getIssueById", { id: gcdIssueId }),
+							ctx.call("v1.gcd.getSeriesById", { id: gcdSeriesId }),
+						]);
+
+						// 2. Update the comic document
+						const updated = await Comic.findByIdAndUpdate(
+							new ObjectId(comicObjectId),
+							{
+								$set: {
+									"sourcedMetadata.gcd": {
+										issue,
+										seriesInformation: series,
+										lastUpdated: new Date().toISOString(),
+									},
+									updatedAt: new Date(),
+								},
+							},
+							{ new: true }
+						);
+
+						if (!updated) {
+							throw new Errors.MoleculerError("Comic not found", 404, "NOT_FOUND");
+						}
+
+						return {
+							success: true,
+							message: "GCD metadata applied successfully",
+							comicObjectId,
+							updatedAt: new Date().toISOString(),
+						};
+					},
+				},
 				applyAirDCPPDownloadMetadata: {
 					rest: "POST /applyAirDCPPDownloadMetadata",
 					params: {},
