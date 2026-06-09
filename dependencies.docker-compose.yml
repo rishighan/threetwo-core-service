@@ -17,7 +17,7 @@ services:
     hostname: kafka1
     container_name: kafka1
     ports:
-      - "127.0.0.1:9092:9092"  # exposed ONLY to host localhost
+      - "127.0.0.1:9092:9092" # exposed ONLY to host localhost
     environment:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
@@ -41,7 +41,7 @@ services:
     environment:
       DYNAMIC_CONFIG_ENABLED: true
     volumes:
-      - /Users/rishi/work/config/kafka-ui/config.yml:/etc/kafkaui/dynamic_config.yaml
+      - /var/home/rishi/.config/kafka-ui/config.yml:/etc/kafkaui/dynamic_config.yaml
     depends_on:
       - kafka1
       - zoo1
@@ -49,20 +49,20 @@ services:
       - kafka-net
 
   db:
-    image: "mongo:latest"
+    image: "docker.io/bitnami/mongodb:latest"
     container_name: database
     networks:
       - kafka-net
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
     ports:
       - "27017:27017"
     volumes:
       - "mongodb_data:/bitnami/mongodb"
-  
+
   redis:
-    image: "bitnami/redis:latest"
+    image: "docker.io/library/redis:8"
     container_name: queue
-    environment:
-      ALLOW_EMPTY_PASSWORD: "yes"
     networks:
       - kafka-net
     ports:
