@@ -32,12 +32,12 @@ services:
       - internal
 
   nats:
-    image: nats:2
+    image: docker.io/library/nats:2
     networks:
       - internal
 
   traefik:
-    image: traefik:v2.1
+    image: docker.io/library/traefik:v2.1
     command:
       - "--api.insecure=true" # Don't do that in production!
       - "--providers.docker=true"

@@ -4,6 +4,7 @@ import path from "path";
 import { Service, ServiceBroker, ServiceSchema, Context } from "moleculer";
 import ApiGateway from "moleculer-web";
 import debounce from "lodash/debounce";
+import { COMICS_DIRECTORY, USERDATA_DIRECTORY } from "../constants/directories";
 
 /**
  * ApiService exposes REST endpoints and watches the comics directory for changes.
@@ -92,7 +93,7 @@ export default class ApiService extends Service {
               credentials: false,
               maxAge: 3600,
             },
-            use: [ApiGateway.serveStatic(path.resolve("./userdata"))],
+            use: [ApiGateway.serveStatic(path.resolve(USERDATA_DIRECTORY))],
           },
           {
             path: "/comics",
@@ -104,7 +105,7 @@ export default class ApiService extends Service {
               credentials: false,
               maxAge: 3600,
             },
-            use: [ApiGateway.serveStatic(path.resolve("./comics"))],
+            use: [ApiGateway.serveStatic(path.resolve(COMICS_DIRECTORY))],
           },
           {
             path: "/logs",

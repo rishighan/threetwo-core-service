@@ -830,21 +830,6 @@ export const resolvers = {
 			}
 		},
 
-		searchComicVine: async (
-			_: any,
-			{ searchTerms, exactMatch }: { searchTerms: string; exactMatch?: boolean },
-			context: any
-		) => {
-			try {
-				const broker = context?.broker;
-				if (!broker) throw new Error("Broker not available in context");
-				return await broker.call("library.volumeBasedSearch", { searchTerms, exactMatch });
-			} catch (error) {
-				console.error("Error searching ComicVine:", error);
-				throw new Error(`Failed to search ComicVine: ${error.message}`);
-			}
-		},
-
 		settings: async (
 			_: any,
 			{ settingsKey }: { settingsKey?: string },
@@ -935,63 +920,6 @@ export const resolvers = {
 			}
 		},
 
-		/**
-		 * Get weekly pull list (placeholder for remote schema)
-		 * @async
-		 * @function getWeeklyPullList
-		 * @param {any} _ - Parent resolver (unused)
-		 * @param {Object} args - Query arguments
-		 * @param {Object} [args.input] - Weekly pull list input parameters
-		 * @param {Object} context - GraphQL context with broker
-		 * @returns {Promise<Object|null>} Weekly pull list result or null if remote unavailable
-		 * @throws {Error} If broker unavailable
-		 * @description Placeholder resolver for weekly pull list functionality.
-		 * This query is expected to be provided by remote schemas. When remote schemas
-		 * are unavailable, returns null to prevent GraphQL codegen failures.
-		 *
-		 * @example
-		 * ```graphql
-		 * query {
-		 *   getWeeklyPullList(input: { startDate: "2024-01-01", publisher: "Marvel" }) {
-		 *     success
-		 *     pullList { id title issueNumber publisher releaseDate }
-		 *   }
-		 * }
-		 * ```
-		 */
-		getWeeklyPullList: async (
-			_: any,
-			{ input }: { input?: any },
-			context: any
-		) => {
-			try {
-				const broker = context?.broker;
-				if (!broker) {
-					// Return placeholder response when broker unavailable
-					return {
-						success: false,
-						message: "Weekly pull list service unavailable",
-						pullList: [],
-					};
-				}
-
-				// Try to call remote service for weekly pull list
-				// This would typically be handled by a remote schema
-				// For now, return a placeholder response
-				return {
-					success: false,
-					message: "Weekly pull list feature not yet implemented",
-					pullList: [],
-				};
-			} catch (error) {
-				console.error("Error fetching weekly pull list:", error);
-				return {
-					success: false,
-					message: `Failed to fetch weekly pull list: ${error.message}`,
-					pullList: [],
-				};
-			}
-		},
 	},
 
 	Mutation: {

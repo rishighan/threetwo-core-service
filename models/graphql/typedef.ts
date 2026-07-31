@@ -76,29 +76,6 @@ export const typeDefs = gql`
 	# Arbitrary JSON scalar
 	scalar JSON
 
-	# Weekly pull list input (placeholder for remote schema)
-	input WeeklyPullListInput {
-		startDate: String
-		endDate: String
-		publisher: String
-	}
-
-	# Weekly pull list result (placeholder for remote schema)
-	type WeeklyPullListResult {
-		success: Boolean!
-		message: String
-		pullList: [WeeklyPullListItem!]
-	}
-
-	# Weekly pull list item (placeholder for remote schema)
-	type WeeklyPullListItem {
-		id: ID!
-		title: String
-		issueNumber: String
-		publisher: String
-		releaseDate: String
-	}
-
 	# Metadata source enumeration
 	enum MetadataSource {
 		COMICVINE
@@ -468,9 +445,6 @@ export const typeDefs = gql`
 		# Get active import session (if any)
 		getActiveImportSession: ImportSession
 
-		# Search ComicVine for volumes by name
-		searchComicVine(searchTerms: String!, exactMatch: Boolean): ComicVineSearchResult!
-
 		# Get all app settings (optionally filtered by key)
 		settings(settingsKey: String): AppSettings
 
@@ -488,9 +462,6 @@ export const typeDefs = gql`
 
 		# Walk a folder and return matching comic file paths
 		walkFolders(basePathToWalk: String!, extensions: [String!]): [String!]!
-		
-			# Weekly pull list query (placeholder for remote schema)
-			getWeeklyPullList(input: WeeklyPullListInput): WeeklyPullListResult
 	}
 
 	# Mutations
@@ -1055,13 +1026,6 @@ export const typeDefs = gql`
 		api_detail_url: String
 		site_detail_url: String
 		description: String
-	}
-
-	type ComicVineSearchResult {
-		results: [ComicVineVolume!]!
-		total: Int!
-		limit: Int
-		offset: Int
 	}
 
 	# Input for applying a ComicVine match

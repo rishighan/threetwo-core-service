@@ -40,6 +40,7 @@ import sharp from "sharp";
 import { sanitize } from "sanitize-filename-ts";
 import { IMPORT_IMAGE_FILE_FORMATS } from "../constants/allowedFileFormats";
 import { USERDATA_DIRECTORY } from "../constants/directories";
+import { toUserdataWebPath } from "./staticPaths.utils";
 import {
 	checkFileExists,
 	getFileConstituents,
@@ -270,8 +271,8 @@ const extractComicInfoXMLFromRarUsingUnrar = async (
 
 	console.log(`${coverFile} cover written to: ${coverOutputFile}`);
 
-	const relativeCoverPath = path.relative(process.cwd(), coverOutputFile);
-	console.log(`RAR cover path (relative): ${relativeCoverPath}`);
+	const webCoverPath = toUserdataWebPath(coverOutputFile, USERDATA_DIRECTORY);
+	console.log(`RAR cover path (web): ${webCoverPath}`);
 	console.log(`RAR cover file exists: ${existsSync(coverOutputFile)}`);
 
 	const coverResult = {
@@ -282,7 +283,7 @@ const extractComicInfoXMLFromRarUsingUnrar = async (
 		fileSize: fse.statSync(filePath).size,
 		mimeType,
 		cover: {
-			filePath: relativeCoverPath,
+			filePath: webCoverPath,
 		},
 	};
 
@@ -413,7 +414,7 @@ const extractComicInfoXMLFromRarUsingP7zip = async (
 		containedIn: targetDirectory,
 		fileSize: fse.statSync(filePath).size,
 		cover: {
-			filePath: path.relative(process.cwd(), coverOutputFile),
+			filePath: toUserdataWebPath(coverOutputFile, USERDATA_DIRECTORY),
 		},
 	};
 
@@ -542,7 +543,7 @@ export const extractComicInfoXMLFromZip = async (
 			containedIn: targetDirectory,
 			fileSize: fse.statSync(filePath).size,
 			cover: {
-				filePath: path.relative(process.cwd(), coverOutputFile),
+				filePath: toUserdataWebPath(coverOutputFile, USERDATA_DIRECTORY),
 			},
 		};
 
