@@ -1,5 +1,5 @@
 # Use a non-ARM image (x86_64) for Node.js
-FROM --platform=linux/amd64 node:21-alpine3.18 AS builder
+FROM --platform=linux/amd64 node:22-alpine3.24 AS builder
 
 # Set metadata for contact
 LABEL maintainer="Rishi Ghan <rishi.ghan@gmail.com>"
@@ -70,7 +70,7 @@ COPY . .
 RUN npm run build
 
 # Final image
-FROM --platform=linux/amd64 node:21-alpine3.18
+FROM --platform=linux/amd64 node:22-alpine3.24
 
 # Set environment variables
 ENV NODE_ENV=production
