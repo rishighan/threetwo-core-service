@@ -31,7 +31,7 @@ export default class ImageTransformation extends Service {
 
 				// Validator for the `create` & `insert` actions.
 				entityValidator: {},
-			},
+			} as any,
 			hooks: {},
 			actions: {
 				resize: {

@@ -21,7 +21,7 @@ export default class OpenApiService extends Service {
 						version: process.env.npm_package_version || "1.0.0",
 					},
 				},
-			},
+			} as any,
 			actions: {
 				// Overrides the mixin's default Swagger-UI-based `ui` action with
 				// Scalar, served locally from node_modules (no CDN dependency) via

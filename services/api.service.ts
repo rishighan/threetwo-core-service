@@ -131,7 +131,7 @@ export default class ApiService extends Service {
         logRequestParams: true,
         logResponseData: true,
         assets: { folder: "public", options: {} },
-      },
+      } as any,
       events: {
         /**
          * Listen for watcher disable events

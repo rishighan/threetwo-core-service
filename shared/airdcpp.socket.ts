@@ -54,7 +54,7 @@ class AirDCPPSocket {
 			password: configuration.password,
 		};
 		// Initialize the AirDC++ socket instance
-		this.socketInstance = Socket(this.options, WebSocket);
+		this.socketInstance = Socket(this.options, WebSocket as any);
 	}
 
 	/**

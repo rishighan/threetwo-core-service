@@ -48,7 +48,7 @@ export default class SocketService extends Service {
 						adapter: createAdapter(pubClient, subClient),
 					},
 				},
-			},
+			} as any,
 			hooks: {},
 			actions: {
 				resumeSession: async (ctx: Context<{ sessionId: string }>) => {

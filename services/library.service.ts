@@ -325,7 +325,7 @@ export default class ImportService extends Service {
 				 * many DB records are flagged as missing their raw file.
 				 * Read-only — does not mutate any comic documents.
 				 */
-				getImportStatistics: {
+				getImportStatistics: <any>{
 					rest: "POST /getImportStatistics",
 					timeout: 300000, // 5 minute timeout for large libraries
 					async handler(
@@ -412,7 +412,7 @@ export default class ImportService extends Service {
 				 * broadcasts. Completes the session immediately if there's
 				 * nothing new to import.
 				 */
-				incrementalImport: {
+				incrementalImport: <any>{
 					rest: "POST /incrementalImport",
 					timeout: 60000, // 60 second timeout
 					async handler(
@@ -936,7 +936,7 @@ export default class ImportService extends Service {
 				 * pass. Returns counts of files scanned, newly marked
 				 * missing, and cleared.
 				 */
-				reconcileLibrary: {
+				reconcileLibrary: <any>{
 					rest: "POST /reconcileLibrary",
 					timeout: 120000,
 					async handler(ctx: Context<{ directoryPath?: string }>) {
@@ -1073,7 +1073,7 @@ export default class ImportService extends Service {
 									}
 								);
 								matchedResult.volumeInformation =
-									volumeDetails.results;
+									(volumeDetails as any).results;
 								Comic.findByIdAndUpdate(
 									comicObjectId,
 									{
@@ -1730,7 +1730,7 @@ export default class ImportService extends Service {
 				 * Stub action for unraring an archive at `filePath` with
 				 * `options`. Currently unimplemented — only logs the params.
 				 */
-				unrarArchive: {
+				unrarArchive: <any>{
 					rest: "POST /unrarArchive",
 					params: {},
 					timeout: 10000,

@@ -92,7 +92,7 @@ export default class AirDCPPService extends Service {
 							throw err;
 						}
 					},
-				},
+				} as any,
 				search: {
 					rest: "POST /search",
 					timeout: 20000,
@@ -135,7 +135,7 @@ export default class AirDCPPService extends Service {
 								`search/${searchInstance.id}/hub_search`,
 								dcppSearchQuery
 							);
-							await this.sleep(10000);
+							await (this as any).sleep(10000);
 							const results = await airDCPPSocket.get(
 								`search/${searchInstance.id}/results/0/5`
 							);
@@ -144,7 +144,7 @@ export default class AirDCPPService extends Service {
 							throw err;
 						}
 					},
-				},
+				} as any,
 			},
 			methods: {
 				sleep: (ms: number) => {

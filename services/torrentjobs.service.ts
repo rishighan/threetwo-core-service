@@ -25,7 +25,7 @@ export default class ImageTransformation extends Service {
 				bullmq: {
 					client: process.env.REDIS_URI,
 				},
-			},
+			} as any,
 			hooks: {},
 			actions: {
 				getTorrentData: {
@@ -44,7 +44,7 @@ export default class ImageTransformation extends Service {
 							},
 						};
 
-						const job = await this.localQueue(
+						const job = await (this as any).localQueue(
 							ctx,
 							"fetchTorrentData",
 							ctx.params,
@@ -52,7 +52,7 @@ export default class ImageTransformation extends Service {
 						);
 						return job;
 					},
-				},
+				} as any,
 				fetchTorrentData: {
 					rest: "GET /fetchTorrentData",
 					handler: async (
@@ -60,7 +60,7 @@ export default class ImageTransformation extends Service {
 							birdName: String;
 						}>
 					) => {
-						const repeatableJob = await this.$resolve(
+						const repeatableJob = await (this as any).$resolve(
 							"torrentjobs"
 						).getRepeatableJobs();
 						console.info(repeatableJob);

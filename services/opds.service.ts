@@ -26,7 +26,7 @@ export default class OpdsService extends Service {
 			mixins: [],
 			settings: {
 				port: process.env.PORT || 3001,
-			},
+			} as any,
 			hooks: {},
 			actions: {
 				serve: {

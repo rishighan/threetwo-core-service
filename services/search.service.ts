@@ -25,7 +25,7 @@ export default class SettingsService extends Service {
 			mixins: [DbMixin("comics", Comic)],
 			hooks: {},
 			actions: {
-				searchComic: {
+				searchComic: <any>{
 					rest: "POST /searchComic",
 					params: {},
 					timeout: 400000,

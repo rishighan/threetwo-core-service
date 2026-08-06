@@ -26,13 +26,13 @@ export default class JobQueueService extends Service {
 				bullmq: {
 					client: process.env.REDIS_URI,
 				},
-			},
+			} as any,
 			actions: {
 				getJobCountsByType: {
 					rest: "GET /getJobCountsByType",
 					handler: async (ctx: Context<{}>) => {
 						console.log(ctx.params);
-						return await this.$resolve("jobqueue").getJobCounts();
+						return await (this as any).$resolve("jobqueue").getJobCounts();
 					},
 				},
 				toggle: {
@@ -40,10 +40,10 @@ export default class JobQueueService extends Service {
 					handler: async (ctx: Context<{ action: String }>) => {
 						switch (ctx.params.action) {
 							case "pause":
-								this.pause();
+								(this as any).pause();
 								break;
 							case "resume":
-								this.resume();
+								(this as any).resume();
 								break;
 							default:
 								console.log(`Unknown queue action.`);
@@ -59,7 +59,7 @@ export default class JobQueueService extends Service {
 					) => {
 						const { action, description } = ctx.params;
 						// Enqueue the job
-						const job = await this.localQueue(
+						const job = await (this as any).localQueue(
 							ctx,
 							action,
 							ctx.params,
@@ -72,7 +72,7 @@ export default class JobQueueService extends Service {
 
 						return job.id;
 					},
-				},
+				} as any,
 
 				// Comic Book Import Job Queue
 				"enqueue.async": {
