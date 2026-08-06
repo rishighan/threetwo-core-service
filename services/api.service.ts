@@ -111,6 +111,21 @@ export default class ApiService extends Service {
             path: "/logs",
             use: [ApiGateway.serveStatic("logs")],
           },
+          {
+            path: "/api/openapi",
+            aliases: {
+              "GET /openapi.json": "openapi.generateDocs",
+              "GET /ui": "openapi.ui",
+            },
+          },
+          {
+            path: "/api/openapi/scalar",
+            use: [
+              ApiGateway.serveStatic(
+                path.resolve("node_modules/@scalar/api-reference/dist/browser")
+              ),
+            ],
+          },
         ],
         log4XXResponses: false,
         logRequestParams: true,

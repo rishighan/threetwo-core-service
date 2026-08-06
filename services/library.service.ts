@@ -62,6 +62,14 @@ import { importComicViaGraphQL } from "../utils/import.graphql.utils";
 import { getImportStatistics as getImportStats } from "../utils/import.utils";
 
 console.log(`MONGO -> ${process.env.MONGO_URI}`);
+
+/**
+ * Moleculer service that owns the comic library lifecycle: scanning the
+ * on-disk comics directory, importing new files into MongoDB, reconciling
+ * DB records against what's actually present on disk, applying sourced
+ * metadata (ComicVine/Metron/GCD) to comic documents, and exposing
+ * library-wide statistics and maintenance actions (flush, unrar, etc.).
+ */
 export default class ImportService extends Service {
 	public constructor(public broker: ServiceBroker) {
 		super(broker);
@@ -70,6 +78,10 @@ export default class ImportService extends Service {
 			mixins: [DbMixin("comics", Comic)],
 			hooks: {},
 			actions: {
+				/**
+				 * Health check. Returns the broker's registered node/service
+				 * list, or an Error if the call itself fails.
+				 */
 				getHealthInformation: {
 					rest: "GET /getHealthInformation",
 					params: {},
@@ -81,6 +93,11 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Recursively walks `basePathToWalk` and returns every file
+				 * matching the comic archive extensions (.cbz/.cbr/.cb7),
+				 * plus any additional extensions passed in `params.extensions`.
+				 */
 				walkFolders: {
 					rest: "POST /walkFolders",
 					params: {},
@@ -99,6 +116,10 @@ export default class ImportService extends Service {
 						]);
 					},
 				},
+				/**
+				 * Debug/dev-only action that runs `convertXMLToJSON` against
+				 * a hardcoded "lagos" argument. Params are currently unused.
+				 */
 				convertXMLToJSON: {
 					rest: "POST /convertXmlToJson",
 					params: {},
@@ -106,6 +127,11 @@ export default class ImportService extends Service {
 						return convertXMLToJSON("lagos");
 					},
 				},
+				/**
+				 * Enqueues a job to fully uncompress a comic archive at
+				 * `filePath` via the `jobqueue.enqueue` action (async,
+				 * fire-and-forget — does not wait for the job to complete).
+				 */
 				uncompressFullArchive: {
 					rest: "POST /uncompressFullArchive",
 					params: {},
@@ -125,6 +151,13 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				/**
+				 * Finishes importing a comic that was downloaded via AirDC++.
+				 * Looks up the comic by the DirectConnect bundle id, and if a
+				 * file with the same name doesn't already exist in the DB,
+				 * dispatches an `importqueue.processImport` job to bring it
+				 * into the library. No-ops (with a log) if already imported.
+				 */
 				importDownloadedComic: {
 					rest: "POST /importDownloadedComic",
 					params: {},
@@ -164,6 +197,15 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Kicks off a full library import session. Walks the comics
+				 * directory end-to-end, and for every comic archive not
+				 * already present in the DB, enqueues an import job. Tracks
+				 * progress through `importstate.startSession` /
+				 * `updateSession`, and broadcasts library statistics once
+				 * scanning finishes. On error, marks the session as failed
+				 * rather than throwing back to the caller.
+				 */
 				newImport: {
 					rest: "POST /newImport",
 					// params: {},
@@ -276,6 +318,13 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Computes import coverage stats for a directory (default
+				 * `COMICS_DIRECTORY`): total local comic files found on disk,
+				 * how many are already imported, how many are new, and how
+				 * many DB records are flagged as missing their raw file.
+				 * Read-only — does not mutate any comic documents.
+				 */
 				getImportStatistics: {
 					rest: "POST /getImportStatistics",
 					timeout: 300000, // 5 minute timeout for large libraries
@@ -353,6 +402,16 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Imports only the comic files that aren't yet in the DB,
+				 * rather than rescanning/reprocessing the whole library.
+				 * Diffs on-disk `.cbz/.cbr/.cb7` files against
+				 * `rawFileDetails.name` in Mongo, queues the delta via
+				 * `jobqueue.enqueue`, and drives progress through
+				 * `importstate.*` session calls plus `LS_INCREMENTAL_IMPORT_*`
+				 * broadcasts. Completes the session immediately if there's
+				 * nothing new to import.
+				 */
 				incrementalImport: {
 					rest: "POST /incrementalImport",
 					timeout: 60000, // 60 second timeout
@@ -565,6 +624,17 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Persists a single imported comic's payload to Mongo via the
+				 * GraphQL import layer. Comics without a `wanted.volume.id`
+				 * are created fresh through `importComicViaGraphQL`. Comics
+				 * that do carry a `wanted.volume.id` (i.e. they originated
+				 * from a "wanted" request) are instead upserted by that
+				 * volume id, merging any new `wanted.issues`, and then
+				 * trigger an async `resolveMetadata` GraphQL mutation to
+				 * resolve canonical metadata (failure to resolve does not
+				 * fail the import).
+				 */
 				rawImportToDB: {
 					rest: "POST /rawImportToDB",
 					params: {},
@@ -766,6 +836,13 @@ export default class ImportService extends Service {
 					},
 				},
 	
+				/**
+				 * Flags comics as having a missing raw file. Matches any
+				 * comic whose stored `rawFileDetails.filePath` starts with
+				 * `filePath` (so passing a directory marks every comic under
+				 * it, not just an exact file), and sets
+				 * `importStatus.isRawFileMissing = true` on all matches.
+				 */
 				markFileAsMissing: {
 					rest: "POST /markFileAsMissing",
 					params: {
@@ -807,6 +884,13 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Clears the missing-file flag for a single comic. First
+				 * tries an exact `rawFileDetails.filePath` match; if none is
+				 * found (the file was likely moved/renamed), falls back to
+				 * matching by filename among comics currently flagged
+				 * missing, and updates the stored path to the new location.
+				 */
 				clearFileMissingFlag: {
 					rest: "POST /clearFileMissingFlag",
 					params: {
@@ -840,6 +924,18 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Full-library reconciliation of the missing-file flag.
+				 * Walks `directoryPath` (default `COMICS_DIRECTORY`) for
+				 * every `.cbz/.cbr/.cb7` file, then diffs that set against
+				 * every DB comic that has a stored `rawFileDetails.filePath`:
+				 * comics whose path is no longer on disk are marked missing,
+				 * comics whose path is present have the flag cleared. Unlike
+				 * `markFileAsMissing`/`clearFileMissingFlag` (which act on a
+				 * single path), this reconciles the whole library in one bulk
+				 * pass. Returns counts of files scanned, newly marked
+				 * missing, and cleared.
+				 */
 				reconcileLibrary: {
 					rest: "POST /reconcileLibrary",
 					timeout: 120000,
@@ -911,6 +1007,12 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Returns every comic marked as "wanted" — either the whole
+				 * volume is wanted (`wanted.markEntireVolumeWanted`) or at
+				 * least one specific issue is wanted (`wanted.issues`
+				 * non-empty).
+				 */
 				getComicsMarkedAsWanted: {
 
 					rest: "GET /getComicsMarkedAsWanted",
@@ -934,6 +1036,13 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Attaches ComicVine metadata to a comic. Given a matched
+				 * ComicVine volume result, fetches full volume details via
+				 * `comicvine.getVolumes`, folds the result into the match
+				 * object as `volumeInformation`, and saves it to
+				 * `sourcedMetadata.comicvine` on the comic document.
+				 */
 				applyComicVineMetadata: {
 					rest: "POST /applyComicVineMetadata",
 					params: {},
@@ -988,6 +1097,13 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				/**
+				 * Attaches Metron metadata to a comic. Fetches the issue and
+				 * series records by id from threetwo-metadata-service (in
+				 * parallel) and writes them to
+				 * `sourcedMetadata.metron.{issue,seriesInformation}`. Throws
+				 * a 404 `MoleculerError` if the comic doesn't exist.
+				 */
 				applyMetronMetadata: {
 					rest: "POST /comics/:comicObjectId/metron-metadata",
 					params: {
@@ -1038,6 +1154,15 @@ export default class ImportService extends Service {
 						};
 					},
 				},
+				/**
+				 * Attaches Grand Comics Database (GCD) metadata to a comic.
+				 * Fetches the issue and series records by id from
+				 * threetwo-metadata-service (in parallel), flattens them
+				 * into a single `gcdMetadata` object (issue fields at the
+				 * top level, series nested under `series`), and writes it to
+				 * `sourcedMetadata.gcd`. Throws a 404 `MoleculerError` if the
+				 * comic doesn't exist.
+				 */
 				applyGCDMetadata: {
 					rest: "POST /comics/:comicObjectId/gcd-metadata",
 					params: {
@@ -1117,6 +1242,12 @@ export default class ImportService extends Service {
 						};
 					},
 				},
+				/**
+				 * Records an AirDC++ download bundle against a comic by
+				 * pushing `{ bundleId, name, size, type }` onto
+				 * `acquisition.directconnect.downloads`. Upserts the comic
+				 * document if it doesn't already exist.
+				 */
 				applyAirDCPPDownloadMetadata: {
 					rest: "POST /applyAirDCPPDownloadMetadata",
 					params: {},
@@ -1159,6 +1290,12 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				/**
+				 * Records a torrent acquisition source against a comic by
+				 * pushing `{ infoHash, name, announce }` onto
+				 * `acquisition.torrent`. Upserts the comic document if it
+				 * doesn't already exist.
+				 */
 				applyTorrentDownloadMetadata: {
 					rest: "POST /applyTorrentDownloadMetadata",
 					handler: async (
@@ -1197,6 +1334,11 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Returns every torrent infoHash on record, grouped by
+				 * comic id (`{ _id, infoHashes: [...] }`), via an aggregation
+				 * that unwinds `acquisition.torrent`.
+				 */
 				getInfoHashes: {
 					rest: "GET /getInfoHashes",
 					handler: async (ctx: Context<{}>) => {
@@ -1219,6 +1361,11 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Paginated comic listing. Runs `Comic.paginate` with the
+				 * given Mongo `predicate` and pagination options
+				 * (page/limit/sort/etc., per mongoose-paginate).
+				 */
 				getComicBooks: {
 					rest: "POST /getComicBooks",
 					params: {},
@@ -1234,6 +1381,7 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				/** Fetches a single comic document by its Mongo `_id`. */
 				getComicBookById: {
 					rest: "POST /getComicBookById",
 					params: { id: "string" },
@@ -1244,6 +1392,7 @@ export default class ImportService extends Service {
 						);
 					},
 				},
+				/** Fetches multiple comic documents by an array of Mongo `_id`s. */
 				getComicBooksByIds: {
 					rest: "POST /getComicBooksByIds",
 					params: { ids: "array" },
@@ -1259,6 +1408,13 @@ export default class ImportService extends Service {
 						});
 					},
 				},
+				/**
+				 * Returns up to 5 recently-updated ComicVine volume groupings
+				 * derived from `sourcedMetadata.comicvine.volumeInformation`,
+				 * via an aggregation that unwinds and re-groups volume info.
+				 * The "issue count > 2" filtering mentioned by the original
+				 * intent isn't actually applied in the current pipeline.
+				 */
 				getComicBookGroups: {
 					rest: "GET /getComicBookGroups",
 					params: {},
@@ -1295,6 +1451,13 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Builds one Elasticsearch bool query per entry in
+				 * `queryObjects` (matching `rawFileDetails.name` against
+				 * `volumeName` and `inferredMetadata.issue.number` against
+				 * `issueNumber`), then delegates the actual search to
+				 * `search.searchComic`.
+				 */
 				findIssuesForSeries: {
 					rest: "POST /findIssueForSeries",
 					params: {},
@@ -1368,6 +1531,13 @@ export default class ImportService extends Service {
 					},
 				},
 
+				/**
+				 * Aggregates library-wide statistics: total on-disk size of
+				 * the comics directory, total comic document count, and a
+				 * faceted breakdown of counts by file type, ComicVine-matched
+				 * issues, file-less comics, comics with a ComicInfo.xml, and
+				 * the publisher with the most comics in the library.
+				 */
 				libraryStatistics: {
 					rest: "GET /libraryStatistics",
 					params: {},
@@ -1460,9 +1630,17 @@ export default class ImportService extends Service {
 					},
 				},
 
-				// This method belongs in library service,
-				// because bundles can only exist for comics _in the library_
-				// (wanted or imported)
+				/**
+				 * Fetches AirDC++ bundle details for every DirectConnect
+				 * download recorded against a comic. Connects a fresh
+				 * `AirDCPPSocket` using the passed `config`, then queries
+				 * `queue/bundles/:bundleId` for each entry in
+				 * `acquisition.directconnect.downloads`.
+				 *
+				 * This method belongs in library service, because bundles
+				 * can only exist for comics _in the library_ (wanted or
+				 * imported).
+				 */
 				getBundles: {
 					rest: "POST /getBundles",
 					params: {},
@@ -1502,6 +1680,13 @@ export default class ImportService extends Service {
 						}
 					},
 				},
+				/**
+				 * Destructive full reset of the library: clears any active
+				 * import sessions, drops the entire `comics` collection,
+				 * empties the `covers` and `expanded` userdata folders on
+				 * disk, and deletes the Elasticsearch indices via
+				 * `search.deleteElasticSearchIndices`.
+				 */
 				flushDB: {
 					rest: "POST /flushDB",
 					params: {},
@@ -1541,6 +1726,10 @@ export default class ImportService extends Service {
 							.catch((error) => error);
 					},
 				},
+				/**
+				 * Stub action for unraring an archive at `filePath` with
+				 * `options`. Currently unimplemented — only logs the params.
+				 */
 				unrarArchive: {
 					rest: "POST /unrarArchive",
 					params: {},
