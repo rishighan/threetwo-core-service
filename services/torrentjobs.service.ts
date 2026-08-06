@@ -53,7 +53,7 @@ export default class ImageTransformation extends Service {
 						return job;
 					},
 				} as any,
-				fetchTorrentData: {
+				fetchTorrentData: <any>{
 					rest: "GET /fetchTorrentData",
 					handler: async (
 						ctx: Context<{

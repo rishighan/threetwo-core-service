@@ -115,7 +115,30 @@ export default class ApiService extends Service {
             path: "/api/openapi",
             aliases: {
               "GET /openapi.json": "openapi.generateDocs",
-              "GET /ui": "openapi.ui",
+              // Raw function alias (not an action call) — writes the Scalar
+              // HTML shell directly via `res`, bypassing ctx.meta.$responseType
+              // propagation, which moleculer 0.15 no longer reliably merges
+              // back to the gateway's request context for locally-invoked
+              // actions.
+              "GET /ui"(req: any, res: any, next: (err?: Error) => void) {
+                res.setHeader("Content-Type", "text/html; charset=utf-8");
+                res.end(`<!doctype html>
+<html>
+  <head>
+    <title>ThreeTwo Core Service API</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script
+      id="api-reference"
+      data-url="/api/openapi/openapi.json"
+    ></script>
+    <script src="/api/openapi/scalar/standalone.js"></script>
+  </body>
+</html>`);
+                next();
+              },
             },
           },
           {

@@ -1,11 +1,13 @@
-import { Context, Service, ServiceBroker } from "moleculer";
+import { Service, ServiceBroker } from "moleculer";
 const OpenApiMixin = require("moleculer-auto-openapi");
 
 /**
  * Generates an OpenAPI 3.0 schema from every action's `rest:`/`params:`
- * definitions across the broker's services, and serves a Scalar UI for it
- * (overriding the mixin's default Swagger UI). Routes are wired up in
- * services/api.service.ts under /api/openapi.
+ * definitions across the broker's services. The schema is served at
+ * /api/openapi/openapi.json; the Scalar UI itself is served as a raw
+ * function alias in services/api.service.ts (bypassing ctx.meta-based
+ * response typing, which moleculer 0.15 no longer reliably propagates
+ * back to the gateway for locally-invoked actions).
  */
 export default class OpenApiService extends Service {
 	public constructor(broker: ServiceBroker) {
@@ -22,31 +24,6 @@ export default class OpenApiService extends Service {
 					},
 				},
 			} as any,
-			actions: {
-				// Overrides the mixin's default Swagger-UI-based `ui` action with
-				// Scalar, served locally from node_modules (no CDN dependency) via
-				// the /api/openapi/scalar static route in api.service.ts.
-				ui: {
-					handler(ctx: Context<{ url?: string }, { $responseType?: string }>) {
-						ctx.meta.$responseType = "text/html; charset=utf-8";
-						return `<!doctype html>
-<html>
-  <head>
-    <title>ThreeTwo Core Service API</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <script
-      id="api-reference"
-      data-url="${ctx.params.url || (this.settings as any).schemaPath}"
-    ></script>
-    <script src="/api/openapi/scalar/standalone.js"></script>
-  </body>
-</html>`;
-					},
-				},
-			},
 		});
 	}
 }
