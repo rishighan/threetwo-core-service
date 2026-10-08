@@ -20,6 +20,10 @@ import {
 	MongoosasticModel,
 	MongoosasticPluginOpts,
 } from "mongoosastic-ts/dist/types";
+import {
+	hasEmbeddedMetadata,
+	hasExternalMetadata,
+} from "../utils/search.utils";
 
 /**
  * Elasticsearch host URL from environment or default
@@ -697,6 +701,22 @@ ComicSchema.plugin(mongoosastic, {
 	index: "comics",
 	type: "comic",
 	esClient: eSClient,
+	// Derived sort keys for the library view (see utils/search.utils.ts)
+	customProperties: {
+		hasExternalMetadata: { type: "boolean" },
+		hasEmbeddedMetadata: { type: "boolean" },
+		createdAt: { type: "date" },
+	},
+	transform: (data: any, comic: any) => {
+		const { sourcedMetadata, createdAt } =
+			typeof comic.toObject === "function" ? comic.toObject() : comic;
+		return {
+			...data,
+			hasExternalMetadata: hasExternalMetadata(sourcedMetadata),
+			hasEmbeddedMetadata: hasEmbeddedMetadata(sourcedMetadata),
+			createdAt,
+		};
+	},
 } as MongoosasticPluginOpts);
 
 /**

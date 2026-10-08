@@ -11,6 +11,7 @@ import { DbMixin } from "../mixins/db.mixin";
 import Comic from "../models/comic.model";
 import { flatten, isEmpty, isNil, isUndefined, map, result } from "lodash";
 import { eSClient } from "../models/comic.model";
+import { buildSearchSort } from "../utils/search.utils";
 const s = eSClient.helpers.msearch();
 
 export default class SettingsService extends Service {
@@ -77,6 +78,7 @@ export default class SettingsService extends Service {
 							console.log(ctx.params);
 							const { query, pagination, type } = ctx.params;
 							let eSQuery = {};
+							const sort = buildSearchSort(type);
 							switch (type) {
 								case "all":
 									Object.assign(eSQuery, {
@@ -138,6 +140,7 @@ export default class SettingsService extends Service {
 									index: "comics",
 									body: {
 										query: eSQuery,
+										...(sort && { sort }),
 									},
 									...pagination,
 								},
